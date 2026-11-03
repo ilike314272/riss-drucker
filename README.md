@@ -1,2 +1,2 @@
 # riss-drucker
-Amortized inferencing for fundamental physical details of general polyatomic spectroscopic problems. 
+"Crack printer" for amortized inferencing for fundamental physical details of general polyatomic spectroscopic problems. 
