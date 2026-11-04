@@ -57,10 +57,19 @@ class CMakeBuild(build_ext):
                        check=True)
 
 
+# Schemas live at the repo root; copy them into the package for the wheel.
+_schema_src = ROOT / "schemas"
+_schema_dst = ROOT / "python" / "riss_drucker" / "schemas"
+if _schema_src.is_dir():
+    _schema_dst.mkdir(exist_ok=True)
+    for f in _schema_src.glob("*.json"):
+        (_schema_dst / f.name).write_bytes(f.read_bytes())
+
 setup(
     version=VERSION,
-    packages=["riss_drucker"],
+    packages=["riss_drucker", "riss_drucker.data"],
     package_dir={"": "python"},
+    package_data={"riss_drucker": ["schemas/*.json"]},
     ext_modules=[CMakeExtension("riss_drucker._core")],
     cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,

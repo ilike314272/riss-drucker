@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ilike314272/riss-drucker/schemas/result.schema.json",
+  "title": "riss-drucker result",
+  "description": "Output of a fit or solve (README section 9). Started in M2; fields for later milestones are optional and reserved.",
+  "type": "object",
+  "required": ["schema_version", "model", "parameters", "levels", "certificates", "certified"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "model": {
+      "type": "object",
+      "required": ["spec", "spec_hash"],
+      "properties": {
+        "spec": {"type": "object"},
+        "spec_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "compile_certificates": {"type": "array", "items": {"$ref": "#/$defs/certificate"}}
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "required": ["names", "values", "sigma", "covariance", "free", "fixed", "gauge_null_directions"],
+      "properties": {
+        "names": {"type": "array", "items": {"type": "string"}},
+        "values": {"type": "array", "items": {"type": "number"}},
+        "sigma": {"type": "array", "items": {"type": ["number", "null"]}},
+        "covariance": {"type": "array", "items": {"type": "array", "items": {"type": "number"}}},
+        "free": {"type": "array", "items": {"type": "string"}},
+        "fixed": {"type": "array", "items": {"type": "string"}},
+        "gauge_null_directions": {
+          "description": "Directions in parameter space the data cannot determine; the gauge is fixed at the starting point.",
+          "type": "array", "items": {"type": "object", "additionalProperties": {"type": "number"}}
+        },
+        "gauge_constraints": {
+          "description": "Vectors w with w . theta held at its starting value (one per null direction).",
+          "type": "array", "items": {"type": "object", "additionalProperties": {"type": "number"}}
+        },
+        "units": {"type": "string"},
+        "samples": {"description": "Posterior samples or sigma points (M3).", "type": "array"},
+        "ab_initio_baseline": {"description": "Ab initio prior mean, stored separately from the correction (M5).", "type": "object"},
+        "ab_initio_correction": {"description": "Fitted correction to the ab initio baseline (M5).", "type": "object"},
+        "time_index": {"description": "Reserved for time-indexed parameters (Phase D).", "type": ["null", "array"]}
+      }
+    },
+    "fit_statistics": {
+      "type": "object",
+      "properties": {
+        "chi2": {"type": "number"}, "dof": {"type": "integer"}, "reduced_chi2": {"type": ["number", "null"]},
+        "rms": {"type": "number"}, "n_obs": {"type": "integer"}, "rank": {"type": "integer"},
+        "singular_values": {"type": "array", "items": {"type": "number"}},
+        "iterations": {"type": "integer"}, "converged": {"type": "boolean"}
+      }
+    },
+    "levels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["block", "index", "calculated"],
+        "properties": {
+          "block": {"type": "string"}, "index": {"type": "integer", "minimum": 0},
+          "label": {"type": ["string", "null"]},
+          "observed": {"type": ["number", "null"]}, "calculated": {"type": "number"},
+          "residual": {"type": ["number", "null"]}, "sigma_obs": {"type": ["number", "null"]},
+          "sigma_pred": {"type": ["number", "null"], "description": "sqrt(g^T Sigma_theta g), Hellmann-Feynman g"},
+          "near_crossing": {"type": ["boolean", "null"], "description": "sigma / nearest gap in block > 0.3 (M3)"},
+          "window": {"type": ["array", "null"], "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
+          "extrapolated": {"type": ["boolean", "null"]},
+          "beyond_weyl_fence": {"type": ["boolean", "null"]}
+        }
+      }
+    },
+    "certificates": {"type": "array", "items": {"$ref": "#/$defs/block_certificate"}},
+    "certified": {"type": "boolean"},
+    "coverage": {"description": "Calibration report: nominal vs empirical coverage per held-out band (M3).", "type": "object"},
+    "windows": {"description": "Predicted windows for all computed levels (M3).", "type": "array", "items": {"type": "object"}},
+    "near_crossing_resampling": {"type": "array", "items": {"type": "object"}},
+    "assignments": {
+      "description": "Assignment posteriors with ambiguity sets (M3).",
+      "type": "object",
+      "properties": {
+        "lines": {"type": "array", "items": {
+          "type": "object", "required": ["line", "posterior", "credible_set"],
+          "properties": {"line": {"type": "string"}, "peak": {"type": ["integer", "null"]},
+                         "posterior": {"type": "number"}, "credible_set": {"type": "array"},
+                         "chance_probability": {"type": ["number", "null"]}, "bh_accepted": {"type": "boolean"}}}},
+        "expected_misassignments": {"type": "number"}
+      }
+    },
+    "horizon": {"description": "Supported (J, polyad) range and eps_Omega * rho flags (later milestones).", "type": "object"},
+    "coupling_case": {"description": "Coupling-case diagnostic per J (M7).", "type": "object"},
+    "run_record": {"type": "object"}
+  },
+  "$defs": {
+    "certificate": {
+      "type": "object",
+      "required": ["name", "passed", "value", "bound"],
+      "properties": {
+        "name": {"type": "string"}, "passed": {"type": "boolean"},
+        "value": {"type": "number"}, "bound": {"type": "number"}, "detail": {"type": "string"}
+      }
+    },
+    "block_certificate": {
+      "allOf": [{"$ref": "#/$defs/certificate"}],
+      "required": ["block"],
+      "properties": {"block": {"type": "string"}}
+    }
+  }
+}

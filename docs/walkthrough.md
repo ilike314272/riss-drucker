@@ -111,37 +111,152 @@ the default.
 
 ---
 
-## M2 Operator library, small group ▶
+## M2 Operator library, small group ✅
 
-- `ModelSpec` with canonical `hash()`: sorted, normalized JSON → SHA-256.
-  Stability tests across processes and platforms.
-- Asymmetric rotor in the Watson A and S reductions, plus centrifugal distortion
-  operators. Blocks by (J, D2 irrep).
-- Angular algebra: 3j/6j/9j by stable recursion with closed-form tests. Make the
-  exact-arithmetic decision (GMP / Boost.Multiprecision vs SymPy) **by
-  benchmark** and record it in `conventions.md`.
-- Sum-rule certificates at compile time (orthogonality and completeness,
-  Hermiticity, total symmetry, time reversal). Any failure aborts the compile.
-- Cache: per-block CSR binary + JSON manifest {spec hash, library version}.
-  A mismatch is an error. Atomic writes keyed by (spec hash, block ID).
-- Hellmann-Feynman Jacobian (⟨ψ|O_k|ψ⟩ from the certified eigenvectors), then
-  LM/Gauss-Newton with a Gaussian prior.
-  Parameter recovery and gauge tests on synthetic data (`synth.py` starts here).
-- Start `schemas/result.schema.json` here (certificates, θ̂, Σ_θ with gauge directions).
+**What exists**
 
-## M3 Probabilistic layer ○
-Per-level σ_i² = g_iᵀ Σ_θ g_i, Weyl fence, near-crossing flags and resampling,
-χ²-gated assignment with DP alignment, ambiguity sets and BH, outlier mixture,
-and coverage checks split by band. β-Hermite / Brody samplers with the ⟨r⟩
-tests (0.386 / 0.531 / 0.600).
+```
+include/riss_drucker/angular.hpp          exact 3j/6j (prime factorization + big integer), 9j, CG, sum rules
+include/riss_drucker/models/asym_rotor.hpp  Watson A/S, quartic/sextic, Ir/IIr/IIIr, Wang blocks
+include/riss_drucker/model.hpp            + hf_jacobian (Hellmann-Feynman)
+python/riss_drucker/spec.py               ModelSpec + canonical SHA-256 hash
+python/riss_drucker/cache.py              per-block CSR .npz + manifest; mismatch raises CacheError
+python/riss_drucker/rotor.py              J(Ka,Kc) labels from the C2 parity rule
+python/riss_drucker/fit.py                LM fit, prior, gauge null directions, Sigma_theta
+python/riss_drucker/synth.py              synthetic assigned levels with ground truth
+python/riss_drucker/results.py            result record + schema validation
+schemas/result.schema.json                result schema (README 9), slots for later milestones
+benchmarks/bench_angular.py               the exact-arithmetic decision benchmark
+notebooks/02_asymmetric_rotor_fit.ipynb   cache, fit, recovery, gauge, schema
+```
 
-## M4 Data store and gold set ○
-`schemas/record.schema.json` (source ∈ measured|marvel|computed|ehamil_derived;
-the fit refuses `ehamil_derived` by default). ExoMol `.states`/`.trans` and MARVEL
-parsers with filtering. ~20 hand-extracted gold-set papers (numbers and
-citations only). Round-trip validator: quarantine anything that doesn't reproduce.
-MARVEL-style (DᵀWD)E = DᵀWν consistency solve. Calculated-vs-MARVEL error prior.
-Candidate molecules: H2CO or H2S.
+**Python**
+
+```python
+spec = rd.ModelSpec.asym_rotor(j_max=20, reduction="A", axis="Ir", order=4)
+model, info = rd.compile_cached(spec)                     # info["hit"]
+obs = rd.synth.synthesize_levels(model, theta_true, noise=1e-4, labels=rd.rotor.asym_top_labels(model))
+res = rd.fit(model, obs, theta_start, prior=rd.Prior(mean={...}, sigma={...}), fixed=[...])
+res.theta, res.sigma, res.null_directions, res.certified
+rd.validate_result(rd.fit_result_record(res, spec, model=model))
+```
+
+**M2 exit criteria and evidence**
+
+| Criterion | Evidence |
+|---|---|
+| Asymmetric rotor, Watson reduction | J = 1, 2 closed forms in all three representations, trace sum rule, symmetric-top limit, representation invariance of labelled levels |
+| 3j/6j/9j vs closed forms, exact values, symmetries | `test_angular` (closed forms, permutations, 9j→6j, large j); `test_m2_angular` (exact equality with SymPy for 150 random 3j and 60 6j; 9j to 1e-13) |
+| Sum-rule certificates | CG orthogonality and completeness, 6j orthogonality; rotor compile certificates (Hermiticity, total symmetry, time reversal, Wigner-Eckart) abort the compile on failure |
+| Cache and hash-invalidation tests | round trip (bitwise-identical operators and levels); structural change → new hash/directory; tampered hash, library version or file → `CacheError`; hash stable across processes |
+| Parameter recovery on synthetic data | Watson A quartic, J ≤ 20: pulls within ±4.5σ, χ²/dof ≈ 1; pull distribution over 12 noise seeds has mean ≈ 0, std ≈ 1 |
+| Gauge test | redundant `J2` operator: one null direction (1,1,1,−1)/2 found, levels invariant along it, gauge held exactly (w·θ unchanged), invariant combination recovered |
+| Exact-arithmetic decision by benchmark | conventions section 8 |
+
+**Follow-ups found in M2** (not blocking)
+- Log-magnitude and sign coordinates for parameters spanning decades (README 5.4). Column
+  scaling already conditions the problem; these matter once priors span decades (M5).
+- Cache `OperatorSum` and the per-block Jacobian operator products inside fitting loops.
+- Fits solve every block; solving only the blocks with observations is a simple speedup.
+- Map Wang labels to named D2 irreps (A, Ba, Bb, Bc) and nuclear-spin species when a real
+  molecule needs spin statistics (M4).
+- Isoscalar factors and multiplicity labels: not needed until degenerate groups (M8).
+
+---
+
+## M3 Probabilistic layer ✅
+
+**What exists**
+
+```
+python/riss_drucker/spectra.py     line strengths (3j), sum-rule + selection-rule checks, intensities, Q(T)
+python/riss_drucker/posterior.py   level windows, near-crossing flags + resampling, Weyl/support fences,
+                                   torsion truncation estimate, leave-one-band-out coverage
+python/riss_drucker/assign.py      predicted lines with sigma, blends, gating, LR posteriors,
+                                   monotone DP per series, ambiguity sets, Poisson null, BH
+python/riss_drucker/robust.py      outlier mixture (EM around the fit)
+python/riss_drucker/stats.py       beta-Hermite, COE/CUE, Brody (+ fit), gap ratio, superposition P(0)
+python/riss_drucker/synth.py       + synthesize_spectrum (selection rules, Boltzmann, noise, blends, spurious)
+python/riss_drucker/fit.py         + transitions as observations (E_u - E_l), solves only used blocks
+schemas/result.schema.json         + windows, near-crossing resampling, assignments, coverage
+notebooks/03_probabilistic_layer.ipynb   spectrum -> assignment -> line fit -> windows -> coverage
+```
+
+**M3 exit criteria and evidence**
+
+| Criterion | Evidence |
+|---|---|
+| Hellmann-Feynman windows | window σ equals the fit's σ_pred for observed levels; support/extrapolation and Weyl flags tested |
+| Near-crossing resampling | flagged only when σ/gap > 0.3; only those blocks are re-solved; quantiles reported |
+| Joint assignment with intensities | 3 synthetic spectra (pure a-type; mixed a/b/c with 41 spurious peaks): ≥ 99% correct, wrong ≤ expected + 3√expected + 3, few spurious peaks assigned |
+| Line strengths | sum rule to 1e-12 in Iʳ/IIʳ/IIIʳ; exact C₂ selection rules; J = 0 strengths = μ_α²; prolate Hönl-London |
+| Outlier mixture | 5% injected outliers: all flagged (p > 0.9), > 97% of clean below 0.1, fraction recovered, pulls < 4.5 (plain fit χ²/dof > 10) |
+| Coverage checks split by band | correct model: empirical within 4 SE of nominal; quartic fit of sextic data extrapolated to high J: 95% interval covers < 80% |
+| Statistics (README 12) | β-Hermite ⟨r⟩ for β = 0, 1, 2, 4 and COE/CUE within 0.012; Brody q recovered; superposition P(0) = 1 − Σf_i² within 0.06 |
+| Closed loop | spectrum → assignment → fit to lines recovers all constants (pulls < 5) |
+
+**M3 gaps, closed afterwards** (`tests/python/test_m3_gaps.py`)
+- Peak finding + Voigt fitting from raw spectra (`peaks.py`). Matched-filter detection, joint
+  Voigt fits per cluster with a local linear baseline, covariance uncertainties. Isolated-line
+  pulls ≈ N(0, 1), no spurious peaks at 5σ, doublets resolved down to about 1.5 FWHM.
+- Blends in the line fit: a blended peak = intensity-weighted mean of its member transitions,
+  with a weighted Hellmann-Feynman Jacobian.
+- Self-calibrating assignment: EM estimates p_d, the background fraction and the background
+  intensity model from unexplained peaks. Over 16 synthetic spectra: 4 wrong vs 8.6 expected
+  (was ~4× conservative), none with posterior > 0.99.
+- Model-error hyperparameter τ: `fit(model_error=τ)` and `posterior.calibrate_model_error`
+  (ML from cross-fitted held-out residuals). Quartic fit of sextic data: 95% coverage 7% → 99%,
+  calibrated on an independent split. A correct model gives τ ≈ 0.
+
+**Still open from M3**
+- A scalar τ over-covers when the model error is concentrated (e.g. high K): a structured
+  τ(J, K) model belongs with M5's multi-fidelity error model.
+- ε_Ω·ρ horizon per block, once perturbative orders are explicit (M8 polyads).
+- Truncation estimates for models other than torsion (none needed for the rigid rotor).
+
+---
+
+## M4 Data store and gold set — infrastructure ✅, real data ⏸ (network)
+
+**What exists**
+
+```
+schemas/record.schema.json            level | transition | constants; source; provenance; units; convention
+python/riss_drucker/data/records.py   unit (MHz/GHz -> cm-1) and 2 sigma -> 1 sigma conversion, schema check,
+                                      ehamil_derived refused as fit input by default
+python/riss_drucker/data/exomol.py    .def.json fields, .states (filters), streamed .trans (+ S(T) from A, cutoffs)
+python/riss_drucker/data/marvel.py    MARVEL transitions/energies readers (n_qn configurable)
+python/riss_drucker/data/network.py   (D^T W D) E = D^T W nu per component, anchors, outlier down-weighting,
+                                      unconfirmed (single-transition) levels, floating components
+python/riss_drucker/data/error_prior.py  calculated-vs-empirical statistics; sigma(J) = sqrt(a^2 + (b J(J+1))^2)
+python/riss_drucker/data/roundtrip.py    compile + constants (name map, signs, units) -> reproduce the paper -> quarantine
+python/riss_drucker/data/store.py        JSONL record store + quarantine -> fit Observations
+scripts/fetch_data.py, scripts/kaggle_datasets.py   provenance-recording downloads; Kaggle via the official CLI
+docs/data_sources.md                     survey: H2CO MARVEL (first), H2S MARVEL, ExoMol AYTY/AYT2/APTY/MM,
+                                         H2O2 torsion, CH4 MARVEL, CH4+ (Merkt group)
+gold/README.md                           extraction protocol; empty so far
+notebooks/04_data_layer.ipynb            real files if present, synthetic demonstration otherwise
+```
+
+**Evidence** (`tests/python/test_m4_data.py`; all fixtures are synthetic files in the documented formats):
+ExoMol read/filter/intensity round trip, including bz2; MARVEL read/write; network inversion
+recovers levels with calibrated per-level pulls over 40 noise realizations; injected bad lines
+flagged; b-type-only data splits into two components with one floating (ortho/para-like);
+error-prior σ(J) recovered; round trip validates correct constants and quarantines a sign flip,
+an MHz-as-cm⁻¹ unit error and a ×10 digit error; store → fit recovers constants, with
+ehamil_derived refused.
+
+**Blocked: needs network access to the data hosts**
+- Download H₂CO MARVEL + ExoMol AYTY (then H₂S), run the readers on real files, and adjust
+  the column layouts (the readers carry a NOTE where the layout was taken from documentation).
+- Gold set: extract ~20 papers, starting with the candidates in `docs/data_sources.md`.
+- Calculated-vs-MARVEL error prior on real ExoMol data (needs the MARVEL-tagged states).
+- Hosts to allow: `www.exomol.com`, `arxiv.org`/`export.arxiv.org`, `data.mendeley.com`,
+  `zenodo.org`, `discovery.ucl.ac.uk`, `www.kaggle.com` (+ its storage host for downloads), and
+  `hitran.org` (intensities only). Alternatively run `scripts/fetch_data.py` in a Kaggle notebook
+  with internet on and attach the result as a dataset.
+
+---
 
 ## M5 Multi-fidelity ab initio ○
 File-boundary interface (Parquet/JSON), a GP Δ-surface with predictive variance,

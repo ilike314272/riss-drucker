@@ -13,6 +13,23 @@ CsrMatrix assemble(const CompiledBlock& block, const std::vector<double>& theta)
   return OperatorSum(block.ops).assemble(theta);
 }
 
+Eigen::MatrixXd hf_jacobian(const CompiledBlock& block, const Eigen::MatrixXd& vectors) {
+  const auto n = block.dim();
+  if (vectors.rows() != n)
+    throw std::invalid_argument("hf_jacobian: eigenvectors have " + std::to_string(vectors.rows()) +
+                                " rows, block dimension is " + std::to_string(n));
+  Eigen::MatrixXd jac(vectors.cols(), static_cast<Eigen::Index>(block.ops.size()));
+  Eigen::VectorXd ox(n);
+  for (Eigen::Index i = 0; i < vectors.cols(); ++i) {
+    const Eigen::VectorXd x = vectors.col(i).normalized();
+    for (std::size_t k = 0; k < block.ops.size(); ++k) {
+      block.ops[k].matvec(SimdLevel::Scalar, x.data(), ox.data());  // reference path
+      jac(i, static_cast<Eigen::Index>(k)) = x.dot(ox);
+    }
+  }
+  return jac;
+}
+
 std::vector<BlockResult> solve_model(const CompiledModel& model, const std::vector<double>& theta,
                                      const SolveOptions& opts, int threads, std::uint64_t seed,
                                      const std::vector<Eigen::MatrixXd>* warm) {
