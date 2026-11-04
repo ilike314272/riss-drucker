@@ -32,7 +32,7 @@ from ._version import __version__
 from .config import RuntimeConfig, runtime_config
 from .runinfo import run_record, write_run_record
 from .solve import Solution, solve, solve_csr, solve_options
-from . import angular, assign, data, open_shell, peaks, posterior, robust, rotor, spectra, stats, synth
+from . import angular, assign, data, grammar, ml, open_shell, peaks, posterior, robust, rotor, selection, spectra, stats, synth, vib
 from .cache import CacheError, compile_cached
 from .fit import FitResult, Observation, Prior, fit, fit_by_order
 from .results import fit_result_record, validate_result
@@ -55,6 +55,10 @@ __all__ = [
     "angular",
     "assign",
     "data",
+    "grammar",
+    "ml",
+    "selection",
+    "vib",
     "open_shell",
     "peaks",
     "posterior",

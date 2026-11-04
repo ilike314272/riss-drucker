@@ -280,18 +280,74 @@ ehamil_derived refused.
 
 ---
 
-## M5 Multi-fidelity ab initio ○
-File-boundary interface (Parquet/JSON), a GP Δ-surface with predictive variance,
-propagated level variance, and a model-error hyperparameter. No double counting.
+## M5 Multi-fidelity ab initio — infrastructure ✅, Bayesian update with spectra ○
+
+**What exists** (`rd.abinitio`)
+- `io`: the `pointset/1` JSON file boundary (molecule, method, basis, program, provenance,
+  points with coordinate, energy and geometry). Any ab initio code can write it.
+- `gp.GP`: RBF or periodic kernel, ML-II hyperparameters with restarts, `predict`, `sample`.
+- `multifidelity.DeltaModel`: a GP on the low level plus a GP on high − low. The variances
+  are summed, so low-level interpolation error is not hidden.
+- `torsion`: cosine-series fit (with a free constant), levels, and sample propagation through
+  any compiled torsion model.
+- `scripts/case_h2o2_abinitio.py`: relaxed MP2 scan, CCSD(T)/cc-pVTZ Δ, propagated levels.
+  See `docs/case_studies/h2o2_abinitio.md`: the tunnelling splitting is 10.9 vs 11.4 cm⁻¹,
+  excited levels are within 5%, and LOO z-scores are consistent with unit variance.
+
+**Evidence** (`tests/python/test_ml_infrastructure.py`): on a synthetic Δ problem, more than
+95% of grid points have |z| < 3, and propagated level σ is positive and sample-consistent.
+
+**Remaining M5:** the Bayesian update of the spectroscopic fit with the ab initio prior and τ;
+the prior-posterior shift diagnostic; multi-dimensional surfaces (more than one coordinate).
 
 ## M6 Automated extraction + analysis widgets ○
 An offline LLM extractor that outputs the record schema, evaluated against the gold set.
 Part 4 plots (Loomis-Wood, Fortrat, residual-vs-J, corner plots, calibration).
 Part 4 widgets can start alongside M2/M3 as soon as there are results to plot.
 
-## M7 Structure proposer ○
-Sparse Bayesian selection over the enumerable operator dictionary first, then a
-grammar-constrained proposer for compositional choices. Coupling-case diagnostic.
+## M7 Structure proposer — infrastructure ✅ (pulled forward), learned proposers ○
+
+This is the substrate on which amortized inference and language models build effective
+Hamiltonians. Every proposal is text in a grammar. The compiler certifies it or rejects it,
+and physics (fit + evidence + solver certificates) has the last word.
+
+**What exists**
+- `rd.grammar`: term syntax `"<param>: <expr>"` over number operators `n<mode>`, ladder
+  operators `a<mode><comp>[+]`, `sym(...)` (group average) and `+ h.c.`. Normal ordering and a
+  canonical form with a stable hash give deduplication up to scale.
+- `rd.vib`: modes with irreps and polyad weights. Groups C1, C2v and Td (Td built numerically:
+  F2 as signed permutations, E from quadratic forms). Fock spaces per polyad.
+  `compile_vib` returns a `CompiledModel` with one block per polyad. Compile certificates:
+  Hermiticity, total symmetry, polyad conservation, order bound and time reversal. A failure
+  raises `GrammarError` before anything is fitted.
+- `rd.selection`: the `Proposer` protocol. `EnumerativeProposer` lists every symmetry-allowed
+  term to a given order. `CallableProposer` wraps any text-producing callable, such as a
+  language model; unparseable lines are dropped and invalid terms are rejected by the
+  compiler. `search` runs trial fits scored by Laplace evidence. It is greedy and starts each
+  coupling at a non-zero value, because a resonance has zero Hellmann-Feynman derivative at
+  zero coupling (ARD relevance is blind to it). `relevance` (ARD) is kept for diagonal terms.
+- `rd.ml`: `moments` (exact and stochastic KPM Chebyshev moments, Jackson DOS), `dataset`
+  (priors, level and moment features, npz shards plus manifest), and `amortized`
+  (`BayesLinearPosterior`, a coverage `calibration`, and `verify`, which starts a certified
+  fit from the amortized guess).
+- `notebooks/06_ml_infrastructure.ipynb`.
+
+**Evidence** (`tests/python/test_ml_infrastructure.py`)
+
+| Check | Result |
+|---|---|
+| Methane (Td), harmonic + all 48 symmetry-allowed cubic/quartic terms, random constants | dyad 2, pentad 9, octad 24 sublevels; degeneracies 1/2/3 only |
+| Fermi resonance (1,0)/(0,2) | exact 2×2 to 10⁻¹⁰ |
+| Search over {resonance, x11, x12} with a resonance in the truth | resonance ranked first and accepted, k to 0.01%; spurious terms rejected |
+| Callable proposer | malformed and symmetry-violating proposals rejected, never fitted |
+| KPM moments | exact = trace to 10⁻¹²; stochastic O(1/√(Rn)) |
+| Amortized posterior (asymmetric rotor) | rmse < 0.05, 2σ coverage within 0.08 of 0.954; `verify` certifies |
+
+**Open items:** the tetradecad comes out at 59 sublevels. The recalled literature value of 60
+is unverified, so this is unresolved. Remaining work: Td rovibrational coupling (Coriolis,
+tensorial rotation operators); a `ModelSpec` kind for `vib_polyad` with cache support; a
+neural amortized posterior trained on Kaggle GPUs over the same dataset format; a language
+model proposer conditioned on residual diagnostics; a coupling-case diagnostic.
 
 ## M8 open-shell and LAM models ✅ (pulled forward); remaining M8 ○
 
@@ -316,7 +372,7 @@ grammar-constrained proposer for compositional choices. Coupling-case diagnostic
 | Inversion: tunnelling | doublet ordering, exponential splitting decay, K-dependent splitting from rotation coupling |
 | RAM | equals `torsion_rotor` in the K-exact limit and the principal-axis rotor at ρ = 0, to 10⁻¹⁰ |
 
-**Remaining M8:** Td/degenerate-mode polyads (methane), PI-group symmetry labels for LAM
+**Remaining M8:** Td rovibrational polyads (vibrational polyads are in, see M7), PI-group symmetry labels for LAM
 blocks (D3h(M), G12, …) with nuclear-spin statistics, sextic spin-rotation distortion,
 resummed rotor for light molecules, and electronic orbital angular momentum (Λ ≠ 0,
 Renner-Teller / Jahn-Teller: Phase B, needed for CH₄⁺).

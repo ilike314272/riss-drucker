@@ -309,3 +309,29 @@ compile, 2j ≤ 8 in tests) and 6j orthogonality (tests). Bound 1e-13.
 | Exact angular algebra: in-house C++ (benchmark above) | fixed | M2 |
 | Isoscalar-factor multiplicity labels (gauge): construction and ordering | *open* | M8 |
 | Uncertainty convention: 1σ internally; 2σ sources converted at ingestion | proposed | M4 |
+
+## 17. Effective vibrational Hamiltonians and ML interfaces (fixed in M7 infrastructure work)
+
+- **Terms are text, never matrices.** A term is `"<param>: <expr>"` in the grammar of
+  `rd.grammar`. `n<mode>` is Σ_c a†_c a_c over the mode's components (without the ½).
+  Ladder operators act on harmonic-oscillator states, with ⟨n+1|a†|n⟩ = √(n+1). The
+  coefficient multiplies the operator exactly as written, so `k: a1+ a2 a2 + h.c.` has
+  ⟨0,2|H|1,0⟩ = √2·k.
+- **Canonical form.** Normal ordered (creators to the left), with sorted factors and the
+  largest coefficient scaled to +1. The canonical string is hashed (SHA-256).
+  Two terms with the same hash in one spec are a compile error ("same operator").
+- **`sym(...)`** is the group average (1/|G|) Σ_g g·O. If it vanishes, the term is rejected,
+  never silently dropped.
+- **Degenerate components** use Cartesian real bases: F2 is (x, y, z) and transforms as
+  (x, y, z) under Td's signed permutations. E is ((2z² − x² − y²)/√6, (x² − y²)/√2) for
+  components (x, y). C2v irreps are A1, A2, B1, B2, with B1 symmetric under σ(xz).
+- **Polyads.** P = Σ w_i n_i, with the weights set per mode. Blocks are labelled `irrep=P=<p>`.
+  A term that changes P is a compile error.
+- **Proposers** return a list of term strings. Lines that do not parse are dropped by the
+  proposer. Terms that parse but fail a certificate raise `GrammarError` at compile time.
+- **Datasets:** an `npz` shard per `shard_size` samples plus `manifest.json` (canonical spec,
+  prior, feature definitions, seed, block keys, library version and commit). Level features are the lowest `n_levels` eigenvalues per
+  block, in block order. Moment features are [center, halfwidth, μ_0 … μ_{N−1}] per block,
+  with the KPM moments normalized by the dimension (exact) or by R·dim (stochastic).
+- **Point sets** (`pointset/1` JSON): energies in hartree as computed. Conversion to cm⁻¹
+  uses `HARTREE_TO_CM` = 219474.6313705 at ingestion.
