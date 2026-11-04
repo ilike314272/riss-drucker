@@ -11,6 +11,7 @@ from ._core import (
     CompiledModel,
     axpy,
     build_info,
+    compile_asym_rotor,
     compile_torsion_rotor,
     cpu_features,
     csr_matvec,
@@ -28,6 +29,11 @@ from ._version import __version__
 from .config import RuntimeConfig, runtime_config
 from .runinfo import run_record, write_run_record
 from .solve import Solution, solve, solve_csr, solve_options
+from . import angular, rotor, synth
+from .cache import CacheError, compile_cached
+from .fit import FitResult, Observation, Prior, fit
+from .results import fit_result_record, validate_result
+from .spec import ModelSpec
 
 if _core.__version__ != __version__:  # pragma: no cover - packaging error
     raise ImportError(
@@ -38,6 +44,19 @@ if _core.__version__ != __version__:  # pragma: no cover - packaging error
 __all__ = [
     "__version__",
     "BudgetError",
+    "CacheError",
+    "FitResult",
+    "ModelSpec",
+    "Observation",
+    "Prior",
+    "angular",
+    "compile_asym_rotor",
+    "compile_cached",
+    "fit",
+    "fit_result_record",
+    "rotor",
+    "synth",
+    "validate_result",
     "CompiledModel",
     "Solution",
     "compile_torsion_rotor",

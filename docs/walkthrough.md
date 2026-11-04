@@ -111,25 +111,60 @@ the default.
 
 ---
 
-## M2 Operator library, small group ▶
+## M2 Operator library, small group ✅
 
-- `ModelSpec` with canonical `hash()`: sorted, normalized JSON → SHA-256.
-  Stability tests across processes and platforms.
-- Asymmetric rotor in the Watson A and S reductions, plus centrifugal distortion
-  operators. Blocks by (J, D2 irrep).
-- Angular algebra: 3j/6j/9j by stable recursion with closed-form tests. Make the
-  exact-arithmetic decision (GMP / Boost.Multiprecision vs SymPy) **by
-  benchmark** and record it in `conventions.md`.
-- Sum-rule certificates at compile time (orthogonality and completeness,
-  Hermiticity, total symmetry, time reversal). Any failure aborts the compile.
-- Cache: per-block CSR binary + JSON manifest {spec hash, library version}.
-  A mismatch is an error. Atomic writes keyed by (spec hash, block ID).
-- Hellmann-Feynman Jacobian (⟨ψ|O_k|ψ⟩ from the certified eigenvectors), then
-  LM/Gauss-Newton with a Gaussian prior.
-  Parameter recovery and gauge tests on synthetic data (`synth.py` starts here).
-- Start `schemas/result.schema.json` here (certificates, θ̂, Σ_θ with gauge directions).
+**What exists**
 
-## M3 Probabilistic layer ○
+```
+include/riss_drucker/angular.hpp          exact 3j/6j (prime factorization + big integer), 9j, CG, sum rules
+include/riss_drucker/models/asym_rotor.hpp  Watson A/S, quartic/sextic, Ir/IIr/IIIr, Wang blocks
+include/riss_drucker/model.hpp            + hf_jacobian (Hellmann-Feynman)
+python/riss_drucker/spec.py               ModelSpec + canonical SHA-256 hash
+python/riss_drucker/cache.py              per-block CSR .npz + manifest; mismatch raises CacheError
+python/riss_drucker/rotor.py              J(Ka,Kc) labels from the C2 parity rule
+python/riss_drucker/fit.py                LM fit, prior, gauge null directions, Sigma_theta
+python/riss_drucker/synth.py              synthetic assigned levels with ground truth
+python/riss_drucker/results.py            result record + schema validation
+schemas/result.schema.json                result schema (README 9), slots for later milestones
+benchmarks/bench_angular.py               the exact-arithmetic decision benchmark
+notebooks/02_asymmetric_rotor_fit.ipynb   cache, fit, recovery, gauge, schema
+```
+
+**Python**
+
+```python
+spec = rd.ModelSpec.asym_rotor(j_max=20, reduction="A", axis="Ir", order=4)
+model, info = rd.compile_cached(spec)                     # info["hit"]
+obs = rd.synth.synthesize_levels(model, theta_true, noise=1e-4, labels=rd.rotor.asym_top_labels(model))
+res = rd.fit(model, obs, theta_start, prior=rd.Prior(mean={...}, sigma={...}), fixed=[...])
+res.theta, res.sigma, res.null_directions, res.certified
+rd.validate_result(rd.fit_result_record(res, spec, model=model))
+```
+
+**M2 exit criteria and evidence**
+
+| Criterion | Evidence |
+|---|---|
+| Asymmetric rotor, Watson reduction | J = 1, 2 closed forms in all three representations, trace sum rule, symmetric-top limit, representation invariance of labelled levels |
+| 3j/6j/9j vs closed forms, exact values, symmetries | `test_angular` (closed forms, permutations, 9j→6j, large j); `test_m2_angular` (exact equality with SymPy for 150 random 3j and 60 6j; 9j to 1e-13) |
+| Sum-rule certificates | CG orthogonality and completeness, 6j orthogonality; rotor compile certificates (Hermiticity, total symmetry, time reversal, Wigner-Eckart) abort the compile on failure |
+| Cache and hash-invalidation tests | round trip (bitwise-identical operators and levels); structural change → new hash/directory; tampered hash, library version or file → `CacheError`; hash stable across processes |
+| Parameter recovery on synthetic data | Watson A quartic, J ≤ 20: pulls within ±4.5σ, χ²/dof ≈ 1; pull distribution over 12 noise seeds has mean ≈ 0, std ≈ 1 |
+| Gauge test | redundant `J2` operator: one null direction (1,1,1,−1)/2 found, levels invariant along it, gauge held exactly (w·θ unchanged), invariant combination recovered |
+| Exact-arithmetic decision by benchmark | conventions section 8 |
+
+**Follow-ups found in M2** (not blocking)
+- Log-magnitude and sign coordinates for parameters spanning decades (README 5.4). Column
+  scaling already conditions the problem; these matter once priors span decades (M5).
+- Cache `OperatorSum` and the per-block Jacobian operator products inside fitting loops.
+- Fits solve every block; solving only the blocks with observations is a simple speedup.
+- Map Wang labels to named D2 irreps (A, Ba, Bb, Bc) and nuclear-spin species when a real
+  molecule needs spin statistics (M4).
+- Isoscalar factors and multiplicity labels: not needed until degenerate groups (M8).
+
+---
+
+## M3 Probabilistic layer ▶
 Per-level σ_i² = g_iᵀ Σ_θ g_i, Weyl fence, near-crossing flags and resampling,
 χ²-gated assignment with DP alignment, ambiguity sets and BH, outlier mixture,
 and coverage checks split by band. β-Hermite / Brody samplers with the ⟨r⟩

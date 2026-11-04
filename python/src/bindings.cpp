@@ -8,12 +8,14 @@
 #include <optional>
 #include <string>
 
+#include "riss_drucker/angular.hpp"
 #include "riss_drucker/build_info.hpp"
 #include "riss_drucker/cpu_features.hpp"
 #include "riss_drucker/kernels.hpp"
 #include "riss_drucker/inertia.hpp"
 #include "riss_drucker/linalg_backend.hpp"
 #include "riss_drucker/model.hpp"
+#include "riss_drucker/models/asym_rotor.hpp"
 #include "riss_drucker/models/torsion_rotor.hpp"
 #include "riss_drucker/solver.hpp"
 
@@ -304,6 +306,49 @@ PYBIND11_MODULE(_core, m) {
       .def("operator", [](const CompiledModel& cm, std::size_t block, std::size_t param) {
         return csr_to_arrays(cm.blocks.at(block).ops.at(param));
       }, py::arg("block"), py::arg("param"), "CSR arrays (indptr, indices, data, shape) of O_k in a block.")
+      .def("jacobian", [](const CompiledModel& cm, std::size_t block, const Eigen::MatrixXd& vecs) {
+        return hf_jacobian(cm.blocks.at(block), vecs);
+      }, py::arg("block"), py::arg("eigenvectors"),
+         "Hellmann-Feynman Jacobian <psi_i|O_k|psi_i> (rows: levels, columns: parameters).")
+      .def_static("from_parts",
+          [](std::string name, std::string spec_json, std::vector<std::string> param_names,
+             py::list blocks, py::list certs) {
+            CompiledModel cm;
+            cm.name = std::move(name);
+            cm.spec_json = std::move(spec_json);
+            cm.param_names = std::move(param_names);
+            for (auto item : blocks) {
+              py::dict b = item.cast<py::dict>();
+              CompiledBlock cb;
+              cb.id.two_j = b["two_j"].cast<int>();
+              cb.id.irrep = b["irrep"].cast<std::string>();
+              cb.id.spin_species = b["spin_species"].cast<std::string>();
+              cb.id.electronic_state = b["electronic_state"].cast<int>();
+              cb.id.sub = b["sub"].cast<std::string>();
+              cb.basis_labels = b["basis_labels"].cast<std::vector<std::string>>();
+              for (auto op : b["ops"].cast<py::list>()) {
+                py::tuple t = op.cast<py::tuple>();
+                auto shape = t[3].cast<py::tuple>();
+                CsrMatrix c = csr_from_arrays(t[0].cast<I64Arr>(), t[1].cast<I32Arr>(), t[2].cast<DArr>(),
+                                              shape[1].cast<std::int64_t>());
+                if (c.rows != shape[0].cast<std::int64_t>()) throw py::value_error("operator shape mismatch");
+                cb.ops.push_back(std::move(c));
+              }
+              if (cb.ops.size() != cm.param_names.size())
+                throw py::value_error("block " + cb.id.key() + " has " + std::to_string(cb.ops.size()) +
+                                      " operators for " + std::to_string(cm.param_names.size()) + " parameters");
+              cm.blocks.push_back(std::move(cb));
+            }
+            for (auto item : certs) {
+              py::dict c = item.cast<py::dict>();
+              cm.compile_certificates.push_back({c["name"].cast<std::string>(), c["passed"].cast<bool>(),
+                                                 c["value"].cast<double>(), c["bound"].cast<double>(),
+                                                 c["detail"].cast<std::string>()});
+            }
+            return cm;
+          },
+          py::arg("name"), py::arg("spec_json"), py::arg("param_names"), py::arg("blocks"),
+          py::arg("compile_certificates"), "Rebuild a compiled model (used by the operator cache).")
       .def("assemble", [](const CompiledModel& cm, std::size_t block, const std::vector<double>& theta) {
         return csr_to_arrays(assemble(cm.blocks.at(block), theta));
       }, py::arg("block"), py::arg("theta"), "CSR arrays of H(theta) = sum_k t_k O_k in a block.")
@@ -324,6 +369,36 @@ PYBIND11_MODULE(_core, m) {
            },
            py::arg("theta"), py::arg("options"), py::arg("threads") = 1, py::arg("seed") = 0,
            py::arg("warm") = py::none(), "Solve every block (parallel across blocks).");
+
+  // ---- M2: angular algebra, asymmetric rotor, Jacobian, model from parts ----
+  auto exact_tuple = [](const angular::ExactValue& v) {
+    return py::make_tuple(v.sign, v.num, v.den, v.value);
+  };
+  m.def("wigner3j_2", &angular::wigner3j, "3j symbol from doubled arguments (2j, 2m).");
+  m.def("wigner6j_2", &angular::wigner6j, "6j symbol from doubled arguments.");
+  m.def("wigner9j_2", &angular::wigner9j, "9j symbol from doubled arguments.");
+  m.def("clebsch_gordan_2", &angular::clebsch_gordan, "<j1 m1 j2 m2|J M> from doubled arguments.");
+  m.def("wigner3j_exact_2", [exact_tuple](int a, int b, int c, int d, int e, int f) {
+    return exact_tuple(angular::wigner3j_exact(a, b, c, d, e, f));
+  }, "(sign, num, den, value): value = sign * sqrt(num/den), num/den as decimal strings.");
+  m.def("wigner6j_exact_2", [exact_tuple](int a, int b, int c, int d, int e, int f) {
+    return exact_tuple(angular::wigner6j_exact(a, b, c, d, e, f));
+  });
+  m.def("cg_orthogonality_defect", &angular::cg_orthogonality_defect, py::arg("two_jmax"));
+  m.def("cg_completeness_defect", &angular::cg_completeness_defect, py::arg("two_jmax"));
+  m.def("sixj_orthogonality_defect", &angular::sixj_orthogonality_defect, py::arg("two_jmax"));
+
+  m.def("compile_asym_rotor",
+        [](int j_min, int j_max, std::string reduction, std::string axis, int order,
+           std::vector<std::string> extra) {
+          models::AsymRotorSpec s;
+          s.j_min = j_min; s.j_max = j_max; s.reduction = std::move(reduction);
+          s.axis = std::move(axis); s.order = order; s.extra_operators = std::move(extra);
+          return models::compile_asym_rotor(s);
+        },
+        py::arg("j_min") = 0, py::arg("j_max") = 10, py::arg("reduction") = "A", py::arg("axis") = "Ir",
+        py::arg("order") = 4, py::arg("extra_operators") = std::vector<std::string>{},
+        "Compile the Watson asymmetric rotor (see models/asym_rotor.hpp).");
 
   m.def("compile_torsion_rotor",
         [](int n_fold, std::vector<int> v_orders, int m_max, int j_max, bool kp_coupling) {

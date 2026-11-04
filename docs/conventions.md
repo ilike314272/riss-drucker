@@ -118,18 +118,91 @@ stamp it before upload with `git rev-parse HEAD > GIT_COMMIT`, or set
 - **Per-block seeds** are `seed XOR FNV-1a(BlockId.key())`, so results do not
   depend on the thread count. The tests check bitwise equality across thread counts.
 
-## 8. Physics conventions
+## 8. Exact angular algebra (decided in M2, by benchmark)
+
+**Decision:** an in-house C++ exact engine (`include/riss_drucker/angular.hpp`).
+Racah sums for 3j and 6j are evaluated with prime-factorized factorials and a
+small in-house big integer. The result is exact as sign·√(num/den) and is
+rounded to double once. 9j is a long-double sum of products of exact 6j
+values. CG coefficients use the Condon-Shortley phase. SymPy is the cross-check
+in tests only. No GMP or Boost dependency.
+
+Benchmark (`benchmarks/bench_angular.py`, `benchmarks/baselines/m2_angular_dev_container.jsonl`;
+dev container, times include the Python call):
+
+| Candidate | j ≤ 6, per call | j = 40–80, per call | Max rel. error vs SymPy (40 digits) |
+|---|---|---|---|
+| C++ exact (chosen) | 3.0 µs | 27 µs | 1.1e-16 |
+| Python exact (stdlib ints) | 16 µs | 131 µs | 1.4e-16 |
+| SymPy | 194 µs | 1.1 ms | 1.1e-16 |
+| Naive double Racah | 7.6 µs | 21 µs | 4.0e-2 |
+
+Naive double precision is ruled out by cancellation at large j. SymPy is too slow
+for compile loops. The pure-Python exact path is correct but 5× slower than C++
+and would put the compile step outside the C++ core.
+
+Sum-rule certificates: CG orthogonality and completeness (2j ≤ 6 at every rotor
+compile, 2j ≤ 8 in tests) and 6j orthogonality (tests). Bound 1e-13.
+
+## 9. Asymmetric rotor (fixed in M2)
+
+- **Basis:** symmetric-top \|J K⟩ with ⟨K+1\|J₊\|K⟩ = √(J(J+1) − K(K+1)), real and
+  positive. Wang functions (\|K⟩ ± \|−K⟩)/√2 for K > 0, with \|0⟩ in "+".
+  Blocks per J: `E+`, `E-`, `O+`, `O-` (K even/odd, ±), so `irrep` is the Wang label.
+- **Representations:** (x, y, z) = Iʳ (b, c, a), IIʳ (c, a, b), IIIʳ (a, b, c). The
+  rigid term is A J_a² + B J_b² + C J_c².
+- **Reductions and signs:** exactly as in `models/asym_rotor.hpp` (Watson A and S,
+  quartic and sextic, H = Σ t_k O_k with the conventional signs, e.g.
+  O_DeltaJ = −J⁴, O_d1 = +J²(J₊² + J₋²)). Units are cm⁻¹. A literature constant in MHz
+  is converted at ingestion (M4).
+- **Labels J(Ka,Kc):** a block's parity class follows from C₂ about z, (−1)^K, and
+  about x, γ(−1)^J. In the principal axes these are (−1)^Ka for a, (−1)^(Ka+Kc) for b,
+  (−1)^Kc for c. The n-th level of a block (ascending energy) gets the n-th label of
+  its class in increasing τ = Ka − Kc. This is tested against a global τ sort in all
+  three representations.
+- **Compile certificates** (failure aborts the compile): Hermiticity; total symmetry
+  (no coupling between Wang blocks); time reversal (even degree in J); Wigner-Eckart
+  check of the ladder elements against the 3j engine; CG orthogonality and completeness.
+
+## 10. ModelSpec, hash and operator cache (fixed in M2)
+
+- `ModelSpec.hash()` = SHA-256 of the canonical JSON: sorted keys, no whitespace,
+  ASCII, integral floats as ints, other floats as `repr`. The JSON includes kind,
+  structure, group chain, electronic states (reserved, Phase B), the conventions
+  reference and `OPERATOR_LIBRARY_VERSION`. Bump that version whenever an operator
+  definition, sign or phase changes.
+- Cache: `<RISS_DRUCKER_CACHE>/operators/<hash>/manifest.json` plus `block_NNNNN.npz`
+  (CSR arrays per operator), with a per-file SHA-256 in the manifest, written
+  atomically and the manifest last. A mismatch in spec, hash, library version, format
+  or checksum raises `CacheError`. Nothing is silently recompiled; `refresh=True`
+  is the explicit override.
+
+## 11. Fit and gauge (fixed in M2)
+
+- Residuals (E_obs − E_calc)/σ. Jacobian by Hellmann-Feynman, ⟨ψ|O_k|ψ⟩ on the
+  scalar reference path. An independent Gaussian prior adds rows (μ − θ)/s.
+- Column scaling D (Jacobian column norms) is frozen at the starting point. The SVD of
+  J·D⁻¹ gives rank r, using singular values > 1e-9·s_max. Levenberg-Marquardt steps
+  and Σ_θ = D⁻¹ V_r S_r⁻² V_rᵀ D⁻¹ live in the identifiable subspace.
+- **Null directions** are reported in parameter space (normalized, largest component
+  positive). Parameters with a component > 1e-6 on any null direction get σ = NaN.
+  The gauge is fixed exactly: w·θ keeps its starting value, with w = D·v_null
+  (`gauge_constraints`).
+- Σ_θ is not rescaled by χ²/dof unless `scale_cov_by_chi2=True`. Pulls on synthetic
+  data are tested to be N(0, 1).
+- σ_pred per level = √(gᵀ Σ_θ g), using the Hellmann-Feynman g of that level.
+
+## 12. Physics conventions
 
 | Item | Status | Milestone |
 |---|---|---|
 | Energy unit for all internal quantities: cm⁻¹ (MHz converted at ingestion, factor recorded) | fixed | M1 |
 | Torsion basis e^{imφ}/√(2π), \|m\| ≤ m_max; V(φ) = Σ_L V_L (1 − cos Lφ)/2 with L = k·n_fold; cosine terms only (φ → −φ symmetric potentials) | fixed | M1 |
 | Torsion blocks: σ = m mod n_fold; cos/sin parity combinations (\|m⟩ ± \|−m⟩)/√2 when 2σ ≡ 0 (mod n_fold) and the block has no K·p term. Labels `sigma=s` or `sigma=s,±` | fixed | M1 |
-| Reduced rotor: prolate symmetric top A K² + B (J(J+1) − K²), K a good quantum number; torsion-rotation through D_Kp K p only. Gauge: F(p − ρK)² ⇒ D_Kp = −2Fρ, A absorbs Fρ² | fixed (M1 baseline) | M1 |
+| Reduced rotor in the torsion model: prolate symmetric top A K² + B (J(J+1) − K²), K a good quantum number; torsion-rotation through D_Kp K p only. Gauge: F(p − ρK)² ⇒ D_Kp = −2Fρ, A absorbs Fρ² | fixed (M1 baseline) | M1 |
 | BlockId key: `J2=<2J>\|irrep=..\|spin=..\|el=<state>\|sub=k=v;..`. 2J allows half-integer J; `el` is reserved for Phase B | fixed | M1 |
-| Rotor basis: symmetric-top \|J K M⟩, Condon-Shortley phases; Wang combinations for asymmetric rotor | *open* | M2 |
-| Axis system (Iʳ / IIIʳ, ...) and Watson reduction (A/S), recorded per spec | *open* | M2 |
-| 3j/6j/9j phase convention and recursion direction | *open* | M2 |
-| Exact angular algebra: GMP / Boost.Multiprecision in C++ vs SymPy/`fractions` in Python, chosen by benchmark | *open* | M2 |
+| Rotor basis, Wang blocks, representation, Watson A/S operators, J(Ka,Kc) labels | fixed (section 9) | M2 |
+| 3j/6j/9j: exact Racah sums (no recursion needed at this precision), Condon-Shortley phase | fixed (section 8) | M2 |
+| Exact angular algebra: in-house C++ (benchmark above) | fixed | M2 |
 | Isoscalar-factor multiplicity labels (gauge): construction and ordering | *open* | M8 |
 | Uncertainty convention: 1σ internally; 2σ sources converted at ingestion | proposed | M4 |

@@ -1,0 +1,9 @@
+{"workload": "small_j<=6", "candidate": "cpp_exact", "n_calls": 45045, "seconds_per_call": 3.041727894328677e-06, "max_rel_error_vs_sympy_40digits": 1.0683393855439697e-16}
+{"workload": "small_j<=6", "candidate": "python_exact", "n_calls": 45045, "seconds_per_call": 1.5942829637031323e-05, "max_rel_error_vs_sympy_40digits": 1.3540189976570838e-16}
+{"workload": "small_j<=6", "candidate": "naive_double", "n_calls": 45045, "seconds_per_call": 7.59339074259398e-06, "max_rel_error_vs_sympy_40digits": 1.4156583082950494e-13}
+{"workload": "small_j<=6", "candidate": "sympy_exact", "n_calls": 4504, "seconds_per_call": 0.0001936001618561324, "max_rel_error_vs_sympy_40digits": 1.0815982569306592e-16}
+{"workload": "large_j40-80", "candidate": "cpp_exact", "n_calls": 150, "seconds_per_call": 2.6996279999972708e-05, "max_rel_error_vs_sympy_40digits": 9.68653082528086e-17}
+{"workload": "large_j40-80", "candidate": "python_exact", "n_calls": 150, "seconds_per_call": 0.0001311973799996243, "max_rel_error_vs_sympy_40digits": 1.1659264945241413e-16}
+{"workload": "large_j40-80", "candidate": "naive_double", "n_calls": 150, "seconds_per_call": 2.0595233333248568e-05, "max_rel_error_vs_sympy_40digits": 0.03996533131359955}
+{"workload": "large_j40-80", "candidate": "sympy_exact", "n_calls": 15, "seconds_per_call": 0.001110956266681266, "max_rel_error_vs_sympy_40digits": 9.68653082528086e-17}
+{"version": "0.0.1", "git_commit": "08fd67c27d5d734112ad046fce811d077fb5ee6c-dirty"}

@@ -28,6 +28,13 @@ struct CompiledModel {
 
 CsrMatrix assemble(const CompiledBlock& block, const std::vector<double>& theta);
 
+// Hellmann-Feynman Jacobian dE_i/dt_k = <psi_i|O_k|psi_i> for the columns of
+// `vectors` (normalized eigenvectors of H(theta) in this block). Never
+// differentiates through the eigensolver (README 5.4). For exactly degenerate
+// levels individual rows depend on the basis chosen in the multiplet; sums over
+// the multiplet do not.
+Eigen::MatrixXd hf_jacobian(const CompiledBlock& block, const Eigen::MatrixXd& vectors);
+
 // Solves every block, parallel across blocks with `threads` workers (blocks
 // are independent; no threading inside a block). Each block gets a seed
 // derived from `seed` and its BlockId key, so results do not depend on the
