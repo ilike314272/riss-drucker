@@ -1,13 +1,12 @@
 # Data sources (survey, M4)
 
 What exists for the first molecules, with the best standard dataset for each
-role. Surveyed 2026-11-04 by web search. **Nothing here has been downloaded
-yet:** the build environment's network policy blocks `www.exomol.com`,
-`hitran.org`, `arxiv.org`, `zenodo.org`, `data.mendeley.com`,
-`discovery.ucl.ac.uk` and `www.kaggle.com`. Run `scripts/fetch_data.py` where
-those hosts are reachable (a Kaggle notebook with internet on, a local machine,
-or this environment after the hosts are allowed). Check every license before
-redistributing anything, including private Kaggle datasets.
+role. Surveyed 2026-11-04 by web search. **Fetched so far:** ExoMol H₂CO AYTY
+(`.def.json`, `.states.bz2`, `.pf`). See `case_studies/h2co_ayty.md` for the first
+fit to real data and the calculated-vs-MARVEL error prior.
+`discovery.ucl.ac.uk` answers 403 to scripted requests; use arXiv or the publisher
+for those papers. Check every license before redistributing anything, including
+private Kaggle datasets.
 
 Items marked *(verify)* were taken from search snippets and have not been
 checked against the primary record.

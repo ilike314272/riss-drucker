@@ -216,7 +216,7 @@ notebooks/03_probabilistic_layer.ipynb   spectrum -> assignment -> line fit -> w
 
 ---
 
-## M4 Data store and gold set — infrastructure ✅, real data ⏸ (network)
+## M4 Data store and gold set — infrastructure ✅, first real data ✅, gold set ▶
 
 **What exists**
 
@@ -246,15 +246,26 @@ error-prior σ(J) recovered; round trip validates correct constants and quaranti
 an MHz-as-cm⁻¹ unit error and a ×10 digit error; store → fit recovers constants, with
 ehamil_derived refused.
 
-**Blocked: needs network access to the data hosts**
-- Download H₂CO MARVEL + ExoMol AYTY (then H₂S), run the readers on real files, and adjust
-  the column layouts (the readers carry a NOTE where the layout was taken from documentation).
-- Gold set: extract ~20 papers, starting with the candidates in `docs/data_sources.md`.
-- Calculated-vs-MARVEL error prior on real ExoMol data (needs the MARVEL-tagged states).
-- Hosts to allow: `www.exomol.com`, `arxiv.org`/`export.arxiv.org`, `data.mendeley.com`,
-  `zenodo.org`, `discovery.ucl.ac.uk`, `www.kaggle.com` (+ its storage host for downloads), and
-  `hitran.org` (intensities only). Alternatively run `scripts/fetch_data.py` in a Kaggle notebook
-  with internet on and attach the result as a dataset.
+**First real data** (`docs/case_studies/h2co_ayty.md`, `scripts/case_h2co.py`)
+- ExoMol H₂CO AYTY fetched with provenance. The reader was corrected against the real
+  file: the field names are `ID`/`gtot`, and the files carry `SourceType` (Ma/Ca) and
+  `Ecal` columns.
+- Ground-state fit to 496 MARVEL levels (J ≤ 30, Watson A, sextic): χ²/dof 0.65 robust,
+  certified, full rank. A, B, C agree with the literature ground-state values.
+- The robust fit flags the Ka = 9 stack (−0.005 to −0.006 cm⁻¹). This is consistent with a
+  missing octic K-term, so octic operators are the next model step.
+- Calculated-vs-MARVEL error prior from 5,111 states in 25 vibrational states: band-dependent
+  biases up to −0.15 cm⁻¹; σ(J) = √(0.066² + (1.7×10⁻⁴ J(J+1))²) cm⁻¹.
+
+**Next in M4**
+- Octic terms (L_J … l_K) in the rotor operator library; re-test the Ka = 9 stack.
+- MARVEL H₂CO transitions file (Al-Derzi et al. 2021 supplement) → `data.network`
+  inversion, compared with the ExoMol-tagged MARVEL energies.
+- H₂S (AYT2 + MARVEL on Mendeley Data) as the second molecule.
+- Gold set: start with H₂CO microwave/THz constants (Müller & Lewen 2017) and run
+  the round-trip validator against their lines.
+- Faster `.states` parsing (~1 min per 10 M lines in pure Python), needed before the
+  100 `.trans` files.
 
 ---
 

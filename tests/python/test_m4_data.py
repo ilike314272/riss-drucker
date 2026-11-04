@@ -63,15 +63,22 @@ def test_exomol_roundtrip(tmp_path, rotor):
         for lab in labs:
             J = int(lab.split("(")[0])
             ka, kc = lab.split("(")[1].rstrip(")").split(",")
-            fh.write(f"{ids[lab]:12d} {levels[lab]:12.6f} {2 * J + 1:6d} {J:7d} {1e-4:12.6f} {ka} {kc}\n")
+            src = "Ma" if J <= 5 else "Ca"
+            fh.write(f"{ids[lab]:12d} {levels[lab]:12.6f} {2 * J + 1:6d} {J:7d} {1e-4:12.6f}  Infinity"
+                     f" {ka:>2} {kc:>2} {src} {levels[lab] + 0.01:12.6f}\n")
     with bz2.open(tmp_path / "X.trans.bz2", "wt") as fh:
         for l in lines:
             fh.write(f"{ids[l.upper_label]:12d} {ids[l.lower_label]:12d} {l.strength * 1e-3:10.4e}\n")
+    # Field names and nesting as in a real ExoMol def.json (checked against H2CO AYTY).
     (tmp_path / "X.def.json").write_text(json.dumps({"dataset": {"states": {"states_file_fields": [
-        {"name": "i"}, {"name": "E"}, {"name": "g_tot"}, {"name": "J"}, {"name": "unc"}, {"name": "Ka"}, {"name": "Kc"}]}}}))
+        {"name": n} for n in ["ID", "E", "gtot", "J", "unc", "tau", "Herzberg:Ka", "Herzberg:Kb",
+                              "Auxiliary:SourceType", "Auxiliary:Ecal"]]}}}))
     fields = exomol.read_def(tmp_path / "X.def.json")["states_fields"]
     st = exomol.read_states(tmp_path / "X.states", fields)
     assert len(st["i"]) == len(levels) and st["i"].dtype == np.int64
+    assert np.all(st["ID"] == st["i"]) and np.all(st["gtot"] == st["g_tot"])
+    ma = exomol.read_states(tmp_path / "X.states", fields, keep=lambda t: t[8] == "Ma")
+    assert ma["J"].max() == 5 and np.allclose(ma["Auxiliary:Ecal"] - ma["E"], 0.01)
     np.testing.assert_allclose(np.sort(st["E"]), np.sort(list(levels.values())), atol=1e-6)
     low = exomol.read_states(tmp_path / "X.states", fields, j_max=4)
     assert low["J"].max() == 4
