@@ -55,47 +55,63 @@ scripts/kaggle_build.sh            # probe, build wheel, install, smoke test
 
 ---
 
-## M1 Exact reduced baseline ▶
+## M1 Exact reduced baseline ✅
 
-Goal: a torsion + rigid-rotor Hamiltonian with every solver path and
-certificate in place, checked against analytic and exact references.
+**What exists**
 
-**C++ components**
-1. `BlockId` (J, irrep, spin species, and a reserved electronic-state slot for
-   Phase B) plus a canonical string form. It goes into cache keys and the result schema.
-2. `SparseOperator` (CSR, uses the M0 kernels) and `Hamiltonian = Σ t_k O_k`
-   assembled as a sparse sum with the sparsity pattern fixed per block.
-3. Torsion block: Fourier basis e^{imφ}, `F p²` diagonal, `V_n/2 (1 − cos nφ)`
-   couples m ↔ m±n. Blocks by m mod n (for n = 3: A and E species).
-4. Rigid rotor: symmetric top `B J(J+1) + (A−B) K²` (diagonal; the asymmetric
-   rotor comes in M2).
-5. Solvers: dense `eigh` (M0 backend layer) and Lanczos with full
-   reorthogonalization, a window [σ_lo, σ_hi], and a warm start.
-6. Certificates:
-   - Sturm count for the symmetric tridiagonal/banded case (vectorize across
-     shifts later; scalar reference first).
-   - LDLᵀ inertia of (H − σI) for general blocks. *Decision:* Bunch-Kaufman
-     (`dsytrf` on LAPACK, in-house for Eigen). A plain LDLᵀ without pivoting
-     can break down on indefinite matrices.
-   - Residual bound ‖Hx − λx‖/‖x‖.
-   - Window acceptance: inertia count == number returned; otherwise widen and rerun.
-7. Per-block cost estimate (dimension, bandwidth, ⟨r⟩) feeding the
-   dense-vs-Lanczos choice and `RuntimeConfig.check_memory`.
+```
+include/riss_drucker/block_id.hpp         BlockId (2J, irrep, spin, el, sub) + stable FNV-1a hash
+include/riss_drucker/sparse.hpp           CsrMatrix, OperatorSum (fixed pattern, H = sum t_k O_k)
+include/riss_drucker/inertia.hpp          Bunch-Kaufman (in-house + dsytrf), Sturm count
+include/riss_drucker/lanczos.hpp          full reorth, locking/deflated restarts, LinearOperator
+include/riss_drucker/solver.hpp           solve_block: dense | Lanczos (shift-invert), certificates
+include/riss_drucker/model.hpp            CompiledModel, solve_model (parallel across blocks)
+include/riss_drucker/models/torsion_rotor.hpp   Fourier torsion + symmetric-top rotor (+ K p)
+python/riss_drucker/solve.py              rd.solve / rd.solve_csr / Solution (levels, summary)
+benchmarks/bench_solvers.cpp              dense / Lanczos / Bunch-Kaufman / Sturm baselines
+notebooks/01_torsion_baseline.ipynb       barrier sweep, Mathieu check, certificates, K structure
+```
 
-**Tests to write first** (README section 12)
-- Free rotor (V = 0): E = F m², twofold degeneracy for m ≠ 0.
-- Harmonic limit (V ≫ F): low levels → n√(F V)(v + ½) plus anharmonic correction.
-- Exact reference across all regimes: Mathieu characteristic values (the V₃-only torsion problem maps onto the Mathieu equation).
-- Lanczos eigenvalues equal dense within tolerance. Inertia count equals the returned count. Warm start equals cold start.
-- A forced failed certificate shows up in the result, never absorbed silently.
+**Python**
 
-**Notebook:** `01_torsion_baseline.ipynb`, levels vs barrier height
-from free rotor to harmonic, using an H2O2-like F and V. Check which MARVEL/ExoMol
-data exist for H2O2 before going further.
+```python
+model = rd.compile_torsion_rotor(n_fold=3, v_orders=[1, 2], m_max=60, j_max=0)
+sol = rd.solve(model, {"F": 5.3, "V3": 400.0, "V6": -20.0}, nlowest=6)   # or window=(lo, hi)
+sol.certified, sol.failed_certificates(), sol.levels()[:3], sol.summary()
+```
+
+**M1 exit criteria and evidence**
+
+| Criterion | Evidence |
+|---|---|
+| Dense and Lanczos solves | `test_solver`: both paths match the reference on random banded matrices; `test_m1_torsion::test_dense_and_lanczos_paths_agree` |
+| Sturm/inertia certificates | `test_inertia`: BK (both backends) and Sturm agree with eigenvalue counts, including forced 2×2 pivots and singular shifts. Every result carries `inertia_count`, `residual`, `orthogonality` and `hermiticity` |
+| A window is accepted only if the counts match; otherwise widen | `test_solver`: edge on an eigenvalue (widened), degenerate boundary (kept whole), missing degenerate copies (extra Lanczos runs forced by the count) |
+| Free-rotor limit | `test_torsion` (C++), `test_free_rotor_limit_and_assignments` |
+| Harmonic limit | large-barrier Mathieu expansion to O(1/q), all species, tolerance 1e-3·(v+1) cm⁻¹ |
+| Exact reference | Mathieu characteristic values for A₁/A₂ (scipy) to 1e-7·V; independent periodic sinc-DVR for all species to 1e-8 |
+| Warm start = cold start | C++ and Python tests |
+| Failed certificate surfaced | starved Lanczos returns `certified=False` with `lanczos_convergence` failed; no exception |
+| Results independent of threads and SIMD level | bitwise equality, 1 vs 4 threads; solver/torsion tests rerun with `RISS_DRUCKER_SIMD=scalar` |
+
+**Benchmarks** (`benchmarks/baselines/m1_dev_container.jsonl`, dev container). For the
+pentadiagonal torsion block, dim 2001, lowest 10: dense 9.9 s (Eigen) and Lanczos
+0.63 s (shift-invert), of which 0.53 s is the dense Bunch-Kaufman certificate.
+Plain Lanczos took 24.6 s on that stiff spectrum, which is why shift-invert is
+the default.
+
+**Follow-ups found in M1** (not blocking)
+- A banded/sparse inertia count, so large non-tridiagonal blocks can be certified
+  without a dense O(n³) factorization (now the dominant cost on the Lanczos path).
+  Options: banded Bunch-Kaufman, or a sparse LDLᵀ with symmetric indefinite pivoting.
+- Sturm counts vectorized across many shifts (SIMD, structure-of-arrays), as listed in README section 4.
+- Cache `OperatorSum` per block for fitting loops (it is rebuilt per call now; cheap at M1 sizes).
+- Check which MARVEL/ExoMol data exist for H2O2 before using it as the first
+  real torsion test. H2O2 needs `n_fold=1` with V1/V2/V3 terms (unequal cis and trans barriers).
 
 ---
 
-## M2 Operator library, small group ○
+## M2 Operator library, small group ▶
 
 - `ModelSpec` with canonical `hash()`: sorted, normalized JSON → SHA-256.
   Stability tests across processes and platforms.
@@ -108,7 +124,8 @@ data exist for H2O2 before going further.
   Hermiticity, total symmetry, time reversal). Any failure aborts the compile.
 - Cache: per-block CSR binary + JSON manifest {spec hash, library version}.
   A mismatch is an error. Atomic writes keyed by (spec hash, block ID).
-- Hellmann-Feynman Jacobian, then LM/Gauss-Newton with a Gaussian prior.
+- Hellmann-Feynman Jacobian (⟨ψ|O_k|ψ⟩ from the certified eigenvectors), then
+  LM/Gauss-Newton with a Gaussian prior.
   Parameter recovery and gauge tests on synthetic data (`synth.py` starts here).
 - Start `schemas/result.schema.json` here (certificates, θ̂, Σ_θ with gauge directions).
 

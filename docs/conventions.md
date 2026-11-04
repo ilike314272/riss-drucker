@@ -85,12 +85,48 @@ cache), spec hash, RNG seeds, Python and platform, and optionally the full
 stamp it before upload with `git rev-parse HEAD > GIT_COMMIT`, or set
 `RISS_DRUCKER_GIT_COMMIT`.
 
-## 7. Physics conventions
+## 7. Certificates and solver semantics (fixed in M1)
+
+- **Counts are half-open.** `inertia_count` compares the number of returned
+  eigenvalues in [lo, hi) with n_neg(H − hi I) − n_neg(H − lo I).
+- **Inertia method per block** (`estimate_cost`): Sturm count if the block is
+  tridiagonal (bandwidth ≤ 1). Otherwise dense Bunch-Kaufman LDLᵀ, provided
+  dim ≤ `inertia_dense_max_dim` (default 6000) and 8·dim² fits the memory
+  budget. Otherwise the count is *unavailable*: window solves then refuse to run,
+  and lowest-k solves come back uncertified.
+- **Bunch-Kaufman:** α = (1+√17)/8, lower storage, symmetric interchanges as in
+  LAPACK `dsytf2`. In-house for the Eigen backend, `dsytrf` for lapack/mkl. Inertia
+  comes from the signs of the 1×1 and 2×2 pivot eigenvalues (Sylvester).
+  `min_abs_pivot` is reported as a diagnostic of how close the shift is to an
+  eigenvalue.
+- **Widening.** On a count mismatch both finite edges move outward by
+  δ_a = 1e3·ε·max(‖H‖∞, 1)·4^a, for attempt a = 0…`max_widen`. The accepted
+  window is reported.
+- **Lowest-k mode** becomes the window [−∞, hi), with hi at the midpoint of the gap
+  above level k. Levels within `degeneracy_tol`·‖H‖∞ (default 1e-10) of level k
+  are included, so a multiplet is never split (`boundary_extended`).
+- **Lanczos:** full reorthogonalization (two MGS passes with the dispatched
+  kernels), locking from the bottom of the spectrum, and fresh deflated restarts
+  until the inertia count is met. That is how exact degeneracies are recovered.
+- **Shift-invert** is the default on the Lanczos path. Lanczos runs on
+  −(H − σI)⁻¹ with σ = Gershgorin lower bound − 1e-6·‖H‖∞. That makes the
+  shifted matrix positive definite, so a sparse Cholesky (Eigen
+  `SimplicialLLT`) needs no pivoting. Values are mapped back by Rayleigh
+  quotients with H. If the factorization fails, Lanczos runs plain.
+- **Where certificates are evaluated.** Residuals ‖Hx − λx‖/‖x‖ use the
+  scalar reference kernel. The defaults are residual ≤ 1e-8·‖H‖∞ and |VᵀV − I| ≤ 1e-8.
+- **Per-block seeds** are `seed XOR FNV-1a(BlockId.key())`, so results do not
+  depend on the thread count. The tests check bitwise equality across thread counts.
+
+## 8. Physics conventions
 
 | Item | Status | Milestone |
 |---|---|---|
-| Energy unit for all internal quantities: cm⁻¹ (MHz converted at ingestion, factor recorded) | proposed | M1 |
-| Torsion basis: e^{imφ}/√(2π), m = −M…M; potential V(φ) = Σ_n (V_n/2)(1 − cos nφ) | proposed | M1 |
+| Energy unit for all internal quantities: cm⁻¹ (MHz converted at ingestion, factor recorded) | fixed | M1 |
+| Torsion basis e^{imφ}/√(2π), \|m\| ≤ m_max; V(φ) = Σ_L V_L (1 − cos Lφ)/2 with L = k·n_fold; cosine terms only (φ → −φ symmetric potentials) | fixed | M1 |
+| Torsion blocks: σ = m mod n_fold; cos/sin parity combinations (\|m⟩ ± \|−m⟩)/√2 when 2σ ≡ 0 (mod n_fold) and the block has no K·p term. Labels `sigma=s` or `sigma=s,±` | fixed | M1 |
+| Reduced rotor: prolate symmetric top A K² + B (J(J+1) − K²), K a good quantum number; torsion-rotation through D_Kp K p only. Gauge: F(p − ρK)² ⇒ D_Kp = −2Fρ, A absorbs Fρ² | fixed (M1 baseline) | M1 |
+| BlockId key: `J2=<2J>\|irrep=..\|spin=..\|el=<state>\|sub=k=v;..`. 2J allows half-integer J; `el` is reserved for Phase B | fixed | M1 |
 | Rotor basis: symmetric-top \|J K M⟩, Condon-Shortley phases; Wang combinations for asymmetric rotor | *open* | M2 |
 | Axis system (Iʳ / IIIʳ, ...) and Watson reduction (A/S), recorded per spec | *open* | M2 |
 | 3j/6j/9j phase convention and recursion direction | *open* | M2 |

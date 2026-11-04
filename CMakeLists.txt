@@ -41,13 +41,21 @@ set(RD_CORE_SOURCES
   src/kernels_dispatch.cpp
   src/linalg_backend.cpp
   src/c_api.cpp
+  src/block_id.cpp
+  src/sparse.cpp
+  src/inertia.cpp
+  src/lanczos.cpp
+  src/solver.cpp
+  src/model.cpp
+  src/models/torsion_rotor.cpp
 )
 add_library(riss_drucker_core STATIC ${RD_CORE_SOURCES})
 add_library(riss_drucker::core ALIAS riss_drucker_core)
 target_include_directories(riss_drucker_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generated>)
-target_link_libraries(riss_drucker_core PUBLIC riss_drucker::eigen)
+find_package(Threads REQUIRED)
+target_link_libraries(riss_drucker_core PUBLIC riss_drucker::eigen Threads::Threads)
 rd_apply_baseline_flags(riss_drucker_core)
 
 # Runtime-dispatched SIMD kernels: ISA flags per translation unit only.

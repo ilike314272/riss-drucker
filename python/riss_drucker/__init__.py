@@ -7,21 +7,27 @@ from __future__ import annotations
 
 from . import _core
 from ._core import (
+    BudgetError,
+    CompiledModel,
     axpy,
     build_info,
+    compile_torsion_rotor,
     cpu_features,
     csr_matvec,
     default_linalg_backend,
     dense_eigh_bytes,
     dot,
     eigh,
+    inertia,
     linalg_backends,
     simd_level_active,
     simd_levels_available,
+    sturm_count,
 )
 from ._version import __version__
 from .config import RuntimeConfig, runtime_config
 from .runinfo import run_record, write_run_record
+from .solve import Solution, solve, solve_csr, solve_options
 
 if _core.__version__ != __version__:  # pragma: no cover - packaging error
     raise ImportError(
@@ -31,6 +37,15 @@ if _core.__version__ != __version__:  # pragma: no cover - packaging error
 
 __all__ = [
     "__version__",
+    "BudgetError",
+    "CompiledModel",
+    "Solution",
+    "compile_torsion_rotor",
+    "inertia",
+    "solve",
+    "solve_csr",
+    "solve_options",
+    "sturm_count",
     "axpy",
     "build_info",
     "cpu_features",

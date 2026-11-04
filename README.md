@@ -6,7 +6,7 @@ Pipeline from molecular spectra and ab initio calculations to a **quantum, time-
 
 > Instructions for Claude Code: read this file fully before writing code. Follow the working agreements in section 10 and respect the scope in section 1.
 
-**Status:** M0 (skeleton) complete. See [`docs/walkthrough.md`](docs/walkthrough.md) for the milestone-by-milestone build guide and [`docs/conventions.md`](docs/conventions.md) for conventions. Quick start: `scripts/kaggle_build.sh` (probe, build wheel offline, install, smoke test) or `cmake -S . -B build -G Ninja && cmake --build build && ctest --test-dir build`.
+**Status:** M0 (skeleton) and M1 (torsion + rigid-rotor baseline with certified dense/Lanczos solves) complete. See [`docs/walkthrough.md`](docs/walkthrough.md) for the milestone-by-milestone build guide and [`docs/conventions.md`](docs/conventions.md) for conventions. Quick start: `scripts/kaggle_build.sh` (probe, build wheel offline, install, smoke test) or `cmake -S . -B build -G Ninja && cmake --build build && ctest --test-dir build`.
 
 ## 1. Scope
 

@@ -1,4 +1,5 @@
-foreach(t test_kernels test_cpu_dispatch test_linalg test_build_info)
+foreach(t test_kernels test_cpu_dispatch test_linalg test_build_info
+          test_sparse test_inertia test_solver test_torsion)
   add_executable(${t} ${t}.cpp)
   target_link_libraries(${t} PRIVATE riss_drucker::core)
   rd_apply_baseline_flags(${t})
@@ -9,6 +10,12 @@ endforeach()
 foreach(lvl scalar avx2 avx512)
   add_test(NAME test_kernels_env_${lvl} COMMAND test_kernels)
   set_tests_properties(test_kernels_env_${lvl} PROPERTIES ENVIRONMENT "RISS_DRUCKER_SIMD=${lvl}")
+endforeach()
+
+# Solver and model results must not depend on the SIMD level either.
+foreach(t test_solver test_torsion)
+  add_test(NAME ${t}_env_scalar COMMAND ${t})
+  set_tests_properties(${t}_env_scalar PROPERTIES ENVIRONMENT "RISS_DRUCKER_SIMD=scalar")
 endforeach()
 
 # Portable-flag verification: no AVX/AVX-512 instructions outside the
