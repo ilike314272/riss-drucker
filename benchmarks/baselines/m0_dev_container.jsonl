@@ -1,0 +1,16 @@
+{"recorded":"2026-11-04","cpu":"Intel(R) Xeon(R) Processor @ 2.10GHz","build":"Release, gcc 13.3.0, -O3 -march=x86-64-v2, single thread","note":"Not a Kaggle CPU. Re-record on Kaggle with the same binary."}
+{"kernel":"dot","n":4096,"level":"scalar","seconds":2.959e-06,"speedup":1.00,"abs_dev_vs_scalar":0.00e+00}
+{"kernel":"dot","n":4096,"level":"avx2","seconds":8.173e-07,"speedup":3.62,"abs_dev_vs_scalar":9.95e-14}
+{"kernel":"dot","n":4096,"level":"avx512","seconds":7.143e-07,"speedup":4.14,"abs_dev_vs_scalar":7.11e-14}
+{"kernel":"dot","n":4194304,"level":"scalar","seconds":4.699e-03,"speedup":1.00,"abs_dev_vs_scalar":0.00e+00}
+{"kernel":"dot","n":4194304,"level":"avx2","seconds":2.510e-03,"speedup":1.87,"abs_dev_vs_scalar":3.04e-10}
+{"kernel":"dot","n":4194304,"level":"avx512","seconds":2.476e-03,"speedup":1.90,"abs_dev_vs_scalar":3.08e-10}
+{"kernel":"csr_matvec","n":200000,"nnz":6400000,"level":"scalar","seconds":9.339e-03,"speedup":1.00,"abs_dev_vs_scalar":0.00e+00}
+{"kernel":"csr_matvec","n":200000,"nnz":6400000,"level":"avx2","seconds":7.867e-03,"speedup":1.19,"abs_dev_vs_scalar":1.78e-14}
+{"kernel":"csr_matvec","n":200000,"nnz":6400000,"level":"avx512","seconds":7.416e-03,"speedup":1.26,"abs_dev_vs_scalar":1.42e-14}
+{"kernel":"eigh","n":100,"backend":"eigen","seconds":1.096e-03}
+{"kernel":"eigh","n":100,"backend":"lapack","seconds":8.447e-04}
+{"kernel":"eigh","n":400,"backend":"eigen","seconds":5.536e-02}
+{"kernel":"eigh","n":400,"backend":"lapack","seconds":1.509e-02}
+{"kernel":"eigh","n":1000,"backend":"eigen","seconds":9.248e-01}
+{"kernel":"eigh","n":1000,"backend":"lapack","seconds":1.784e-01}

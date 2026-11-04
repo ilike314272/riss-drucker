@@ -1,0 +1,13 @@
+{"recorded":"2026-11-04","cpu":"Intel(R) Xeon(R) Processor @ 2.10GHz","build":"Release, gcc 13.3.0, -O3 -march=x86-64-v2, single thread, Eigen backend","model":"torsion n_fold=3 V3+V6 cos block, theta F=5 V3=400 V6=-30","note":"Not a Kaggle CPU. Lanczos = shift-invert; its time includes one dense Bunch-Kaufman count."}
+{"path":"dense","dim":101,"nlowest":10,"seconds":1.199e-03,"certified":true}
+{"path":"lanczos","dim":101,"nlowest":10,"seconds":2.184e-03,"certified":true}
+{"path":"bunch_kaufman","dim":101,"seconds":6.116e-05}
+{"path":"sturm","dim":101,"seconds_per_shift":6.533e-07}
+{"path":"dense","dim":501,"nlowest":10,"seconds":2.935e-01,"certified":true}
+{"path":"lanczos","dim":501,"nlowest":10,"seconds":2.834e-02,"certified":true}
+{"path":"bunch_kaufman","dim":501,"seconds":6.137e-03}
+{"path":"sturm","dim":501,"seconds_per_shift":3.355e-06}
+{"path":"dense","dim":2001,"nlowest":10,"seconds":1.008e+01,"certified":true}
+{"path":"lanczos","dim":2001,"nlowest":10,"seconds":7.369e-01,"certified":true}
+{"path":"bunch_kaufman","dim":2001,"seconds":6.170e-01}
+{"path":"sturm","dim":2001,"seconds_per_shift":1.447e-05}

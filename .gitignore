@@ -1,0 +1,11 @@
+/build*/
+/dist/
+/wheelhouse/
+*.egg-info/
+__pycache__/
+*.so
+*.o
+.pytest_cache/
+/cache/
+.ipynb_checkpoints/
+/GIT_COMMIT

@@ -1,0 +1,20 @@
+[build-system]
+# setuptools + wheel only: both ship with the Kaggle image, so the wheel builds
+# offline with `pip wheel . --no-build-isolation`. C++ deps are vendored.
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "riss-drucker"
+dynamic = ["version"]
+description = "Spectra + ab initio to calibrated effective Hamiltonians (C++ core, Python orchestration)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
