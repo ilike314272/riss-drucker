@@ -231,7 +231,24 @@ compile, 2j ≤ 8 in tests) and 6j orthogonality (tests). Bound 1e-13.
   empirical vs nominal fractions and binomial standard errors.
 - **⟨r⟩ references:** Poisson 2 ln 2 − 1, GOE 0.5307, GUE 0.5996, GSE 0.6744.
 
-## 13. Physics conventions
+## 13. Data layer (fixed in M4)
+
+- **Units:** records keep the paper's units and uncertainty definition. Conversion
+  happens once, at use: 1 cm⁻¹ = 29979.2458 MHz; 2σ → 1σ by halving. An
+  `unknown` definition cannot be used in a fit.
+- **Effective-Hamiltonian-derived data** (HITRAN positions, values computed from a
+  paper's own Hamiltonian) carry `source: ehamil_derived` and are refused as fit input
+  unless `allow_ehamil_derived=True`.
+- **Network inversion:** weights 1/σ². Each component is anchored at the given level
+  (MARVEL ground state at 0) or, if none is given, at its first level; such energies are
+  reported as floating. Transitions with \|normalized residual\| > 5 get their σ inflated
+  ×10 and the solve repeats until stable. A level with one transition is unconfirmed.
+- **Round trip:** a constants record is validated when its constants reproduce the
+  paper's lines/levels with rms ≤ 2 × (paper rms, or median reference σ) and no
+  residual > 5 × that scale. Otherwise it is quarantined with the reason. The paper's
+  sign and name conventions are mapped through `convention.name_map`.
+
+## 14. Physics conventions
 
 | Item | Status | Milestone |
 |---|---|---|

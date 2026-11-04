@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ilike314272/riss-drucker/schemas/record.schema.json",
+  "title": "riss-drucker data record",
+  "description": "One provenance-tagged datum (README 6.2): a level, a transition, or a set of effective-Hamiltonian constants. Numbers and citations only, never paper text.",
+  "type": "object",
+  "required": ["schema_version", "kind", "molecule", "source", "provenance", "units"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"enum": ["level", "transition", "constants"]},
+    "molecule": {
+      "type": "object", "required": ["formula"],
+      "properties": {"formula": {"type": "string"}, "isotopologue": {"type": "string"},
+                     "electronic_state": {"type": "string"}}
+    },
+    "source": {
+      "description": "ehamil_derived data (e.g. HITRAN positions) are outputs of fitted Hamiltonians and are refused as independent fit input by default.",
+      "enum": ["measured", "marvel", "computed", "ehamil_derived"]
+    },
+    "provenance": {
+      "type": "object", "required": ["citation", "extraction_method"],
+      "properties": {
+        "citation": {"type": "string"}, "doi": {"type": ["string", "null"]},
+        "dataset": {"type": ["string", "null"], "description": "e.g. 'MARVEL H2CO 2021', 'ExoMol AYT2'"},
+        "table": {"type": ["string", "null"]}, "page": {"type": ["string", "null"]},
+        "file": {"type": ["string", "null"]}, "sha256": {"type": ["string", "null"]},
+        "extraction_method": {"enum": ["manual", "parser", "llm"]},
+        "extraction_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "license": {"type": ["string", "null"]}, "retrieved": {"type": ["string", "null"]}
+      }
+    },
+    "units": {
+      "type": "object", "required": ["energy"],
+      "properties": {"energy": {"enum": ["cm-1", "MHz", "GHz"]}}
+    },
+    "uncertainty_definition": {"enum": ["1sigma", "2sigma", "unknown"]},
+    "value": {"type": "number", "description": "level energy or transition wavenumber/frequency, in units.energy"},
+    "uncertainty": {"type": ["number", "null"]},
+    "upper": {"$ref": "#/$defs/assignment"},
+    "lower": {"$ref": "#/$defs/assignment"},
+    "assignment": {"$ref": "#/$defs/assignment"},
+    "intensity": {"type": ["object", "null"], "description": "e.g. {'einstein_A': ..., 'units': 's-1'}"},
+    "constants": {
+      "type": "object",
+      "description": "kind = constants: name -> {value, uncertainty, fixed}",
+      "additionalProperties": {
+        "type": "object", "required": ["value"],
+        "properties": {"value": {"type": "number"}, "uncertainty": {"type": ["number", "null"]},
+                       "fixed": {"type": "boolean"}}
+      }
+    },
+    "convention": {
+      "type": "object",
+      "description": "Required for constants: operator definitions, reduction, representation, sign conventions, units.",
+      "properties": {
+        "model": {"type": "string"}, "reduction": {"type": "string"}, "representation": {"type": "string"},
+        "operator_convention": {"type": "string", "description": "reference to the operator definitions used"},
+        "sign_convention": {"type": "string"}, "name_map": {"type": "object"}
+      }
+    },
+    "model_spec": {"type": "object", "description": "riss_drucker ModelSpec canonical form, if known"},
+    "fit_statistics": {
+      "type": "object",
+      "properties": {"rms": {"type": "number"}, "n_lines": {"type": "integer"},
+                     "j_range": {"type": "array", "items": {"type": "integer"}}, "bands": {"type": "array"}}
+    },
+    "validation": {
+      "type": "object",
+      "properties": {"status": {"enum": ["unvalidated", "validated", "quarantined"]},
+                     "detail": {"type": "string"}, "round_trip_rms": {"type": ["number", "null"]}}
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"kind": {"const": "constants"}}},
+     "then": {"required": ["constants", "convention", "uncertainty_definition"]}},
+    {"if": {"properties": {"kind": {"const": "transition"}}},
+     "then": {"required": ["value", "upper", "lower"]}},
+    {"if": {"properties": {"kind": {"const": "level"}}},
+     "then": {"required": ["value", "assignment"]}}
+  ],
+  "$defs": {
+    "assignment": {
+      "type": "object",
+      "properties": {
+        "J": {"type": "number"}, "label": {"type": "string"},
+        "quantum_numbers": {"type": "object"}, "symmetry": {"type": ["string", "null"]},
+        "nuclear_spin": {"type": ["string", "null"]}, "vibrational_state": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

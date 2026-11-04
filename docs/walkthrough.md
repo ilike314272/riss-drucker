@@ -195,23 +195,68 @@ notebooks/03_probabilistic_layer.ipynb   spectrum -> assignment -> line fit -> w
 | Statistics (README 12) | β-Hermite ⟨r⟩ for β = 0, 1, 2, 4 and COE/CUE within 0.012; Brody q recovered; superposition P(0) = 1 − Σf_i² within 0.06 |
 | Closed loop | spectrum → assignment → fit to lines recovers all constants (pulls < 5) |
 
-**Follow-ups found in M3** (not blocking)
-- Peak finding and Voigt profile fitting from raw spectra. Assignment starts from peak lists now; Voigt-convolved spectra are a Part 4 plot.
-- Blended lines are assigned as one composite line. Fitting a blend's intensity-weighted position is not done (blends are excluded from the line fit).
-- The expected-misassignment count is conservative (about 1 actual vs 4 expected in the notebook); calibrate p_d and the background model on real data (M4).
-- Model-error hyperparameter in the predictive σ (M5): under-coverage under misspecification is detected, not yet corrected.
-- Truncation estimates exist for the torsion model only (the rigid rotor has no truncation). Add them per model as polyads arrive (M8).
-- ε_Ω·ρ horizon per block (README 9, 13) once perturbative orders are explicit.
+**M3 gaps, closed afterwards** (`tests/python/test_m3_gaps.py`)
+- Peak finding + Voigt fitting from raw spectra (`peaks.py`). Matched-filter detection, joint
+  Voigt fits per cluster with a local linear baseline, covariance uncertainties. Isolated-line
+  pulls ≈ N(0, 1), no spurious peaks at 5σ, doublets resolved down to about 1.5 FWHM.
+- Blends in the line fit: a blended peak = intensity-weighted mean of its member transitions,
+  with a weighted Hellmann-Feynman Jacobian.
+- Self-calibrating assignment: EM estimates p_d, the background fraction and the background
+  intensity model from unexplained peaks. Over 16 synthetic spectra: 4 wrong vs 8.6 expected
+  (was ~4× conservative), none with posterior > 0.99.
+- Model-error hyperparameter τ: `fit(model_error=τ)` and `posterior.calibrate_model_error`
+  (ML from cross-fitted held-out residuals). Quartic fit of sextic data: 95% coverage 7% → 99%,
+  calibrated on an independent split. A correct model gives τ ≈ 0.
+
+**Still open from M3**
+- A scalar τ over-covers when the model error is concentrated (e.g. high K): a structured
+  τ(J, K) model belongs with M5's multi-fidelity error model.
+- ε_Ω·ρ horizon per block, once perturbative orders are explicit (M8 polyads).
+- Truncation estimates for models other than torsion (none needed for the rigid rotor).
 
 ---
 
-## M4 Data store and gold set ▶
-`schemas/record.schema.json` (source ∈ measured|marvel|computed|ehamil_derived;
-the fit refuses `ehamil_derived` by default). ExoMol `.states`/`.trans` and MARVEL
-parsers with filtering. ~20 hand-extracted gold-set papers (numbers and
-citations only). Round-trip validator: quarantine anything that doesn't reproduce.
-MARVEL-style (DᵀWD)E = DᵀWν consistency solve. Calculated-vs-MARVEL error prior.
-Candidate molecules: H2CO or H2S.
+## M4 Data store and gold set — infrastructure ✅, real data ⏸ (network)
+
+**What exists**
+
+```
+schemas/record.schema.json            level | transition | constants; source; provenance; units; convention
+python/riss_drucker/data/records.py   unit (MHz/GHz -> cm-1) and 2 sigma -> 1 sigma conversion, schema check,
+                                      ehamil_derived refused as fit input by default
+python/riss_drucker/data/exomol.py    .def.json fields, .states (filters), streamed .trans (+ S(T) from A, cutoffs)
+python/riss_drucker/data/marvel.py    MARVEL transitions/energies readers (n_qn configurable)
+python/riss_drucker/data/network.py   (D^T W D) E = D^T W nu per component, anchors, outlier down-weighting,
+                                      unconfirmed (single-transition) levels, floating components
+python/riss_drucker/data/error_prior.py  calculated-vs-empirical statistics; sigma(J) = sqrt(a^2 + (b J(J+1))^2)
+python/riss_drucker/data/roundtrip.py    compile + constants (name map, signs, units) -> reproduce the paper -> quarantine
+python/riss_drucker/data/store.py        JSONL record store + quarantine -> fit Observations
+scripts/fetch_data.py, scripts/kaggle_datasets.py   provenance-recording downloads; Kaggle via the official CLI
+docs/data_sources.md                     survey: H2CO MARVEL (first), H2S MARVEL, ExoMol AYTY/AYT2/APTY/MM,
+                                         H2O2 torsion, CH4 MARVEL, CH4+ (Merkt group)
+gold/README.md                           extraction protocol; empty so far
+notebooks/04_data_layer.ipynb            real files if present, synthetic demonstration otherwise
+```
+
+**Evidence** (`tests/python/test_m4_data.py`; all fixtures are synthetic files in the documented formats):
+ExoMol read/filter/intensity round trip, including bz2; MARVEL read/write; network inversion
+recovers levels with calibrated per-level pulls over 40 noise realizations; injected bad lines
+flagged; b-type-only data splits into two components with one floating (ortho/para-like);
+error-prior σ(J) recovered; round trip validates correct constants and quarantines a sign flip,
+an MHz-as-cm⁻¹ unit error and a ×10 digit error; store → fit recovers constants, with
+ehamil_derived refused.
+
+**Blocked: needs network access to the data hosts**
+- Download H₂CO MARVEL + ExoMol AYTY (then H₂S), run the readers on real files, and adjust
+  the column layouts (the readers carry a NOTE where the layout was taken from documentation).
+- Gold set: extract ~20 papers, starting with the candidates in `docs/data_sources.md`.
+- Calculated-vs-MARVEL error prior on real ExoMol data (needs the MARVEL-tagged states).
+- Hosts to allow: `www.exomol.com`, `arxiv.org`/`export.arxiv.org`, `data.mendeley.com`,
+  `zenodo.org`, `discovery.ucl.ac.uk`, `www.kaggle.com` (+ its storage host for downloads), and
+  `hitran.org` (intensities only). Alternatively run `scripts/fetch_data.py` in a Kaggle notebook
+  with internet on and attach the result as a dataset.
+
+---
 
 ## M5 Multi-fidelity ab initio ○
 File-boundary interface (Parquet/JSON), a GP Δ-surface with predictive variance,
