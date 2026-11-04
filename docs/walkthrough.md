@@ -261,10 +261,20 @@ ehamil_derived refused.
 - Octic Watson terms (A and S reductions), `fit_by_order` (order continuation), and
   `fit_robust` warnings (non-converged start, outlier fraction > 0.25).
 
+- **Gold set, first entry** (`gold/cdms-h2co-v3`, `scripts/gold_cdms_h2co.py`): CDMS H₂CO v3
+  constants (S-reduction, octic) from the SPFIT `.var`, round-trip validated against SPCAT's
+  `.egy` to 2.9×10⁻⁷ cm⁻¹. This also verifies our S-reduction operator conventions against
+  Pickett's programs. Above J = KNMAX the CDMS energies depend on SPCAT's K truncation, by up
+  to 65 cm⁻¹ at J = 80 (outside the fitted range). New `data.spfit` reader; linear `name_map`
+  entries in the round trip.
+- **H₂CO high Ka:** MARVEL and CDMS agree for Ka ≤ 7 and differ by 10⁻³–2×10⁻² cm⁻¹ for
+  Ka ≥ 8. Stack offsets come from IR data only (µ_a molecule), so this is the weakly
+  determined region, not a single bad stack.
+
 **Next in M4**
-- MARVEL H₂CO transitions (supplement, publisher site) to resolve the Ka = 9 question.
-- Gold set: H₂CO microwave/THz constants (Müller & Lewen 2017; CDMS) run through the
-  round-trip validator; then the H₂O₂ torsion and CH₄⁺ papers.
+- IR transitions for H₂CO (MARVEL supplement; Müller et al. 2000 combination differences)
+  to pin the high-Ka offsets; per-Ka model-error terms meanwhile.
+- Gold set: H₂O₂ torsion and CH₄⁺ papers; an A-reduction SPFIT example to verify that map.
 - Resummed (Padé/Euler) rotor Hamiltonian for light molecules (H₂S/H₂O).
 - Faster `.states`/`.trans` parsing before the 100 AYTY transition files.
 

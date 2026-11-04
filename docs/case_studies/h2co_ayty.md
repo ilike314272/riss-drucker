@@ -59,24 +59,34 @@ A, B and C agree with the observed ground-state values quoted in the literature
 (281971 / 38836 / 34002 MHz). Comparing with the microwave/THz fits (Müller & Lewen,
 *J. Mol. Spectrosc.* 331 (2017); CDMS) is a gold-set item.
 
-## The Ka = 9 stack
+## The Ka = 9 stack, and what constrains high Ka
 
-The robust fit flags 18 levels: the Ka = 9 stack (J = 9–27) and the
-Ka = 8 pair at J = 9. The mean residual per Ka stack is within σ for every stack *except* Ka = 9.
-That includes Ka = 10 and 11, which lie above it:
+Our MARVEL-only fit flags the Ka = 9 stack: mean residual −0.005 cm⁻¹ (sextic) or
+−0.003 cm⁻¹ (octic), rms/σ 6–7, while Ka = 10 and 11 fit. Adding octic terms does not
+remove it, so it is not simply a missing K-term. (An earlier version of this note
+blamed one; that was wrong.)
 
-| Model | Ka = 8 rms/σ | Ka = 9 mean resid | Ka = 9 rms/σ | Ka = 10 rms/σ | Ka = 11 rms/σ |
+An independent check: the CDMS Hamiltonian (Müller & Lewen 2017; the gold entry
+`gold/cdms-h2co-v3`, round-trip validated against SPCAT) evaluated at the MARVEL levels:
+
+| Ka | 0–7 | 8 | 9 | 10 | 11 |
 |---|---|---|---|---|---|
-| sextic, J ≤ 38 | 2.0 | −0.0048 cm⁻¹ | 7.0 | 0.9 | 0.8 |
-| octic, J ≤ 38 | 3.3 | −0.0031 cm⁻¹ | 6.3 | 1.3 | 0.8 |
+| mean MARVEL − CDMS / cm⁻¹ | −0.0002 … −0.0001 | +0.0008 | −0.0017 | +0.0115 | +0.0225 |
+| rms / σ_MARVEL | 0.3–0.9 | 60 | 1.8 | 11 | 20 |
 
-A missing high-order K-term would worsen the residuals smoothly with Ka, and adding the
-octic L_K…l_K terms does not remove the offset. So the MARVEL ground-state Ka = 9 levels
-look internally inconsistent with the rest of the stack: most likely linked to the rest of
-the network through transitions with a systematic error, or locally perturbed. (An earlier
-version of this note blamed a missing octic term; that was wrong.) Checking needs the
-MARVEL H₂CO *transitions* file through `data.network`. It is in the paper's supplementary
-material, which the publisher does not serve to scripts, and it is not in the arXiv source.
+- For Ka ≤ 7, MARVEL and the microwave/THz-based Hamiltonian agree within MARVEL's
+  uncertainties, which cross-validates both.
+- For Ka ≥ 8 they disagree by 10⁻³–2×10⁻² cm⁻¹, and against CDMS the Ka = 9 stack is not
+  the outlier.
+- H₂CO has only µ_a, so its 407 microwave lines (Ka ≤ 15) are ΔKa = 0 transitions. They fix
+  the structure *within* each Ka stack but not the offsets *between* stacks, which come from
+  infrared data only.
+
+**Conclusion:** the high-Ka stack offsets are the weakly determined part of the H₂CO ground
+state, and no single source is the truth there. Predictive windows for high-Ka levels
+should reflect that, e.g. through a per-Ka model-error term. Resolving it needs the IR
+transitions (the MARVEL H₂CO supplement, or the IR combination differences of Müller
+et al. 2000).
 
 ## Calculated-vs-empirical error prior (README 6.4)
 

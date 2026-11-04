@@ -1,0 +1,271 @@
+{
+ "schema_version": 1,
+ "kind": "constants",
+ "molecule": {
+  "formula": "H2CO"
+ },
+ "source": "measured",
+ "provenance": {
+  "citation": "H. S. P. Mueller and F. Lewen, J. Mol. Spectrosc. 331, 28 (2017); CDMS entry 030501 (H2CO, v=0), version 3 (Feb. 2017)",
+  "doi": "10.1016/j.jms.2016.10.004",
+  "file": "https://cdms.astro.uni-koeln.de/classic/predictions/daten/H2CO/H2CO/H2CO.var",
+  "sha256": "fac24ff949ce0465be54a4b45224d73d77363a199e1084dd76afc3b69a8eacdf",
+  "extraction_method": "parser",
+  "extraction_confidence": 1.0,
+  "dataset": "CDMS 030501 v3"
+ },
+ "units": {
+  "energy": "MHz"
+ },
+ "uncertainty_definition": "1sigma",
+ "constants": {
+  "1099": {
+   "value": 245551.4494931,
+   "uncertainty": 0.00404771693,
+   "fixed": false
+  },
+  "199": {
+   "value": 36419.11527811191,
+   "uncertainty": 0.000245085214,
+   "fixed": false
+  },
+  "40099": {
+   "value": 1207.435872071782,
+   "uncertainty": 3.34392212e-06,
+   "fixed": false
+  },
+  "2099": {
+   "value": -19.39136377648937,
+   "uncertainty": 0.000532483067,
+   "fixed": false
+  },
+  "1199": {
+   "value": -1.321107309250582,
+   "uncertainty": 9.27316234e-06,
+   "fixed": false
+  },
+  "299": {
+   "value": -0.07032050440001439,
+   "uncertainty": 5.02220955e-07,
+   "fixed": false
+  },
+  "40199": {
+   "value": -0.01043787715107341,
+   "uncertainty": 4.71325276e-08,
+   "fixed": false
+  },
+  "50099": {
+   "value": -0.002501495505051314,
+   "uncertainty": 3.33277826e-08,
+   "fixed": false
+  },
+  "3099": {
+   "value": 0.004027171600180428,
+   "uncertainty": 2.22117152e-05,
+   "fixed": false
+  },
+  "2199": {
+   "value": 1.086549248935001e-05,
+   "uncertainty": 7.90069605e-08,
+   "fixed": false
+  },
+  "1299": {
+   "value": 7.46467592485163e-06,
+   "uncertainty": 1.57873935e-08,
+   "fixed": false
+  },
+  "399": {
+   "value": 3.54242180123048e-09,
+   "uncertainty": 3.27766475e-10,
+   "fixed": false
+  },
+  "40299": {
+   "value": 3.227205182166751e-08,
+   "uncertainty": 5.80981456e-11,
+   "fixed": false
+  },
+  "50199": {
+   "value": 4.794176154301588e-08,
+   "uncertainty": 7.41573902e-11,
+   "fixed": false
+  },
+  "60099": {
+   "value": 1.59657789207982e-08,
+   "uncertainty": 1.51185931e-11,
+   "fixed": false
+  },
+  "4099": {
+   "value": -6.103353271729709e-07,
+   "uncertainty": 1.77147025e-07,
+   "fixed": false
+  },
+  "3199": {
+   "value": -5.85153974820894e-09,
+   "uncertainty": 1.93262935e-10,
+   "fixed": false
+  },
+  "2299": {
+   "value": 3.669292510303842e-10,
+   "uncertainty": 8.53808653e-11,
+   "fixed": false
+  },
+  "1399": {
+   "value": -1.056806755440809e-10,
+   "uncertainty": 9.20176859e-12,
+   "fixed": false
+  },
+  "50299": {
+   "value": -3.448322570796827e-13,
+   "uncertainty": 4.99980782e-14,
+   "fixed": false
+  },
+  "60199": {
+   "value": -4.26859423705053e-13,
+   "uncertainty": 1.86627438e-14,
+   "fixed": false
+  },
+  "70099": {
+   "value": -1.519834804898693e-13,
+   "uncertainty": 3.2308294e-15,
+   "fixed": false
+  }
+ },
+ "convention": {
+  "model": "asym_rotor",
+  "reduction": "S",
+  "representation": "Ir",
+  "operator_convention": "SPFIT Watson S (Pickett); docs/conventions.md#9",
+  "name_map": {
+   "1099": {
+    "linear": {
+     "A": 1.0,
+     "B": -0.5,
+     "C": -0.5
+    }
+   },
+   "199": {
+    "linear": {
+     "B": 0.5,
+     "C": 0.5
+    }
+   },
+   "40099": {
+    "linear": {
+     "B": 0.25,
+     "C": -0.25
+    }
+   },
+   "2099": {
+    "linear": {
+     "DK": -1.0
+    }
+   },
+   "1199": {
+    "linear": {
+     "DJK": -1.0
+    }
+   },
+   "299": {
+    "linear": {
+     "DJ": -1.0
+    }
+   },
+   "40199": {
+    "linear": {
+     "d1": 1.0
+    }
+   },
+   "50099": {
+    "linear": {
+     "d2": 1.0
+    }
+   },
+   "3099": {
+    "linear": {
+     "HK": 1.0
+    }
+   },
+   "2199": {
+    "linear": {
+     "HKJ": 1.0
+    }
+   },
+   "1299": {
+    "linear": {
+     "HJK": 1.0
+    }
+   },
+   "399": {
+    "linear": {
+     "HJ": 1.0
+    }
+   },
+   "40299": {
+    "linear": {
+     "h1": 1.0
+    }
+   },
+   "50199": {
+    "linear": {
+     "h2": 1.0
+    }
+   },
+   "60099": {
+    "linear": {
+     "h3": 1.0
+    }
+   },
+   "4099": {
+    "linear": {
+     "LK": 1.0
+    }
+   },
+   "3199": {
+    "linear": {
+     "LKKJ": 1.0
+    }
+   },
+   "2299": {
+    "linear": {
+     "LJK": 1.0
+    }
+   },
+   "1399": {
+    "linear": {
+     "LJJK": 1.0
+    }
+   },
+   "50299": {
+    "linear": {
+     "l2": 1.0
+    }
+   },
+   "60199": {
+    "linear": {
+     "l3": 1.0
+    }
+   },
+   "70099": {
+    "linear": {
+     "l4": 1.0
+    }
+   }
+  },
+  "unmapped": [
+   "80099 p5 = 3.33e-18",
+   "120020011 3Sbb = -0.053055",
+   "10010011 Caa = -0.0036286",
+   "-20010011 Caa = -0.0036286",
+   "10020011 Cbb = 0.00199816",
+   "-20020011 Cbb = 0.00199816",
+   "10030011 Ccc = -0.00251877",
+   "-20030011 Ccc = -0.00251877"
+  ],
+  "knmax": 25
+ },
+ "validation": {
+  "status": "validated",
+  "round_trip_rms": 2.903717356977173e-07,
+  "detail": "notes: (zero) LJ, (zero) l1"
+ }
+}

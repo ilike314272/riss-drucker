@@ -21,27 +21,43 @@ from .records import normalized
 
 
 def _theta(record: dict, param_names) -> tuple[dict, list[str]]:
+    """Library parameters from the record's constants through convention.name_map.
+
+    name_map entries: "P": "lib_name" | {"param": lib_name, "scale": s}
+                      | {"linear": {lib_name: coeff, ...}}  (paper value = sum coeff * lib)
+    The system paper = M lib is solved by least squares; library parameters not
+    reached by any paper constant are 0 and listed in the notes.
+    """
     rec = normalized(record)
     name_map = rec.get("convention", {}).get("name_map", {})
-    theta = {p: 0.0 for p in param_names}
-    unmapped = []
+    names = list(param_names)
+    rows, rhs, unmapped = [], [], []
     for paper_name, c in rec["constants"].items():
         target = name_map.get(paper_name, paper_name)
-        scale = 1.0
-        if isinstance(target, dict):
-            scale = float(target.get("scale", 1.0))
-            target = target["param"]
-        if target not in theta:
+        if isinstance(target, dict) and "linear" in target:
+            coeffs = target["linear"]
+        elif isinstance(target, dict):
+            coeffs = {target["param"]: float(target.get("scale", 1.0))}
+        else:
+            coeffs = {target: 1.0}
+        if any(k not in names for k in coeffs):
             unmapped.append(paper_name)
             continue
-        theta[target] = scale * c["value"]
-    def target_of(n):
-        t = name_map.get(n, n)
-        return t["param"] if isinstance(t, dict) else t
-
-    mapped = {target_of(n) for n in rec["constants"]}
-    missing = [p for p in param_names if p not in mapped]
-    return theta, unmapped + [f"(zero) {m}" for m in missing]
+        row = np.zeros(len(names))
+        for k, v in coeffs.items():
+            row[names.index(k)] = float(v)
+        rows.append(row)
+        rhs.append(c["value"])
+    theta = {p: 0.0 for p in names}
+    notes = [f"unmapped {u}" for u in unmapped]
+    if rows:
+        M = np.array(rows)
+        used = np.nonzero(np.any(M != 0, axis=0))[0]
+        sol, *_ = np.linalg.lstsq(M[:, used], np.array(rhs), rcond=None)
+        for j, v in zip(used, sol):
+            theta[names[j]] = float(v)
+        notes += [f"(zero) {names[j]}" for j in range(len(names)) if j not in set(used.tolist())]
+    return theta, notes
 
 
 def validate_constants(record: dict, references: list[dict], *, model=None, spec=None,

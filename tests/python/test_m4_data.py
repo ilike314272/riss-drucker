@@ -268,3 +268,40 @@ def test_store_and_fit_from_records(tmp_path, rotor):
     assert len(obs) == len(refs) and st.last_refused == 1  # ehamil_derived refused
     f = rd.fit(m, obs, rd.synth.perturb_theta(TRUE, 1e-4, seed=5))
     assert f.converged and max(abs(f.theta[n] - TRUE[n]) / f.sigma[n] for n in TRUE) < 5
+
+
+def test_spfit_var_egy_and_linear_name_map(tmp_path):
+    """SPFIT reader + linear name maps on a SYNTHETIC .var/.egy written from the
+    library itself (the real CDMS H2CO round trip lives in scripts/gold_cdms_h2co.py)."""
+    from riss_drucker.data import spfit
+    th = {"A": 9.4, "B": 1.30, "C": 1.13, "DJ": 2.3e-6, "DJK": 4.3e-5, "DK": 6.5e-4, "d1": -3.5e-7, "d2": -8e-8}
+    m = rd.compile_asym_rotor(j_max=8, order=4, reduction="S", axis="Ir")
+    sol = rd.solve(m, th, nlowest=9, method="dense")
+    lab = asym_top_labels(m)
+    MHZ = records.MHZ_PER_CM
+    ids = {1099: th["A"] - (th["B"] + th["C"]) / 2, 199: (th["B"] + th["C"]) / 2, 40099: (th["B"] - th["C"]) / 4,
+           299: -th["DJ"], 1199: -th["DJK"], 2099: -th["DK"], 40199: th["d1"], 50099: th["d2"]}
+    body = "\n".join(f"{i:13d} {v * MHZ: .15E} 1.0E-03 /p{i}" for i, v in ids.items())
+    (tmp_path / "x.var").write_text("TEST  gs\n  8 100 5 0 0.0E+000 1.0E+005 1.0 1.0\n"
+                                    "s   1   1   0  12   0   1   1   3   0   -1\n" + body + "\n 0.1-0.2 0.3\n")
+    with open(tmp_path / "x.egy", "w") as fh:
+        for b, r in zip(sol.blocks, sol.results):
+            for i, e in enumerate(r["eigenvalues"]):
+                J, ka, kc = lab[b["key"]][i].replace("(", " ").replace(",", " ").rstrip(")").split()
+                fh.write(f"{1:6d}{1:5d}{e:18.6f}{0.0:18.6f}{1.0:11.6f}{2 * int(J) + 1:5d}:{int(J):3d}{int(ka):3d}{int(kc):3d}\n")
+    var = spfit.read_var(tmp_path / "x.var")
+    assert var.reduction == "S" and var.iax == 1 and var.knmax == 12 and len(var.parameters) == 8
+    egy = spfit.read_egy(tmp_path / "x.egy")
+    assert len(egy) == sum(2 * j + 1 for j in range(9))
+    rec = spfit.constants_record(var, citation="synthetic", doi=None, url="x.var", sha256="0", formula="XY2")
+    refs = [{"schema_version": 1, "kind": "level", "molecule": {"formula": "XY2"}, "source": "ehamil_derived",
+             "provenance": CIT, "units": {"energy": "cm-1"}, "uncertainty_definition": "1sigma", "value": e,
+             "uncertainty": 1e-6, "assignment": {"label": k}} for k, e in egy.items()]
+    out = roundtrip.validate_constants(rec, refs, model=m)
+    assert out["validation"]["status"] == "validated" and out["validation"]["round_trip_rms"] < 1e-6
+    theta, _ = roundtrip._theta(rec, m.param_names)
+    for k, v in th.items():
+        assert theta[k] == pytest.approx(v, rel=1e-9)
+    bad = json.loads(json.dumps(rec))
+    bad["constants"]["40099"]["value"] *= 1.001  # (B-C)/4 off by 0.1 %
+    assert roundtrip.validate_constants(bad, refs, model=m)["validation"]["status"] == "quarantined"
