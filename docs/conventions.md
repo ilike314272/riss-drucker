@@ -259,7 +259,43 @@ compile, 2j ≤ 8 in tests) and 6j orthogonality (tests). Bound 1e-13.
   residual > 5 × that scale. Otherwise it is quarantined with the reason. The paper's
   sign and name conventions are mapped through `convention.name_map`.
 
-## 14. Physics conventions
+## 14. Open-shell rotor (fixed in M8 work)
+
+- **Basis:** at fixed J the Hund's case (a) product |J P⟩|S Σ⟩ (P, Σ are molecule-fixed
+  projections), which is complete: (2J+1)(2S+1) = Σ_N (2N+1). The molecule-fixed J
+  obeys anomalous commutation and is represented as (J_x, −J_y, J_z) of the normal
+  matrices. S is normal. N = J − S (anomalous). All operators are real in this basis
+  (certificate `reality`).
+- **Operators** (cm⁻¹, see `models/open_rotor.hpp`):
+  - rotor A N_a² + B N_b² + C N_c²;
+  - spin-rotation ε_αα N_α S_α (diagonal tensor);
+  - spin-spin D_ss (S_z² − S²/3) + E_ss (S_x² − S_y²) in representation axes;
+  - Watson A quartic distortion of N;
+  - Brown-Sears Δ_N^S N²(N·S);
+  - spin-spin distortion ½{N², S_z² − S²/3}.
+- **Linear Σ limit:** B = C with A large; ε = γ; D_ss = 2λ; Δ_N^S = γ_D; D_ss_N = 2λ_D.
+- **Half-integer J:** a doubled 2J, so odd 2S gives the Kramers / GSE class. The spec's
+  group chain records the double group (`D2^(2)`).
+- **Compile certificates:** Hermiticity; reality; N² eigenvalues N(N+1) with multiplicity
+  2N+1; N·S eigenvalues equal both the 6j-based value and (J(J+1) − N(N+1) − S(S+1))/2.
+- **Labels** (`riss_drucker.open_shell.assign`): N from ⟨N²⟩, Ka from ⟨N_a²⟩. F_i is
+  numbered from the largest J for given N (F₁: J = N + S). `purity` reports N mixing.
+
+## 15. Large-amplitude motion models (fixed in M8 work)
+
+- **Inversion (`inversion`):** H = G p² + V₂x² + V₄x⁴ + V₆x⁶ in a dimensionless coordinate
+  x, plus symmetric-top rotation B(J(J+1) − K²) + C K², plus inversion-rotation coupling
+  Bx2·x²(J(J+1) − K²) + Cx2·x²K².
+  - Basis: harmonic-oscillator functions of q = x/basis_scale. Polynomial operators are
+    built in a basis 8 functions larger, then truncated, so the matrix elements are exact.
+  - Blocks: (J, K ≥ 0, parity `+`/`−`). K > 0 levels are doubly degenerate (±K).
+- **RAM torsion (`ram_torsion`):** H = A J_a² + B J_b² + C J_c² + D_ab(J_aJ_b + J_bJ_a) + F p²
+  + D_pa p J_a + Σ_L V_L(1 − cos Lγ)/2 in |J K⟩|m⟩, with blocks (J, σ = m mod n).
+  - Gauge: F(p − ρJ_a)² ⇒ D_pa = −2Fρ, and A absorbs Fρ².
+  - With B = C and D_ab = 0 it reproduces `torsion_rotor` exactly. With ρ = 0 and V = 0 it
+    equals the principal-axis rotor + F m².
+
+## 16. Physics conventions
 
 | Item | Status | Milestone |
 |---|---|---|

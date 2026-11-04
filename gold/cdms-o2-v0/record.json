@@ -1,0 +1,75 @@
+{
+ "schema_version": 1,
+ "kind": "constants",
+ "molecule": {
+  "formula": "O2",
+  "isotopologue": "16O2",
+  "electronic_state": "X 3Sigma-g, v=0"
+ },
+ "source": "measured",
+ "provenance": {
+  "citation": "B. J. Drouin, S. Yu, C. E. Miller, H. S. P. Mueller, F. Lewen, S. Bruenken, H. Habara, JQSRT 111, 1167 (2010); CDMS entry 032508 (O2, X 3Sigma-g, v=0)",
+  "file": "https://cdms.astro.uni-koeln.de/classic/predictions/daten/O2/3Sigma/1616/v0.var",
+  "sha256": "06d78714aeaba0b5a09178585b6384a99b7b3ecce6a32d183f5632087cd6c9b5",
+  "extraction_method": "parser",
+  "extraction_confidence": 1.0,
+  "dataset": "CDMS 032508"
+ },
+ "units": {
+  "energy": "MHz"
+ },
+ "uncertainty_definition": "1sigma",
+ "constants": {
+  "0": {
+   "value": -7370.195360966929,
+   "uncertainty": 0.00235953482,
+   "fixed": false
+  },
+  "100": {
+   "value": 43100.44161102476,
+   "uncertainty": 0.000575019896,
+   "fixed": false
+  },
+  "200": {
+   "value": -0.1451102701849443,
+   "uncertainty": 1.57726989e-06,
+   "fixed": false
+  },
+  "110010000": {
+   "value": 238005.3761914647,
+   "uncertainty": 0.00604618536,
+   "fixed": false
+  },
+  "110010100": {
+   "value": 0.2334690602899549,
+   "uncertainty": 3.86142593e-05,
+   "fixed": false
+  },
+  "10000000": {
+   "value": -252.586325480492,
+   "uncertainty": 0.000174932457,
+   "fixed": false
+  },
+  "10000100": {
+   "value": -0.0002434370953469337,
+   "uncertainty": 6.72249354e-07,
+   "fixed": false
+  }
+ },
+ "convention": {
+  "model": "open_rotor (linear limit)",
+  "reduction": "n/a",
+  "representation": "Ir",
+  "operator_convention": "SPFIT linear 3Sigma; mapping in scripts/gold_cdms_o2.py",
+  "unmapped": [
+   "300 H",
+   "110010200 4lambdaH",
+   "10000200 gammaH"
+  ]
+ },
+ "validation": {
+  "status": "validated",
+  "round_trip_rms": 2.8507108129937236e-07,
+  "detail": "18 SPCAT levels N <= 11 matched by (N, J); max |diff| 5.43e-07 cm-1 (print precision 5e-7)"
+ }
+}

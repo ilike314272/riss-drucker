@@ -12,6 +12,9 @@ from ._core import (
     axpy,
     build_info,
     compile_asym_rotor,
+    compile_inversion,
+    compile_open_rotor,
+    compile_ram_torsion,
     compile_torsion_rotor,
     cpu_features,
     csr_matvec,
@@ -29,7 +32,7 @@ from ._version import __version__
 from .config import RuntimeConfig, runtime_config
 from .runinfo import run_record, write_run_record
 from .solve import Solution, solve, solve_csr, solve_options
-from . import angular, assign, data, peaks, posterior, robust, rotor, spectra, stats, synth
+from . import angular, assign, data, open_shell, peaks, posterior, robust, rotor, spectra, stats, synth
 from .cache import CacheError, compile_cached
 from .fit import FitResult, Observation, Prior, fit, fit_by_order
 from .results import fit_result_record, validate_result
@@ -52,12 +55,16 @@ __all__ = [
     "angular",
     "assign",
     "data",
+    "open_shell",
     "peaks",
     "posterior",
     "robust",
     "spectra",
     "stats",
     "compile_asym_rotor",
+    "compile_inversion",
+    "compile_open_rotor",
+    "compile_ram_torsion",
     "compile_cached",
     "fit",
     "fit_by_order",

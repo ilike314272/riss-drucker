@@ -293,7 +293,35 @@ Part 4 widgets can start alongside M2/M3 as soon as there are results to plot.
 Sparse Bayesian selection over the enumerable operator dictionary first, then a
 grammar-constrained proposer for compositional choices. Coupling-case diagnostic.
 
-## M8 and later phases ○
+## M8 open-shell and LAM models ✅ (pulled forward); remaining M8 ○
+
+**What exists**
+- `open_rotor` (C++): asymmetric rotor + electron spin S. Spin-rotation, spin-spin, Watson
+  quartic in N, and Brown-Sears spin distortion terms; half-integer J (Kramers). Compile
+  certificates include the 6j cross-check of N·S. Labels via `rd.open_shell.assign`.
+- `inversion` (C++): double-well LAM coordinate, parity blocks, inversion-rotation coupling.
+- `ram_torsion` (C++): rho-axis internal rotation in a full asymmetric rotor (K mixed).
+- `ModelSpec.open_rotor / .inversion / .ram_torsion`; cache and hash support.
+- `notebooks/05_open_shell_and_lam.ipynb`.
+
+**Evidence** (`tests/python/test_m8_open_shell_lam.py`, `tests/cpp/test_open_lam.cpp`)
+
+| Check | Result |
+|---|---|
+| Isotropic spin-rotation (S = ½, 1, 3/2) vs the exact γ/2[J(J+1) − N(N+1) − S(S+1)] | ≤ 10⁻¹¹ |
+| Anisotropic doublet vs first-order (Raynes) splitting | error ∝ ε as required |
+| **Real data:** O₂ X³Σg⁻ (CDMS 032508, Drouin et al. 2010) in the linear limit | 18 levels to 5.4×10⁻⁷ cm⁻¹ (print precision), N ≤ 11 (`gold/cdms-o2-v0`); 3×10⁻⁵ cm⁻¹ at N ≤ 25, limited by sextic terms not in the model |
+| Inversion: harmonic levels | exact |
+| Inversion: quartic-oscillator ground state 1.0603620904842 | to 10⁻¹¹ |
+| Inversion: tunnelling | doublet ordering, exponential splitting decay, K-dependent splitting from rotation coupling |
+| RAM | equals `torsion_rotor` in the K-exact limit and the principal-axis rotor at ρ = 0, to 10⁻¹⁰ |
+
+**Remaining M8:** Td/degenerate-mode polyads (methane), PI-group symmetry labels for LAM
+blocks (D3h(M), G12, …) with nuclear-spin statistics, sextic spin-rotation distortion,
+resummed rotor for light molecules, and electronic orbital angular momentum (Λ ≠ 0,
+Renner-Teller / Jahn-Teller: Phase B, needed for CH₄⁺).
+
+## Later phases ○
 Td polyads (methane), open-shell and double groups, LAM PI-group blocks, then
 Phases B–F. The interfaces reserved for them so far: an electronic-state slot in
 `BlockId`/`ModelSpec` (M1), time-indexed parameters in the run record/result

@@ -16,6 +16,8 @@
 #include "riss_drucker/linalg_backend.hpp"
 #include "riss_drucker/model.hpp"
 #include "riss_drucker/models/asym_rotor.hpp"
+#include "riss_drucker/models/lam.hpp"
+#include "riss_drucker/models/open_rotor.hpp"
 #include "riss_drucker/models/torsion_rotor.hpp"
 #include "riss_drucker/solver.hpp"
 
@@ -408,6 +410,37 @@ PYBIND11_MODULE(_core, m) {
         py::arg("j_min") = 0, py::arg("j_max") = 10, py::arg("reduction") = "A", py::arg("axis") = "Ir",
         py::arg("order") = 4, py::arg("extra_operators") = std::vector<std::string>{},
         "Compile the Watson asymmetric rotor (see models/asym_rotor.hpp).");
+
+  m.def("compile_open_rotor",
+        [](int two_s, int n_max, std::string axis, int order, bool spin_rotation, bool spin_spin) {
+          models::OpenRotorSpec s;
+          s.two_s = two_s; s.n_max = n_max; s.axis = std::move(axis); s.order = order;
+          s.spin_rotation = spin_rotation; s.spin_spin = spin_spin;
+          return models::compile_open_rotor(s);
+        },
+        py::arg("two_s") = 1, py::arg("n_max") = 10, py::arg("axis") = "Ir", py::arg("order") = 4,
+        py::arg("spin_rotation") = true, py::arg("spin_spin") = false,
+        "Open-shell asymmetric rotor with electron spin S = two_s/2 (models/open_rotor.hpp).");
+  m.def("compile_inversion",
+        [](int n_basis, double basis_scale, int potential_order, int j_max, bool rotation_coupling) {
+          models::InversionSpec s;
+          s.n_basis = n_basis; s.basis_scale = basis_scale; s.potential_order = potential_order;
+          s.j_max = j_max; s.rotation_coupling = rotation_coupling;
+          return models::compile_inversion(s);
+        },
+        py::arg("n_basis") = 40, py::arg("basis_scale") = 1.0, py::arg("potential_order") = 4,
+        py::arg("j_max") = 0, py::arg("rotation_coupling") = false,
+        "Inversion double well (+ symmetric-top rotation), models/lam.hpp.");
+  m.def("compile_ram_torsion",
+        [](int n_fold, std::vector<int> v_orders, int m_max, int j_max, std::string axis, bool d_ab) {
+          models::RamTorsionSpec s;
+          s.n_fold = n_fold; s.v_orders = std::move(v_orders); s.m_max = m_max; s.j_max = j_max;
+          s.axis = std::move(axis); s.d_ab = d_ab;
+          return models::compile_ram_torsion(s);
+        },
+        py::arg("n_fold") = 3, py::arg("v_orders") = std::vector<int>{1}, py::arg("m_max") = 15,
+        py::arg("j_max") = 5, py::arg("axis") = "Ir", py::arg("d_ab") = true,
+        "Rho-axis internal rotation in an asymmetric rotor (full K mixing), models/lam.hpp.");
 
   m.def("compile_torsion_rotor",
         [](int n_fold, std::vector<int> v_orders, int m_max, int j_max, bool kp_coupling) {

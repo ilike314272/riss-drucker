@@ -1,5 +1,6 @@
 foreach(t test_kernels test_cpu_dispatch test_linalg test_build_info
-          test_sparse test_inertia test_solver test_torsion test_angular test_asym_rotor)
+          test_sparse test_inertia test_solver test_torsion test_angular test_asym_rotor
+          test_open_lam)
   add_executable(${t} ${t}.cpp)
   target_link_libraries(${t} PRIVATE riss_drucker::core)
   rd_apply_baseline_flags(${t})
