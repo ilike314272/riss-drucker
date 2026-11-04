@@ -241,8 +241,19 @@ compile, 2j ≤ 8 in tests) and 6j orthogonality (tests). Bound 1e-13.
   unless `allow_ehamil_derived=True`.
 - **Network inversion:** weights 1/σ². Each component is anchored at the given level
   (MARVEL ground state at 0) or, if none is given, at its first level; such energies are
-  reported as floating. Transitions with \|normalized residual\| > 5 get their σ inflated
-  ×10 and the solve repeats until stable. A level with one transition is unconfirmed.
+  reported as floating.
+  - *Outlier detection:* Huber IRLS on capped precision, σ_eff = max(σ, median σ).
+  - *Clean solves:* full-precision solves on the clean set, re-judging every line against
+    \|r\|/σ > 5 (worst first; lines that fit again are un-flagged).
+  - Lines with a negative wavenumber in a MARVEL file are MARVEL deletions and are ignored.
+  - A level with one clean transition is unconfirmed. A level reachable only through flagged
+    lines keeps its robust estimate, marked `isolated_by_outliers`, with no uncertainty.
+  - Outlier indices refer to the caller's input list.
+- **Octic Watson terms:** + sign for all octic terms, like the sextic terms
+  (`models/asym_rotor.hpp`).
+- **Order continuation and the robust-fit guard:** fit high orders by continuation
+  (`fit_by_order`). `fit_robust` warns, and is not `trustworthy`, if its starting fit did
+  not converge or if the outlier fraction is > 0.25.
 - **Round trip:** a constants record is validated when its constants reproduce the
   paper's lines/levels with rms ≤ 2 × (paper rms, or median reference σ) and no
   residual > 5 × that scale. Otherwise it is quarantined with the reason. The paper's

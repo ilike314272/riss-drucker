@@ -31,7 +31,7 @@ from .runinfo import run_record, write_run_record
 from .solve import Solution, solve, solve_csr, solve_options
 from . import angular, assign, data, peaks, posterior, robust, rotor, spectra, stats, synth
 from .cache import CacheError, compile_cached
-from .fit import FitResult, Observation, Prior, fit
+from .fit import FitResult, Observation, Prior, fit, fit_by_order
 from .results import fit_result_record, validate_result
 from .spec import ModelSpec
 
@@ -60,6 +60,7 @@ __all__ = [
     "compile_asym_rotor",
     "compile_cached",
     "fit",
+    "fit_by_order",
     "fit_result_record",
     "rotor",
     "synth",

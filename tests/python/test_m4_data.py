@@ -157,6 +157,40 @@ def test_network_flags_outliers_and_components(rotor):
         network.invert([])
 
 
+def test_network_survives_bad_lines_with_tiny_claimed_uncertainty(rotor):
+    """Regression for the real-data failure (H2S MARVEL): uncertainties span 1e-6..5e-2
+    and a few mis-assigned lines with tiny claimed sigma must not drag the network."""
+    m, levels, lines = rotor
+    rng = np.random.default_rng(9)
+    trans = []
+    for n, l in enumerate(lines):
+        s = float(10 ** rng.uniform(-5, -2))
+        qn = lambda lab: (lab.split("(")[0], *lab.split("(")[1].rstrip(")").split(","))
+        trans.append(marvel.MarvelTransition(l.wavenumber + s * rng.standard_normal(), s, qn(l.upper_label),
+                                             qn(l.lower_label), f"t{n}"))
+    bad = rng.choice(len(trans), 6, replace=False)
+    for i in bad:
+        trans[i].uncertainty = 1e-6           # claims extreme precision ...
+        trans[i].wavenumber += 0.5           # ... and is wrong by 0.5 cm-1
+    trans[0].excluded = True                 # MARVEL-deleted line: ignored
+    trans[0].wavenumber += 100.0
+    res = network.invert(trans, anchors={("0", "0", "0"): 0.0})
+    assert set(bad.tolist()) - {0} <= set(res.outliers)  # indices refer to the input list
+    assert 0 not in res.outliers and np.isnan(res.residuals[0])
+    err = [abs(v["energy"] - levels[f"{k[0]}({k[1]},{k[2]})"]) for k, v in res.levels.items()]
+    assert max(err) < 1e-3
+    assert len(res.outliers) <= len(bad) + 3
+
+
+def test_marvel_negative_wavenumber_means_excluded(tmp_path):
+    (tmp_path / "t.txt").write_text("-100.5 0.001 1 0 1 0 0 0 tagA\n100.5 0.001 1 0 1 0 0 0 tagB\n")
+    a, b = marvel.read_transitions(tmp_path / "t.txt", n_qn=3)
+    assert a.excluded and a.wavenumber == 100.5 and not b.excluded
+    marvel.write_transitions(tmp_path / "u.txt", [a, b])
+    a2, b2 = marvel.read_transitions(tmp_path / "u.txt", n_qn=3)
+    assert a2.excluded and not b2.excluded
+
+
 # ---- error prior --------------------------------------------------------------------
 
 def test_error_prior_recovers_sigma_model():

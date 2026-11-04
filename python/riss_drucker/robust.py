@@ -25,6 +25,11 @@ class RobustFitResult:
     broad_sigma: float
     em_iterations: int
     converged: bool
+    warnings: list = None  # e.g. a non-converged starting fit or an implausible outlier fraction
+
+    @property
+    def trustworthy(self) -> bool:
+        return self.converged and not self.warnings
 
 
 def _normal_logpdf(r, s):
@@ -43,9 +48,13 @@ def fit_robust(model, observations: Sequence[Observation], theta0, *, outlier_fr
     res = None
     converged = False
     it = 0
+    warnings = []
     for it in range(1, max_em + 1):
         eff = [replace(o, sigma=float(o.sigma / math.sqrt(max(p, resp_floor)))) for o, p in zip(obs, resp)]
         res = fit(model, eff, theta, **fit_kw)
+        if it == 1 and not res.converged:
+            warnings.append("the initial (unweighted) fit did not converge; outlier probabilities are "
+                            "unreliable. Start from a converged fit (e.g. the lower-order solution).")
         theta = res.theta
         r = np.array([lv["residual"] for lv in res.levels])
         ln_n = math.log(max(1 - w, 1e-300)) + _normal_logpdf(r, sig)
@@ -57,5 +66,8 @@ def fit_robust(model, observations: Sequence[Observation], theta0, *, outlier_fr
         if delta < tol and it > 1:
             converged = True
             break
+    if w > 0.25:
+        warnings.append(f"outlier fraction {w:.2f} > 0.25: more likely a wrong model or a bad starting "
+                        "point than bad data")
     return RobustFitResult(fit=res, outlier_probability=(1.0 - resp).tolist(), outlier_fraction=w,
-                           broad_sigma=sb, em_iterations=it, converged=converged)
+                           broad_sigma=sb, em_iterations=it, converged=converged, warnings=warnings)

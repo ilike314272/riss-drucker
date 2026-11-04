@@ -55,13 +55,16 @@ def main() -> int:
     Ka, Kc = ma["Herzberg:Ka"][g].astype(int), ma["Herzberg:Kb"][g].astype(int)
     if not np.all((Ka + Kc == J) | (Ka + Kc == J + 1)):
         raise SystemExit("unexpected rotational labels: Ka + Kb is not J or J+1")
-    model = rd.compile_asym_rotor(j_max=a.jcut, order=a.order)
+    orders = [o for o in (4, 6, 8) if o <= a.order]
+    models = [rd.compile_asym_rotor(j_max=a.jcut, order=o) for o in orders]
+    model = models[-1]
     idx = label_index(model)
     obs = [rd.Observation(*idx[f"{j}({p},{q})"], float(e), max(float(u), 1e-6), label=f"{j}({p},{q})")
            for j, p, q, e, u in zip(J, Ka, Kc, ma["E"][g], ma["unc"][g])]
-    start = {n: 0.0 for n in model.param_names} | {"A": 9.4, "B": 1.3, "C": 1.13}
-    plain = rd.fit(model, obs, start)
-    rob = rd.robust.fit_robust(model, obs, plain.theta)
+    plain = rd.fit_by_order(models, obs, {"A": 9.4, "B": 1.3, "C": 1.13}, max_iter=200)[-1]
+    rob = rd.robust.fit_robust(model, obs, plain.theta, max_iter=200)
+    if rob.warnings:
+        print("WARNING:", *rob.warnings)
     f = rob.fit
     MHZ = rd.data.records.MHZ_PER_CM
     p = np.asarray(rob.outlier_probability)
@@ -82,6 +85,7 @@ def main() -> int:
         "fit": {"model": f"asym_rotor Watson A, Ir, order {a.order}", "jcut": a.jcut, "n_levels": len(obs),
                 "plain_reduced_chi2": plain.reduced_chi2, "robust_reduced_chi2": f.reduced_chi2,
                 "outlier_fraction": rob.outlier_fraction, "certified": f.certified, "rank": f.rank,
+                "robust_warnings": rob.warnings, "plain_converged": plain.converged,
                 "constants_cm": f.theta, "sigma_cm": f.sigma,
                 "constants_MHz": {k: v * MHZ for k, v in f.theta.items()},
                 "flagged_levels": flagged},

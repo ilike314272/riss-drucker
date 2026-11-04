@@ -182,6 +182,21 @@ class _Evaluator:
         return e_calc, jac, sol
 
 
+def fit_by_order(models, observations: Sequence[Observation], theta0, **fit_kw) -> list[FitResult]:
+    """Order continuation: fit a sequence of nested models (e.g. Watson order
+    4 -> 6 -> 8), starting each from the previous solution with the new
+    parameters at 0. Parameters spanning many decades (A ~ 10, L ~ 1e-13 cm^-1)
+    make a cold start of a high-order fit unreliable; this is the robust path."""
+    results = []
+    theta = dict(theta0)
+    for m in models:
+        start = {n: float(theta.get(n, 0.0)) for n in m.param_names}
+        r = fit(m, observations, start, **fit_kw)
+        results.append(r)
+        theta = r.theta
+    return results
+
+
 def fit(model, observations: Sequence[Observation], theta0, *, prior: Prior | None = None,
         fixed: Sequence[str] = (), max_iter: int = 50, rtol: float = 1e-12, rank_tol: float = 1e-9,
         lam0: float = 1e-3, scale_cov_by_chi2: bool = False, model_error: float = 0.0,

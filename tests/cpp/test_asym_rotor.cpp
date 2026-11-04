@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <string>
 
 #include "riss_drucker/models/asym_rotor.hpp"
 #include "test_harness.hpp"
@@ -125,6 +126,32 @@ TEST_CASE("Hellmann-Feynman Jacobian matches finite differences") {
       }
     }
   }
+}
+
+TEST_CASE("octic operators: counts, certificates, l4 = J+^8 + J-^8 couples K and K+-8 only") {
+  for (const char* red : {"A", "S"}) {
+    AsymRotorSpec s;
+    s.j_max = 9;
+    s.order = 8;
+    s.reduction = red;
+    const auto m = models::compile_asym_rotor(s);
+    CHECK(m.param_names.size() == 3 + 5 + 7 + 9);
+    for (const auto& c : m.compile_certificates) CHECK(c.passed);
+  }
+  AsymRotorSpec s;
+  s.j_min = s.j_max = 4;
+  s.order = 8;
+  s.reduction = "S";
+  const auto m = models::compile_asym_rotor(s);
+  const auto& names = m.param_names;
+  const auto k = static_cast<std::size_t>(std::find(names.begin(), names.end(), "l4") - names.begin());
+  // J = 4: J+^8 maps K = -4 to K = +4 only; <4|J+^8|-4> = prod_{K=-4}^{3} sqrt(20 - K(K+1)) = 8!.
+  double maxabs = 0.0;
+  for (const auto& b : m.blocks) {
+    const auto d = b.ops[k].to_dense();
+    maxabs = std::max(maxabs, d.cwiseAbs().maxCoeff());
+  }
+  CHECK_CLOSE(maxabs, 40320.0, 1e-6);
 }
 
 TEST_CASE("invalid specs") {

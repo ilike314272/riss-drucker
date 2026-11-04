@@ -2,8 +2,9 @@
 
 What exists for the first molecules, with the best standard dataset for each
 role. Surveyed 2026-11-04 by web search. **Fetched so far:** ExoMol H₂CO AYTY
-(`.def.json`, `.states.bz2`, `.pf`). See `case_studies/h2co_ayty.md` for the first
-fit to real data and the calculated-vs-MARVEL error prior.
+(`.def.json`, `.states.bz2`, `.pf`) and the four H₂S MARVEL files from Mendeley Data
+(SHA-256 checked). See `case_studies/`. The H₂CO MARVEL supplement is not in the arXiv
+source and ScienceDirect refuses scripted downloads (403); it has to be downloaded by hand.
 `discovery.ucl.ac.uk` answers 403 to scripted requests; use arXiv or the publisher
 for those papers. Check every license before redistributing anything, including
 private Kaggle datasets.

@@ -1,7 +1,7 @@
 # Case study: H₂CO ground state from ExoMol AYTY (first real data)
 
-Reproduce with `python scripts/case_h2co.py --data DIR --fetch` (about 1 min to parse
-10.3 M states). The raw data is not in the repository. Derived numbers are in
+Reproduce with `python scripts/case_h2co.py --data DIR --fetch --jcut 38 --order 8` (about 1 min
+to parse 10.3 M states). The raw data is not in the repository. Derived numbers are in
 `h2co_ayty_results.json`.
 
 **Data.** ExoMol AYTY, version 20230430, dataset DOI 10.5281/zenodo.5716868. The states
@@ -16,43 +16,67 @@ Al-Refaie et al. (2015). Check the license before redistributing the raw files.
 | `1H2-12C-16O__AYTY.pf` | 75000 | `334d19b2bd2e46d2…` | 2026-11-04T22:22:30 |
 
 The ground vibrational state with J ≤ 40 has 1,681 levels, all Σ(2J+1) of them.
-496 of the J ≤ 30 levels are MARVEL-empirical, with median uncertainty about 2×10⁻⁴ cm⁻¹.
+544 are MARVEL-empirical (J ≤ 38), with median uncertainty about 2×10⁻⁴ cm⁻¹.
 
-## Fit: Watson A-reduction, Iʳ, sextic, J ≤ 30
+## Fit: Watson A-reduction, Iʳ, octic, J ≤ 38
 
-Plain fit: χ²/dof = 4.28. With the outlier mixture:
-χ²/dof = 0.65, outlier fraction 0.050,
-certified = True, rank 15/15 (no null directions).
+Order continuation (quartic → sextic → octic, each started from the previous solution).
+A cold octic start failed to converge. Its parameters span about 13 decades
+(A ≈ 9, L_J ≈ 10⁻¹³ cm⁻¹), and a robust fit seeded from it then called half the data
+outliers. That is why `fit_by_order` exists and why `fit_robust` now warns.
+
+Robust χ²/dof = 0.48, outlier fraction 0.037,
+certified = True, rank 24/24, warnings: none.
 
 | Parameter | Value / MHz | σ / MHz |
 |---|---|---|
-| A | 281970.556 | 0.031 |
-| B | 38836.0416 | 0.011 |
-| C | 34002.199 | 0.011 |
-| DeltaJ | 0.0753155004 | 1.9e-05 |
-| DeltaJK | 1.28972829 | 0.0003 |
-| DeltaK | 19.4348767 | 0.0011 |
-| deltaJ | 0.0104492942 | 1.5e-05 |
-| deltaK | 1.02846546 | 0.004 |
-| PhiJ | 8.73238619e-08 | 2.3e-08 |
-| PhiJK | 3.55007121e-05 | 4.6e-06 |
-| PhiKJ | -0.000144435007 | 1.8e-05 |
-| PhiK | 0.00461378834 | 1.9e-05 |
-| phiJ | 4.46652929e-08 | 1.4e-08 |
-| phiJK | 1.52865919e-05 | 4.1e-06 |
-| phiK | 0.00170806124 | 0.00033 |
+| A | 281970.485 | 0.039 |
+| B | 38836.0526 | 0.024 |
+| C | 34002.2001 | 0.024 |
+| DeltaJ | 0.0753375424 | 4e-05 |
+| DeltaJK | 1.29102106 | 0.00082 |
+| DeltaK | 19.4152717 | 0.005 |
+| deltaJ | 0.0104450066 | 3.7e-05 |
+| deltaK | 1.02933464 | 0.012 |
+| PhiJ | 1.10495884e-07 | 9.5e-08 |
+| PhiJK | 2.27405199e-05 | 1.7e-05 |
+| PhiKJ | -0.000127774652 | 7.2e-05 |
+| PhiK | 0.00419572691 | 0.00011 |
+| phiJ | 3.63318615e-08 | 5.6e-08 |
+| phiJK | 6.4201956e-06 | 2.2e-05 |
+| phiK | 0.00216291624 | 0.0013 |
+| LJ | -5.77670336e-13 | 6.2e-11 |
+| LJJK | 1.04388622e-08 | 2.2e-08 |
+| LJK | -1.90547926e-06 | 2.1e-07 |
+| LKKJ | 5.86618165e-06 | 8.8e-07 |
+| LK | -1.75149975e-06 | 8.4e-07 |
+| lJ | 2.31101564e-11 | 3.2e-11 |
+| lJK | -6.19488904e-09 | 1.2e-08 |
+| lKJ | 1.23876755e-06 | 1.5e-06 |
+| lK | -8.5394767e-05 | 9.5e-06 |
 
 A, B and C agree with the observed ground-state values quoted in the literature
-(281971 / 38836 / 34002 MHz). A precise comparison with the microwave/THz fits
-(e.g. Müller & Lewen, *J. Mol. Spectrosc.* 331 (2017); CDMS) is a gold-set item.
+(281971 / 38836 / 34002 MHz). Comparing with the microwave/THz fits (Müller & Lewen,
+*J. Mol. Spectrosc.* 331 (2017); CDMS) is a gold-set item.
 
-**Flagged levels.** All flagged levels are in the Ka = 9 stack (J = 9–19), plus the
-Ka = 8 pair at J = 9. Their residuals are −0.0064 → −0.0048 cm⁻¹, about 10× their
-MARVEL uncertainties, and drift slowly with J. Only the highest Ka is affected, which
-points to a missing octic K-term (L_K·Ka⁸ ≈ 4×10⁷·L_K at Ka = 9) rather than bad data.
-The library stops at sextic order. Adding octic terms is the next model step, and
-re-testing this stack is the check. The robust fit down-weights these levels and
-reports them; it does not drop them.
+## The Ka = 9 stack
+
+The robust fit flags 18 levels: the Ka = 9 stack (J = 9–27) and the
+Ka = 8 pair at J = 9. The mean residual per Ka stack is within σ for every stack *except* Ka = 9.
+That includes Ka = 10 and 11, which lie above it:
+
+| Model | Ka = 8 rms/σ | Ka = 9 mean resid | Ka = 9 rms/σ | Ka = 10 rms/σ | Ka = 11 rms/σ |
+|---|---|---|---|---|---|
+| sextic, J ≤ 38 | 2.0 | −0.0048 cm⁻¹ | 7.0 | 0.9 | 0.8 |
+| octic, J ≤ 38 | 3.3 | −0.0031 cm⁻¹ | 6.3 | 1.3 | 0.8 |
+
+A missing high-order K-term would worsen the residuals smoothly with Ka, and adding the
+octic L_K…l_K terms does not remove the offset. So the MARVEL ground-state Ka = 9 levels
+look internally inconsistent with the rest of the stack: most likely linked to the rest of
+the network through transitions with a systematic error, or locally perturbed. (An earlier
+version of this note blamed a missing octic term; that was wrong.) Checking needs the
+MARVEL H₂CO *transitions* file through `data.network`. It is in the paper's supplementary
+material, which the publisher does not serve to scripts, and it is not in the arXiv source.
 
 ## Calculated-vs-empirical error prior (README 6.4)
 

@@ -246,26 +246,27 @@ error-prior σ(J) recovered; round trip validates correct constants and quaranti
 an MHz-as-cm⁻¹ unit error and a ×10 digit error; store → fit recovers constants, with
 ehamil_derived refused.
 
-**First real data** (`docs/case_studies/h2co_ayty.md`, `scripts/case_h2co.py`)
-- ExoMol H₂CO AYTY fetched with provenance. The reader was corrected against the real
-  file: the field names are `ID`/`gtot`, and the files carry `SourceType` (Ma/Ca) and
-  `Ecal` columns.
-- Ground-state fit to 496 MARVEL levels (J ≤ 30, Watson A, sextic): χ²/dof 0.65 robust,
-  certified, full rank. A, B, C agree with the literature ground-state values.
-- The robust fit flags the Ka = 9 stack (−0.005 to −0.006 cm⁻¹). This is consistent with a
-  missing octic K-term, so octic operators are the next model step.
-- Calculated-vs-MARVEL error prior from 5,111 states in 25 vibrational states: band-dependent
-  biases up to −0.15 cm⁻¹; σ(J) = √(0.066² + (1.7×10⁻⁴ J(J+1))²) cm⁻¹.
+**Real data** (`docs/case_studies/`)
+- **H₂CO, ExoMol AYTY** (`scripts/case_h2co.py`): 544 ground-state MARVEL levels (J ≤ 38),
+  Watson A octic by order continuation; robust χ²/dof 0.48, certified, full rank. The Ka = 9
+  stack is offset (~6σ rms) while Ka = 10 and 11 fit, and octic terms do not remove it, so it
+  is a data/network feature (needs the MARVEL H₂CO transitions; the publisher blocks scripted
+  access). Calculated-vs-MARVEL error prior from 5,111 states: band-dependent biases up to
+  −0.15 cm⁻¹.
+- **H₂S, MARVEL** (`scripts/case_h2s.py`): independent inversion of 44,325 transitions
+  reproduces all 7,436 published levels (max \|Δ\| ≤ 1.2×10⁻⁴ cm⁻¹, 98% within MARVEL σ).
+  Two solver flaws exposed by real data are fixed (precision dynamic range; MARVEL's
+  negative-wavenumber deletions). The Watson fit shows the slow convergence expected for a
+  light molecule; the new robust-fit guard reports it instead of masking it.
+- Octic Watson terms (A and S reductions), `fit_by_order` (order continuation), and
+  `fit_robust` warnings (non-converged start, outlier fraction > 0.25).
 
 **Next in M4**
-- Octic terms (L_J … l_K) in the rotor operator library; re-test the Ka = 9 stack.
-- MARVEL H₂CO transitions file (Al-Derzi et al. 2021 supplement) → `data.network`
-  inversion, compared with the ExoMol-tagged MARVEL energies.
-- H₂S (AYT2 + MARVEL on Mendeley Data) as the second molecule.
-- Gold set: start with H₂CO microwave/THz constants (Müller & Lewen 2017) and run
-  the round-trip validator against their lines.
-- Faster `.states` parsing (~1 min per 10 M lines in pure Python), needed before the
-  100 `.trans` files.
+- MARVEL H₂CO transitions (supplement, publisher site) to resolve the Ka = 9 question.
+- Gold set: H₂CO microwave/THz constants (Müller & Lewen 2017; CDMS) run through the
+  round-trip validator; then the H₂O₂ torsion and CH₄⁺ papers.
+- Resummed (Padé/Euler) rotor Hamiltonian for light molecules (H₂S/H₂O).
+- Faster `.states`/`.trans` parsing before the 100 AYTY transition files.
 
 ---
 
