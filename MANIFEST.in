@@ -1,0 +1,10 @@
+include VERSION README.md LICENSE CMakeLists.txt
+recursive-include cmake *
+recursive-include include *
+recursive-include src *
+recursive-include python/src *
+recursive-include thirdparty *
+recursive-include tests *
+recursive-include benchmarks *
+recursive-include scripts *
+include GIT_COMMIT

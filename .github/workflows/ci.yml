@@ -1,0 +1,92 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  cpp:
+    name: cpp (${{ matrix.compiler }}, ${{ matrix.backend }}, simd=${{ matrix.simd }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc]
+        backend: [eigen, lapack]
+        simd: [ON, OFF]
+        include:
+          - { compiler: clang, backend: eigen, simd: ON }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build ${{ matrix.backend == 'lapack' && 'liblapack-dev libopenblas-dev' || '' }}
+      - name: Configure
+        run: |
+          if [ "${{ matrix.compiler }}" = clang ]; then export CC=clang CXX=clang++; fi
+          cmake -S . -B build -G Ninja \
+            -DRISS_DRUCKER_SIMD_DISPATCH=${{ matrix.simd }} \
+            -DRISS_DRUCKER_LAPACK=${{ matrix.backend == 'lapack' && 'ON' || 'OFF' }} \
+            -DRISS_DRUCKER_PY=OFF
+      - name: Build
+        run: cmake --build build
+      - name: Test (includes forced-scalar/avx2/avx512 reruns and the portable-ISA check)
+        run: ctest --test-dir build --output-on-failure
+      - name: Benchmarks (smoke; numbers are runner-dependent)
+        run: |
+          OPENBLAS_NUM_THREADS=1 ./build/benchmarks/bench_kernels
+          OPENBLAS_NUM_THREADS=1 ./build/benchmarks/bench_eigh
+
+  wheel:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        backend: [eigen, lapack]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build ${{ matrix.backend == 'lapack' && 'liblapack-dev libopenblas-dev' || '' }}
+          python -m pip install numpy setuptools wheel pytest
+      - name: Build wheel offline-style (no build isolation, vendored deps)
+        env:
+          RISS_DRUCKER_WORK: ${{ github.workspace }}/out
+        run: bash scripts/kaggle_build.sh ${{ matrix.backend == 'lapack' && '--lapack' || '' }}
+      - name: Python tests against the installed wheel
+        run: cd /tmp && python -m pytest -q ${{ github.workspace }}/tests/python
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.backend }}
+          path: out/wheelhouse/*.whl
+
+  wheel-fresh-install:
+    # README M0: a wheel built in one session installs in a fresh one.
+    needs: wheel
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        backend: [eigen, lapack]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-${{ matrix.backend }}
+          path: wheelhouse
+      - name: Runtime libraries only (no compilers needed)
+        run: |
+          python -m pip install numpy pytest
+          if [ "${{ matrix.backend }}" = lapack ]; then sudo apt-get update && sudo apt-get install -y liblapack3 libopenblas0; fi
+      - name: Install prebuilt wheel offline and smoke test
+        env:
+          RISS_DRUCKER_WORK: ${{ github.workspace }}/out
+        run: bash scripts/kaggle_build.sh --wheel wheelhouse
+      - name: Python tests
+        run: cd /tmp && python -m pytest -q ${{ github.workspace }}/tests/python
