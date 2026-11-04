@@ -48,6 +48,7 @@ class PredictedLine:
     upper_label: str | None = None
     upper: tuple | None = None    # (block key, index)
     lower: tuple | None = None
+    members: list | None = None   # blends: [(upper, lower, intensity), ...]
 
 
 def merge_blends(lines: Sequence[PredictedLine], resolution: float) -> list[PredictedLine]:
@@ -74,7 +75,8 @@ def merge_blends(lines: Sequence[PredictedLine], resolution: float) -> list[Pred
             sigma=float(max(x.sigma for x in g)),
             intensity=float(sum(x.intensity or 0.0 for x in g)) if all(x.intensity for x in g) else None,
             series=strongest.series, lower_label=strongest.lower_label, upper_label=strongest.upper_label,
-            upper=None, lower=None))
+            upper=None, lower=None,
+            members=[m for x in g for m in (x.members or [(x.upper, x.lower, x.intensity or 0.0)])]))
     return out
 
 
@@ -114,8 +116,12 @@ def _local_density(sorted_pos: np.ndarray, at: float, half_width: float) -> floa
 
 
 def assign(predicted: Sequence[PredictedLine], peaks: Sequence[Peak], *, gate: float = 10.83,
-           p_detect: float = 0.9, use_intensity: bool = True, sigma_log_model: float = 0.3,
-           credible: float = 0.95, fdr: float = 0.05, density_half_width: float | None = None) -> AssignmentResult:
+           p_detect: float | str = "auto", use_intensity: bool = True, sigma_log_model: float = 0.3,
+           credible: float = 0.95, fdr: float = 0.05, density_half_width: float | None = None,
+           em_iterations: int = 8) -> AssignmentResult:
+    """p_detect="auto" estimates the detection probability, the background
+    fraction of peaks and the background intensity distribution by EM from the
+    peaks not explained by predicted lines (calibrates the posteriors)."""
     pred = list(predicted)
     pk = list(peaks)
     pos = np.array([p.position for p in pk])
@@ -157,9 +163,13 @@ def assign(predicted: Sequence[PredictedLine], peaks: Sequence[Peak], *, gate: f
             ratios = [math.log(pk[j].intensity / pred[i].intensity) for i, c in enumerate(cand) for j, _ in c]
         scale = math.exp(float(np.median(ratios))) if ratios else 1.0
 
+    auto = p_detect == "auto"
+    p_d = 0.9 if auto else float(p_detect)
+    f_bg = 1.0  # fraction of peaks that are background (scales rho)
+
     def log_lr(i, j, d):
         s2 = pk[j].sigma ** 2 + pred[i].sigma ** 2
-        ll = -0.5 * d * d / s2 - 0.5 * math.log(2 * math.pi * s2) - math.log(rho[j])
+        ll = -0.5 * d * d / s2 - 0.5 * math.log(2 * math.pi * s2) - math.log(f_bg * rho[j])
         if use_int:
             sl2 = pk[j].sigma_log_intensity ** 2 + sigma_log_model ** 2
             x = logI[j] - math.log(scale * pred[i].intensity)
@@ -167,15 +177,38 @@ def assign(predicted: Sequence[PredictedLine], peaks: Sequence[Peak], *, gate: f
             ll -= -0.5 * ((logI[j] - bg_mu) / bg_sd) ** 2 - math.log(bg_sd)
         return ll
 
-    # Marginal posteriors per line.
-    marg = []
-    for i, c in enumerate(cand):
-        lls = np.array([log_lr(i, j, d) for j, d in c])
-        mx = max(lls.max() if len(lls) else -np.inf, 0.0)
-        num = p_detect * np.exp(lls - mx)
-        none = (1 - p_detect) * math.exp(-mx)
-        z = none + num.sum()
-        marg.append({"none": none / z, **{j: float(v / z) for (j, _), v in zip(c, num)}})
+    def marginals():
+        out = []
+        for i, c in enumerate(cand):
+            lls = np.array([log_lr(i, j, d) for j, d in c])
+            mx = max(lls.max() if len(lls) else -np.inf, 0.0)
+            num = p_d * np.exp(lls - mx)
+            none = (1 - p_d) * math.exp(-mx)
+            z = none + num.sum()
+            out.append({"none": none / z, **{j: float(v / z) for (j, _), v in zip(c, num)}})
+        return out
+
+    marg = marginals()
+    iters = 0
+    if auto and pred and pk:
+        for iters in range(1, em_iterations + 1):
+            explained = np.zeros(len(pk))
+            for m in marg:
+                for j, v in m.items():
+                    if j != "none":
+                        explained[j] += v
+            explained = np.clip(explained, 0.0, 1.0)
+            new_fbg = max(1.0 - explained.sum() / len(pk), 1.0 / len(pk))
+            new_pd = float(np.clip(np.mean([1.0 - m["none"] for m in marg]), 0.05, 0.995))
+            if use_int:
+                wbg = 1.0 - explained + 1e-9
+                bg_mu = float(np.average(logI, weights=wbg))
+                bg_sd = float(math.sqrt(np.average((logI - bg_mu) ** 2, weights=wbg)) + 1e-6)
+            done = abs(new_fbg - f_bg) < 1e-3 and abs(new_pd - p_d) < 1e-3
+            f_bg, p_d = new_fbg, new_pd
+            marg = marginals()
+            if done:
+                break
 
     # Monotone alignment per series.
     assigned: dict[int, int] = {}
@@ -240,7 +273,7 @@ def assign(predicted: Sequence[PredictedLine], peaks: Sequence[Peak], *, gate: f
                "chance_probability": None, "bh_accepted": False}
         if j is not None:
             d = pk[j].position - ln.position
-            row["chance_probability"] = chance_probability(d, rho[j])
+            row["chance_probability"] = chance_probability(d, f_bg * rho[j])
             pvals.append(row["chance_probability"])
             assigned_rows.append(row)
         rows.append(row)
@@ -249,8 +282,10 @@ def assign(predicted: Sequence[PredictedLine], peaks: Sequence[Peak], *, gate: f
     exp_mis = float(sum(1.0 - r["posterior"] for r in assigned_rows))
     return AssignmentResult(rows, exp_mis, len(assigned_rows), sum(r["bh_accepted"] for r in assigned_rows),
                             sum(r["ambiguous"] for r in rows), scale,
-                            {"gate": gate, "p_detect": p_detect, "fdr": fdr, "credible": credible,
-                             "density_half_width": density_half_width, "use_intensity": use_int})
+                            {"gate": gate, "p_detect": p_d, "p_detect_mode": "auto" if auto else "fixed",
+                             "background_fraction": f_bg, "em_iterations": iters, "fdr": fdr,
+                             "credible": credible, "density_half_width": density_half_width,
+                             "use_intensity": use_int})
 
 
 def predict_lines(model, theta, mu, T, *, covariance=None, min_relative_intensity: float = 0.0,
@@ -293,19 +328,33 @@ def predict_lines(model, theta, mu, T, *, covariance=None, min_relative_intensit
 
 
 def line_observations(result: "AssignmentResult", predicted: Sequence[PredictedLine], peaks: Sequence[Peak], *,
-                      accepted_only: bool = True, min_posterior: float = 0.95):
-    """Confident, unblended assignments as transition observations for `fit`."""
+                      accepted_only: bool = True, min_posterior: float = 0.95, include_blends: bool = True):
+    """Confident assignments as transition observations for `fit`. A blend becomes
+    one observation of the intensity-weighted mean of its member transitions
+    (weights from the predicted intensities)."""
     from .fit import Observation
 
     by_id = {p.id: p for p in predicted}
     out = []
     for r in result.lines:
-        if r["peak"] is None or "+" in r["line"] or r["posterior"] < min_posterior:
+        if r["peak"] is None or r["posterior"] < min_posterior:
             continue
         if accepted_only and not r["bh_accepted"]:
             continue
         p = by_id[r["line"]]
         pk = peaks[r["peak"]]
-        out.append(Observation(block=p.upper[0], index=p.upper[1], energy=pk.position, sigma=pk.sigma,
-                               label=p.id, lower_block=p.lower[0], lower_index=p.lower[1]))
+        if p.members:
+            if not include_blends:
+                continue
+            w = np.array([max(m[2], 0.0) for m in p.members])
+            if w.sum() <= 0:
+                continue
+            w = w / w.sum()
+            blend = [(m[0][0], m[0][1], m[1][0], m[1][1], float(wi)) for m, wi in zip(p.members, w)]
+            u, l = p.members[int(np.argmax(w))][:2]
+            out.append(Observation(block=u[0], index=u[1], energy=pk.position, sigma=pk.sigma, label=p.id,
+                                   lower_block=l[0], lower_index=l[1], blend=blend))
+        else:
+            out.append(Observation(block=p.upper[0], index=p.upper[1], energy=pk.position, sigma=pk.sigma,
+                                   label=p.id, lower_block=p.lower[0], lower_index=p.lower[1]))
     return out

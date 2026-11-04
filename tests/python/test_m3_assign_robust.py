@@ -90,11 +90,12 @@ def test_fit_to_assigned_lines_recovers_constants(setup):
     m, res = setup
     mu = (0.2, 1.0, 0.3)
     peaks, _ = rd.synth.synthesize_spectrum(m, TRUE, mu, 150.0, fwhm=2e-3, snr=3000, spurious_density=0.2, seed=4)
-    start = rd.synth.perturb_theta(TRUE, 2e-5, seed=6)
+    start = dict(zip(res.param_names, rd.posterior.sample_theta(res, 1, seed=6)[0]))
     pred, _ = assign.predict_lines(m, start, mu, 150.0, covariance=res.covariance, min_relative_intensity=1e-4)
-    a = assign.assign(assign.merge_blends(pred, 1e-3), peaks)
-    obs = assign.line_observations(a, pred, peaks)
-    assert len(obs) > 100
+    merged = assign.merge_blends(pred, 1e-3)
+    a = assign.assign(merged, peaks)
+    obs = assign.line_observations(a, merged, peaks)
+    assert len(obs) > 300
     fit = rd.fit(m, obs, start)
     assert fit.converged and fit.certified
     pulls = [abs(fit.theta[n] - TRUE[n]) / fit.sigma[n] for n in TRUE]

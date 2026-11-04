@@ -170,42 +170,79 @@ def torsion_truncation(model, theta, *, nlowest: int = 5) -> list[dict]:
     return out
 
 
-def coverage_by_band(model, observations: Sequence[Observation], theta0, band_of: Callable[[Observation], str], *,
-                     levels: Sequence[float] = (0.6827, 0.9545), **fit_kw) -> dict:
-    """Leave-one-band-out coverage of predictive intervals (README 12, calibration).
-
-    For each band: fit on the others, z = (E_obs - E_pred) / sqrt(sigma_pred^2 + sigma_obs^2)
-    for the held-out levels; report the fraction inside each nominal level.
-    """
-    from scipy.stats import norm
-
-    obs = list(observations)
+def _held_out(model, obs, theta0, band_of, model_error, fit_kw):
+    """Per band: fit on the others; return {band: (residuals, s^2 = sigma_pred^2 + sigma_obs^2, fit)}."""
     bands = sorted({band_of(o) for o in obs})
     if len(bands) < 2:
-        raise ValueError("coverage_by_band needs at least two bands")
-    report = {"nominal": list(levels), "bands": {}}
-    all_z = []
+        raise ValueError("needs at least two bands")
     keys = [b["key"] for b in model.blocks]
+    out = {}
     for band in bands:
         train = [o for o in obs if band_of(o) != band]
         test = [o for o in obs if band_of(o) == band]
-        res = fit(model, train, theta0, **fit_kw)
+        res = fit(model, train, theta0, model_error=model_error, **fit_kw)
         cov = np.asarray(res.covariance)
         need = max(o.index for o in test) + 1
         idx = sorted({keys.index(o.block) for o in test})
         sub = model.subset(idx)
         sol = solve(sub, res.theta, nlowest=need, keep_vectors=True, method="dense")
-        z = []
+        r, s2 = [], []
         for o in test:
             bi = idx.index(keys.index(o.block))
-            r = sol.results[bi]
-            g = sub.jacobian(bi, np.asarray(r["eigenvectors"]))[o.index]
-            sp = math.sqrt(max(g @ cov @ g, 0.0))
-            z.append((o.energy - r["eigenvalues"][o.index]) / math.hypot(sp, o.sigma))
-        z = np.abs(np.asarray(z))
+            rr = sol.results[bi]
+            g = sub.jacobian(bi, np.asarray(rr["eigenvectors"]))[o.index]
+            r.append(o.energy - rr["eigenvalues"][o.index])
+            s2.append(max(g @ cov @ g, 0.0) + o.sigma**2)
+        out[band] = (np.asarray(r), np.asarray(s2), res, len(train))
+    return out
+
+
+def calibrate_model_error(model, observations: Sequence[Observation], theta0,
+                          band_of: Callable[[Observation], str], **fit_kw) -> dict:
+    """Maximum-likelihood additive model-error sigma tau from held-out residuals:
+    maximize sum log N(r_i; 0, s_i^2 + tau^2), s_i^2 = sigma_pred^2 + sigma_obs^2.
+    Residuals are cross-fitted (each band predicted from a fit without it), so
+    tau is not tuned on data it was fitted to."""
+    from scipy.optimize import minimize_scalar
+
+    ho = _held_out(model, list(observations), theta0, band_of, 0.0, fit_kw)
+    r = np.concatenate([v[0] for v in ho.values()])
+    s2 = np.concatenate([v[1] for v in ho.values()])
+
+    def nll(log_tau):
+        v = s2 + math.exp(2 * log_tau)
+        return 0.5 * np.sum(r * r / v + np.log(v))
+
+    scale = float(np.sqrt(np.median(s2)))
+    lo, hi = math.log(scale * 1e-4), math.log(max(float(np.max(np.abs(r))), scale) * 10)
+    best = minimize_scalar(nll, bounds=(lo, hi), method="bounded")
+    tau = math.exp(best.x)
+    # tau -> 0 is the boundary: report 0 if it does not improve the likelihood.
+    if nll(lo) <= best.fun + 1e-9:
+        tau = 0.0
+    z0 = r / np.sqrt(s2)
+    return {"model_error": tau, "n": int(len(r)), "z_rms_before": float(np.sqrt(np.mean(z0**2))),
+            "z_rms_after": float(np.sqrt(np.mean(r * r / (s2 + tau * tau))))}
+
+
+def coverage_by_band(model, observations: Sequence[Observation], theta0, band_of: Callable[[Observation], str], *,
+                     levels: Sequence[float] = (0.6827, 0.9545), model_error: float = 0.0, **fit_kw) -> dict:
+    """Leave-one-band-out coverage of predictive intervals (README 12, calibration).
+
+    For each band: fit on the others, z = (E_obs - E_pred) / sqrt(sigma_pred^2 + sigma_obs^2 + tau^2)
+    for the held-out levels; report the fraction inside each nominal level.
+    """
+
+    from scipy.stats import norm
+
+    ho = _held_out(model, list(observations), theta0, band_of, model_error, fit_kw)
+    report = {"nominal": list(levels), "model_error": model_error, "bands": {}}
+    all_z = []
+    for band, (r, s2, res, ntrain) in ho.items():
+        z = np.abs(r / np.sqrt(s2 + model_error**2))
         all_z.append(z)
         report["bands"][band] = {
-            "n": int(len(z)), "train_n": len(train), "fit_reduced_chi2": res.reduced_chi2,
+            "n": int(len(z)), "train_n": ntrain, "fit_reduced_chi2": res.reduced_chi2,
             "empirical": [float(np.mean(z <= norm.ppf(0.5 + lv / 2))) for lv in levels],
         }
     z = np.concatenate(all_z)

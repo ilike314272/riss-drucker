@@ -18,6 +18,7 @@ whose final solve is not certified is reported as such (README 10).
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Mapping, Sequence
 
@@ -41,10 +42,20 @@ class Observation:
     true_energy: float | None = None  # synthetic data only
     lower_block: str | None = None
     lower_index: int | None = None
+    # Blend: observed position = sum_k w_k (E_u,k - E_l,k), weights summing to 1
+    # (intensity-weighted); entries (upper_block, upper_index, lower_block, lower_index, w).
+    blend: list | None = None
 
     @property
     def is_line(self) -> bool:
         return self.lower_block is not None
+
+    def components(self):
+        if self.blend:
+            return [tuple(c) for c in self.blend]
+        if self.is_line:
+            return [(self.block, self.index, self.lower_block, self.lower_index, 1.0)]
+        return [(self.block, self.index, None, None, 1.0)]
 
 
 @dataclass
@@ -109,29 +120,35 @@ class _Evaluator:
         keys = {b["key"]: i for i, b in enumerate(model.blocks)}
         used = []
         for o in self.obs:
-            for blk in (o.block, o.lower_block) if o.is_line else (o.block,):
-                if blk not in keys:
-                    raise ValueError(f"observation refers to unknown block {blk!r}")
-                if keys[blk] not in used:
-                    used.append(keys[blk])
+            for ub, _, lb, _, _ in o.components():
+                for blk in (ub, lb):
+                    if blk is None:
+                        continue
+                    if blk not in keys:
+                        raise ValueError(f"observation refers to unknown block {blk!r}")
+                    if keys[blk] not in used:
+                        used.append(keys[blk])
             if not (o.sigma > 0):
                 raise ValueError(f"observation {o.label or (o.block, o.index)} needs sigma > 0")
+            if o.blend and not math.isclose(sum(c[4] for c in o.blend), 1.0, rel_tol=1e-9):
+                raise ValueError(f"blend weights of {o.label} must sum to 1")
         used.sort()
         # Solve only the blocks that carry observations.
         self.model = model.subset(used)
         local = {model.blocks[g]["key"]: i for i, g in enumerate(used)}
-        self.block_of, self.lower_of = [], []
+        self.comps = []
         need = {}
         for o in self.obs:
-            b = local[o.block]
-            self.block_of.append(b)
-            need[b] = max(need.get(b, 0), o.index + 1)
-            if o.is_line:
-                lb = local[o.lower_block]
-                self.lower_of.append((lb, o.lower_index))
-                need[lb] = max(need.get(lb, 0), o.lower_index + 1)
-            else:
-                self.lower_of.append(None)
+            cs = []
+            for ub, ui, lb, li, w in o.components():
+                u = local[ub]
+                need[u] = max(need.get(u, 0), ui + 1)
+                low = None
+                if lb is not None:
+                    low = (local[lb], li)
+                    need[low[0]] = max(need.get(low[0], 0), li + 1)
+                cs.append(((u, ui), low, float(w)))
+            self.comps.append(cs)
         self.nlowest = max(need.values())
         self.solve_kw = solve_kw
         self.e_obs = np.array([o.energy for o in self.obs])
@@ -151,19 +168,27 @@ class _Evaluator:
                 jac_cache[b] = self.model.jacobian(b, np.asarray(res["eigenvectors"]))
             return res["eigenvalues"][idx], jac_cache[b][idx]
 
-        for row, (o, b, low) in enumerate(zip(self.obs, self.block_of, self.lower_of)):
-            e, g = level(b, o.index, o.block)
-            if low is not None:
-                el, gl = level(low[0], low[1], o.lower_block)
-                e, g = e - el, g - gl
-            e_calc[row] = e
-            jac[row] = g
+        for row, (o, cs) in enumerate(zip(self.obs, self.comps)):
+            e_row, g_row = 0.0, 0.0
+            for (u, ui), low, w in cs:
+                e, g = level(u, ui, o.block)
+                if low is not None:
+                    el, gl = level(low[0], low[1], o.lower_block)
+                    e, g = e - el, g - gl
+                e_row += w * e
+                g_row = g_row + w * g
+            e_calc[row] = e_row
+            jac[row] = g_row
         return e_calc, jac, sol
 
 
 def fit(model, observations: Sequence[Observation], theta0, *, prior: Prior | None = None,
         fixed: Sequence[str] = (), max_iter: int = 50, rtol: float = 1e-12, rank_tol: float = 1e-9,
-        lam0: float = 1e-3, scale_cov_by_chi2: bool = False, **solve_kw) -> FitResult:
+        lam0: float = 1e-3, scale_cov_by_chi2: bool = False, model_error: float = 0.0,
+        **solve_kw) -> FitResult:
+    """model_error: additive model-error sigma tau (cm^-1); every observation is
+    weighted with sqrt(sigma_i^2 + tau^2). Estimate it with
+    riss_drucker.posterior.calibrate_model_error (README 5.4 hyperparameter)."""
     names = list(model.param_names)
     theta = _vector(names, theta0)
     fixed = list(fixed)
@@ -173,7 +198,11 @@ def fit(model, observations: Sequence[Observation], theta0, *, prior: Prior | No
     free_idx = [i for i, n in enumerate(names) if n not in fixed]
     if not free_idx:
         raise ValueError("no free parameters")
+    if model_error < 0:
+        raise ValueError("model_error must be >= 0")
     ev = _Evaluator(model, observations, solve_kw)
+    if model_error > 0:
+        ev.sig = np.sqrt(ev.sig**2 + model_error**2)
 
     p_idx, p_mu, p_s = [], [], []
     if prior is not None:
@@ -278,6 +307,7 @@ def fit(model, observations: Sequence[Observation], theta0, *, prior: Prior | No
         levels.append({
             "block": o.block, "index": o.index, "label": o.label, "observed": o.energy,
             **({"lower_block": o.lower_block, "lower_index": o.lower_index} if o.is_line else {}),
+            **({"blend": [list(c) for c in o.blend]} if o.blend else {}),
             "calculated": float(e_calc[row]), "residual": float(o.energy - e_calc[row]), "sigma_obs": o.sigma,
             "sigma_pred": float(np.sqrt(max(g @ cov @ g, 0.0))),
             **({"true_energy": o.true_energy} if o.true_energy is not None else {}),
