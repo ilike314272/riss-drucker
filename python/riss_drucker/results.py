@@ -18,7 +18,8 @@ def _num(x):
 
 
 def fit_result_record(fit: FitResult, spec: ModelSpec, *, model=None, run_record: dict | None = None,
-                      final_solution=None) -> dict:
+                      final_solution=None, windows: list | None = None, coverage: dict | None = None,
+                      assignments=None, near_crossing_resampling: list | None = None) -> dict:
     certs = []
     if final_solution is not None:
         for b, r in zip(final_solution.blocks, final_solution.results):
@@ -44,6 +45,24 @@ def fit_result_record(fit: FitResult, spec: ModelSpec, *, model=None, run_record
         "certificates": certs,
         "certified": bool(fit.certified),
     }
+    if windows is not None:
+        by = {(w["block"], w["index"]): w for w in windows}
+        for lv in rec["levels"]:
+            w = by.get((lv["block"], lv["index"]))
+            if w:
+                lv.update(near_crossing=w["near_crossing"], window=list(w["window"]),
+                          extrapolated=w["extrapolated"], beyond_weyl_fence=w["beyond_weyl_fence"])
+        rec["windows"] = [{**w, "window": list(w["window"])} for w in windows]
+    if near_crossing_resampling is not None:
+        rec["near_crossing_resampling"] = [{**r, "quantiles": {str(k): v for k, v in r["quantiles"].items()}}
+                                           for r in near_crossing_resampling]
+    if coverage is not None:
+        rec["coverage"] = coverage
+    if assignments is not None:
+        rec["assignments"] = {"lines": [{**r, "credible_set": [str(c) for c in r["credible_set"]]}
+                                        for r in assignments.lines],
+                              "expected_misassignments": assignments.expected_misassignments,
+                              "settings": assignments.settings}
     if model is not None:
         rec["model"]["compile_certificates"] = list(model.compile_certificates)
     if run_record is not None:

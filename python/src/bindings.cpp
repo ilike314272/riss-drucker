@@ -306,6 +306,15 @@ PYBIND11_MODULE(_core, m) {
       .def("operator", [](const CompiledModel& cm, std::size_t block, std::size_t param) {
         return csr_to_arrays(cm.blocks.at(block).ops.at(param));
       }, py::arg("block"), py::arg("param"), "CSR arrays (indptr, indices, data, shape) of O_k in a block.")
+      .def("subset", [](const CompiledModel& cm, const std::vector<std::size_t>& idx) {
+        CompiledModel out;
+        out.name = cm.name;
+        out.spec_json = cm.spec_json;
+        out.param_names = cm.param_names;
+        out.compile_certificates = cm.compile_certificates;
+        for (std::size_t i : idx) out.blocks.push_back(cm.blocks.at(i));
+        return out;
+      }, py::arg("block_indices"), "A model with only the given blocks (same operators, same parameters).")
       .def("jacobian", [](const CompiledModel& cm, std::size_t block, const Eigen::MatrixXd& vecs) {
         return hf_jacobian(cm.blocks.at(block), vecs);
       }, py::arg("block"), py::arg("eigenvectors"),

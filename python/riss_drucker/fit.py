@@ -28,12 +28,23 @@ from .solve import solve
 
 @dataclass
 class Observation:
+    """An observed level, or a transition when lower_block/lower_index are set.
+
+    For a transition, `block`/`index` name the upper level and `energy` is the
+    observed wavenumber E_upper - E_lower.
+    """
     block: str            # BlockId key
     index: int            # level index within the block (ascending energy)
-    energy: float         # observed level (cm^-1)
+    energy: float         # observed level or wavenumber (cm^-1)
     sigma: float          # 1-sigma uncertainty (cm^-1)
     label: str | None = None
     true_energy: float | None = None  # synthetic data only
+    lower_block: str | None = None
+    lower_index: int | None = None
+
+    @property
+    def is_line(self) -> bool:
+        return self.lower_block is not None
 
 
 @dataclass
@@ -92,21 +103,35 @@ def _vector(names, theta) -> np.ndarray:
 
 class _Evaluator:
     def __init__(self, model, observations, solve_kw):
-        self.model = model
         self.obs = list(observations)
         if not self.obs:
             raise ValueError("no observations")
         keys = {b["key"]: i for i, b in enumerate(model.blocks)}
-        self.block_of = []
-        need = {}
+        used = []
         for o in self.obs:
-            if o.block not in keys:
-                raise ValueError(f"observation refers to unknown block {o.block!r}")
+            for blk in (o.block, o.lower_block) if o.is_line else (o.block,):
+                if blk not in keys:
+                    raise ValueError(f"observation refers to unknown block {blk!r}")
+                if keys[blk] not in used:
+                    used.append(keys[blk])
             if not (o.sigma > 0):
                 raise ValueError(f"observation {o.label or (o.block, o.index)} needs sigma > 0")
-            b = keys[o.block]
+        used.sort()
+        # Solve only the blocks that carry observations.
+        self.model = model.subset(used)
+        local = {model.blocks[g]["key"]: i for i, g in enumerate(used)}
+        self.block_of, self.lower_of = [], []
+        need = {}
+        for o in self.obs:
+            b = local[o.block]
             self.block_of.append(b)
             need[b] = max(need.get(b, 0), o.index + 1)
+            if o.is_line:
+                lb = local[o.lower_block]
+                self.lower_of.append((lb, o.lower_index))
+                need[lb] = max(need.get(lb, 0), o.lower_index + 1)
+            else:
+                self.lower_of.append(None)
         self.nlowest = max(need.values())
         self.solve_kw = solve_kw
         self.e_obs = np.array([o.energy for o in self.obs])
@@ -117,15 +142,22 @@ class _Evaluator:
         jac_cache = {}
         e_calc = np.empty(len(self.obs))
         jac = np.empty((len(self.obs), len(theta)))
-        for row, (o, b) in enumerate(zip(self.obs, self.block_of)):
+        def level(b, idx, key):
             res = sol.results[b]
-            if o.index >= len(res["eigenvalues"]):
-                raise RuntimeError(f"block {o.block} returned {len(res['eigenvalues'])} levels; "
-                                   f"observation needs index {o.index}")
+            if idx >= len(res["eigenvalues"]):
+                raise RuntimeError(f"block {key} returned {len(res['eigenvalues'])} levels; "
+                                   f"observation needs index {idx}")
             if b not in jac_cache:
                 jac_cache[b] = self.model.jacobian(b, np.asarray(res["eigenvectors"]))
-            e_calc[row] = res["eigenvalues"][o.index]
-            jac[row] = jac_cache[b][o.index]
+            return res["eigenvalues"][idx], jac_cache[b][idx]
+
+        for row, (o, b, low) in enumerate(zip(self.obs, self.block_of, self.lower_of)):
+            e, g = level(b, o.index, o.block)
+            if low is not None:
+                el, gl = level(low[0], low[1], o.lower_block)
+                e, g = e - el, g - gl
+            e_calc[row] = e
+            jac[row] = g
         return e_calc, jac, sol
 
 
@@ -245,6 +277,7 @@ def fit(model, observations: Sequence[Observation], theta0, *, prior: Prior | No
         g = jac[row]
         levels.append({
             "block": o.block, "index": o.index, "label": o.label, "observed": o.energy,
+            **({"lower_block": o.lower_block, "lower_index": o.lower_index} if o.is_line else {}),
             "calculated": float(e_calc[row]), "residual": float(o.energy - e_calc[row]), "sigma_obs": o.sigma,
             "sigma_pred": float(np.sqrt(max(g @ cov @ g, 0.0))),
             **({"true_energy": o.true_energy} if o.true_energy is not None else {}),

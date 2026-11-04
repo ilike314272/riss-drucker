@@ -192,7 +192,46 @@ compile, 2j ≤ 8 in tests) and 6j orthogonality (tests). Bound 1e-13.
   data are tested to be N(0, 1).
 - σ_pred per level = √(gᵀ Σ_θ g), using the Hellmann-Feynman g of that level.
 
-## 12. Physics conventions
+## 12. Probabilistic layer (fixed in M3)
+
+- **Windows:** σ_i² = g_iᵀ Σ_θ g_i, using the Hellmann-Feynman g on the reference
+  path; window E_i ± kσ_i, default k = 2.
+- **Near crossing:** σ_i / (nearest gap in the same block) > 0.3. Only blocks
+  holding flagged levels are re-solved at θ ~ N(θ̂, Σ_θ). Null directions are not
+  moved: samples use the eigendecomposition of Σ_θ.
+- **Weyl fence (interpretation):** a window is "beyond the Weyl fence" when
+  kσ_i > ½ × the local mean level spacing. That spacing comes from a smoothed
+  counting function N(E) of the block (cubic fit; linear below 8 levels). Past it,
+  a level's identity is not individually trustworthy (the ε·ρ horizon idea).
+  Separately, `extrapolated` marks levels outside the data-supported J range or
+  above the highest observed energy plus 5·max σ_obs.
+- **Truncation:** for torsion, a second-order estimate Σ_n \|⟨n\|V\|ψ_i⟩\|²/(E_i − E_n⁰)
+  over neglected \|m\| > m_max. It is an estimate, not a rigorous bound; the tests
+  check it tracks the actual shift within ×2–5. The rotor needs none (J is exact).
+- **Line strengths:** S = (2J+1)(2J'+1)\|Σ μ_q c' c (−1)^K' (J' 1 J; −K' q K)\|²,
+  with μ_±1 = ∓(μ_x ± iμ_y)/√2 in the representation axes and S in units of
+  \|μ\|². Certified by the sum rule Σ_f S = (2J+1)\|μ\|² (1e-12) and by exact C₂
+  selection rules (a: Δ(Ka,Kc) parity (0,1), b: (1,1), c: (1,0)). Intensities are
+  relative absorption with c₂ = 1.438776877 cm K. Q comes from the model's own
+  levels, so it is truncated at j_max.
+- **Blends:** predicted or true lines closer than the resolution are merged (chained)
+  into one line with an intensity-weighted position, summed intensity and id `a+b`.
+  The synthetic resolution is fwhm/2.
+- **Assignment:** gate z² < 10.83 (χ²₁, 0.999). LR = position likelihood / ρ_j × intensity
+  log-normal likelihood / background log-intensity density. Global intensity scale =
+  median log ratio over mutually unique pairs. Detection probability p_d = 0.9. The
+  credible (ambiguity) set covers 0.95. Monotone DP is per series (ΔJ, Ka″ → Ka′) in
+  predicted-position order; conflicts across series go to the higher posterior and are
+  flagged. Chance coincidence uses 1 − exp(−2δρ) with ρ from ±25 median spacings;
+  Benjamini-Hochberg at q = 0.05 runs across the band.
+- **Outlier mixture:** (1 − w)N(0, σ_i²) + wN(0, σ_b²) with σ_b = 100 × median σ by
+  default. EM uses effective σ_i/√(responsibility). Probabilities are always reported;
+  observations are never dropped.
+- **Coverage:** leave-one-band-out, z = (E_obs − E_pred)/√(σ_pred² + σ_obs²), with
+  empirical vs nominal fractions and binomial standard errors.
+- **⟨r⟩ references:** Poisson 2 ln 2 − 1, GOE 0.5307, GUE 0.5996, GSE 0.6744.
+
+## 13. Physics conventions
 
 | Item | Status | Milestone |
 |---|---|---|

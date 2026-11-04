@@ -164,13 +164,48 @@ rd.validate_result(rd.fit_result_record(res, spec, model=model))
 
 ---
 
-## M3 Probabilistic layer ▶
-Per-level σ_i² = g_iᵀ Σ_θ g_i, Weyl fence, near-crossing flags and resampling,
-χ²-gated assignment with DP alignment, ambiguity sets and BH, outlier mixture,
-and coverage checks split by band. β-Hermite / Brody samplers with the ⟨r⟩
-tests (0.386 / 0.531 / 0.600).
+## M3 Probabilistic layer ✅
 
-## M4 Data store and gold set ○
+**What exists**
+
+```
+python/riss_drucker/spectra.py     line strengths (3j), sum-rule + selection-rule checks, intensities, Q(T)
+python/riss_drucker/posterior.py   level windows, near-crossing flags + resampling, Weyl/support fences,
+                                   torsion truncation estimate, leave-one-band-out coverage
+python/riss_drucker/assign.py      predicted lines with sigma, blends, gating, LR posteriors,
+                                   monotone DP per series, ambiguity sets, Poisson null, BH
+python/riss_drucker/robust.py      outlier mixture (EM around the fit)
+python/riss_drucker/stats.py       beta-Hermite, COE/CUE, Brody (+ fit), gap ratio, superposition P(0)
+python/riss_drucker/synth.py       + synthesize_spectrum (selection rules, Boltzmann, noise, blends, spurious)
+python/riss_drucker/fit.py         + transitions as observations (E_u - E_l), solves only used blocks
+schemas/result.schema.json         + windows, near-crossing resampling, assignments, coverage
+notebooks/03_probabilistic_layer.ipynb   spectrum -> assignment -> line fit -> windows -> coverage
+```
+
+**M3 exit criteria and evidence**
+
+| Criterion | Evidence |
+|---|---|
+| Hellmann-Feynman windows | window σ equals the fit's σ_pred for observed levels; support/extrapolation and Weyl flags tested |
+| Near-crossing resampling | flagged only when σ/gap > 0.3; only those blocks are re-solved; quantiles reported |
+| Joint assignment with intensities | 3 synthetic spectra (pure a-type; mixed a/b/c with 41 spurious peaks): ≥ 99% correct, wrong ≤ expected + 3√expected + 3, few spurious peaks assigned |
+| Line strengths | sum rule to 1e-12 in Iʳ/IIʳ/IIIʳ; exact C₂ selection rules; J = 0 strengths = μ_α²; prolate Hönl-London |
+| Outlier mixture | 5% injected outliers: all flagged (p > 0.9), > 97% of clean below 0.1, fraction recovered, pulls < 4.5 (plain fit χ²/dof > 10) |
+| Coverage checks split by band | correct model: empirical within 4 SE of nominal; quartic fit of sextic data extrapolated to high J: 95% interval covers < 80% |
+| Statistics (README 12) | β-Hermite ⟨r⟩ for β = 0, 1, 2, 4 and COE/CUE within 0.012; Brody q recovered; superposition P(0) = 1 − Σf_i² within 0.06 |
+| Closed loop | spectrum → assignment → fit to lines recovers all constants (pulls < 5) |
+
+**Follow-ups found in M3** (not blocking)
+- Peak finding and Voigt profile fitting from raw spectra. Assignment starts from peak lists now; Voigt-convolved spectra are a Part 4 plot.
+- Blended lines are assigned as one composite line. Fitting a blend's intensity-weighted position is not done (blends are excluded from the line fit).
+- The expected-misassignment count is conservative (about 1 actual vs 4 expected in the notebook); calibrate p_d and the background model on real data (M4).
+- Model-error hyperparameter in the predictive σ (M5): under-coverage under misspecification is detected, not yet corrected.
+- Truncation estimates exist for the torsion model only (the rigid rotor has no truncation). Add them per model as polyads arrive (M8).
+- ε_Ω·ρ horizon per block (README 9, 13) once perturbative orders are explicit.
+
+---
+
+## M4 Data store and gold set ▶
 `schemas/record.schema.json` (source ∈ measured|marvel|computed|ehamil_derived;
 the fit refuses `ehamil_derived` by default). ExoMol `.states`/`.trans` and MARVEL
 parsers with filtering. ~20 hand-extracted gold-set papers (numbers and
