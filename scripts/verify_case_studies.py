@@ -12,6 +12,9 @@ Always run (no external input; seconds to a minute):
 With --pdf (Woerner, Qian & Merkt, JCP 126, 144305 (2007)):
   * rovibronic fits of CH4+, 13CH4+, CD4+ (rms and constants vs the published fit)
   * ab initio effective Hamiltonian vs the measured lines, Bayesian update
+With --firstprinciples (about two minutes per surface):
+  * first-principles tunneling (Cartesian reaction plane), averaged rotor, frame rotation and, with --pdf,
+    the validation of the first-principles levels against the measured lines
 With --data DIR (catalogue downloads, fetched with --fetch):
   * CH3D from the JPL catalogue (fit and extrapolation)
 Exit status 0 only if every executed check passes.
@@ -56,6 +59,8 @@ def main() -> int:
     ap.add_argument("--pdf", default=None)
     ap.add_argument("--data", default=None)
     ap.add_argument("--figures", default=str(ROOT / "docs" / "case_studies" / "figures"))
+    ap.add_argument("--firstprinciples", action="store_true",
+                    help="also recompute the first-principles levels (reaction-plane tunneling; ~2 min per surface)")
     a = ap.parse_args()
     expected = json.loads((ROOT / "docs" / "case_studies" / "expected_results.json").read_text())
 
@@ -103,7 +108,32 @@ def main() -> int:
             check(f"{iso} rovibronic fit rms", f["rms_cm"], ref[iso]["rms"], 0.01, f"paper {ref[iso]['paper_rms']}")
             check(f"{iso} delta (fit)", f["delta"], ref[iso]["delta"], 0.05)
 
-    # 3. CH3D (needs the catalogue)
+    # 3. first principles (optional: slower)
+    if a.firstprinciples:
+        import tempfile
+        for label, e in expected.get("ch4plus_firstprinciples", {}).items():
+            d = ROOT / e["data"]
+            if not d.exists():
+                continue
+            out = Path(tempfile.mkdtemp()) / "fp.json"
+            args = [str(ROOT / "scripts" / "firstprinciples_ch4plus.py"), "--abinitio", str(d), "--out", str(out)]
+            if a.pdf:
+                args += ["--pdf", a.pdf]
+            p = subprocess.run([sys.executable] + args, capture_output=True, text=True, cwd=ROOT)
+            if p.returncode:
+                raise RuntimeError(p.stderr[-2000:])
+            r = json.loads(out.read_text())
+            for iso in ("CH4+", "CD4+"):
+                x, ex = r["isotopologues"][iso], e[iso]
+                t = f"[fp {label}] {iso} "
+                check(t + "delta (reaction plane)", x["tunneling"]["delta"], ex["delta"], 2e-3 * ex["delta"])
+                check(t + "A vibrationally averaged", x["tunneling"]["rotational_constants_averaged"][0], ex["A_avg"], 1e-3)
+                check(t + "frame rotation / deg", x["tunneling"]["frame_rotation"]["angle_deg"], ex["frame_rotation_deg"], 1e-3)
+                if a.pdf:
+                    check(t + "rms vs measured lines (IE shift only)", x["validation"]["rms_IE_shifted_cm"],
+                          ex["rms_IE_shifted"], 0.02)
+
+    # 4. CH3D (needs the catalogue)
     if a.data:
         c = run_json([str(ROOT / "scripts" / "case_ch3d.py"), "--data", a.data, "--fetch"])
         check("CH3D fit chi2/dof", c["fit"]["chi2_per_dof"], expected["ch3d"]["chi2"], 0.05)

@@ -10,3 +10,6 @@ __pycache__/
 .ipynb_checkpoints/
 /GIT_COMMIT
 /python/riss_drucker/schemas/
+
+# background runs (scripts/ch4plus_background.sh)
+runs/

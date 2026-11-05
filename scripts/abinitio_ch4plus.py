@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Ab initio CH4+ (and CH4) for the methane-cation case study. Stages are cached as JSON in --out.
 
-  python scripts/abinitio_ch4plus.py --out DIR [--stages min,ts,irc,hess,ccsdt,neutral] [--workers N]
+  python scripts/abinitio_ch4plus.py --out DIR [--stages min,ts,irc,hess,ccsdt,neutral,plane2d] [--workers N]
 
 Needs only PySCF, geomeTRIC, ASE (NEB), NumPy and SciPy (the riss_drucker helpers it uses are loaded from
 the repository files; no build of the compiled core is required). Run from a repository checkout.
@@ -18,6 +18,8 @@ irc     : mass-weighted steepest descent from the saddle to the minimum (one sid
 hess    : Cartesian Hessians at points along the IRC (mass independent: used for CH4+ and CD4+)
 ccsdt   : UCCSD(T) energies at the minimum, saddle and selected IRC points
 neutral : CH4 Td minimum, Hessian and UCCSD(T) energy
+plane2d : UMP2 energies on the Cartesian reaction plane of the double well (CH4+ and CD4+ planes),
+          checkpointed; used by the first-principles tunneling (riss_drucker.abinitio.firstprinciples)
 """
 from __future__ import annotations
 
@@ -442,6 +444,64 @@ def stage_ccsdt(out, irc, npts=6):
     return {"indices": idx, "e_ccsdt": [ccsdt(np.array(path[i])) for i in idx]}
 
 
+def _e_task(args):
+    X, charge, spin, basis = args
+    global BASIS
+    BASIS = basis
+    return float(mp2(np.asarray(X), False, charge, spin))
+
+
+def _rpsurface():
+    import importlib.util
+    f = Path(__file__).resolve().parents[1] / "python" / "riss_drucker" / "abinitio" / "rpsurface.py"
+    spec = importlib.util.spec_from_file_location("_rd_rpsurface", f)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def stage_plane2d(out, h=0.03, chunk=40):
+    """UMP2 energies on the Cartesian reaction plane of the double well (one plane per isotopologue,
+    since the plane lives in mass-weighted coordinates). Points: spacing h (amu^1/2 Angstrom), within
+    0.3 of the path and below 5000 cm-1 in the harmonic estimate. Checkpointed every `chunk` points to
+    ch4plus_plane2d.partial.json, so an interrupted run resumes where it stopped."""
+    rp = _rpsurface()
+    st = rp.load_stages(out)
+    part = out / "ch4plus_plane2d.partial.json"
+    done = json.loads(part.read_text()) if part.exists() else {}
+    res = {"h": h, "method": "UMP2", "basis": BASIS}
+    for iso in ("H", "D"):
+        rs = rp.ReactionSurface(st, iso, use_grid=False)
+        pl = rp.ReactionPlane(rs)
+        pts, _ = pl.abinitio_points(h=h)
+        # consistency points on the path itself (energies must match the reaction-path stage)
+        idx = np.linspace(0, len(pl.curve) - 1, 5).round().astype(int)
+        check_pts = pl.curve[idx]
+        allp = np.r_[pts, check_pts]
+        geoms = [g.tolist() for g in pl.geometry(allp)]
+        prev = done.get(iso, {})
+        E = list(prev.get("e_ump2", [])) if prev.get("n") == len(allp) and prev.get("h") == h else []
+        if E:
+            print(f"  plane {iso}: resuming at point {len(E)} of {len(allp)}", flush=True)
+        t0, n0 = time.time(), len(E)
+        for i in range(len(E), len(allp), chunk):
+            tasks = [(G, 1, 1, BASIS) for G in geoms[i:i + chunk]]
+            E += list(_pool().map(_e_task, tasks)) if WORKERS > 1 else [_e_task(x) for x in tasks]
+            done[iso] = {"n": len(allp), "h": h, "e_ump2": E}
+            part.write_text(json.dumps(done))
+            rate = (time.time() - t0) / max(1, len(E) - n0)
+            print(f"  plane {iso}: {len(E)}/{len(allp)} points ({(len(allp) - len(E)) * rate / 60:.0f} min left)",
+                  flush=True)
+        n = len(pts)
+        sf = pl.fold(pl.s_signed[idx])
+        e_path = (np.array(E[n:]) * rp.H2CM - rs.e_mp2_min)
+        res[iso] = {"points": pts.tolist(), "e_ump2": E[:n], "n": n, "h": h,
+                    "path_check": {"V_mp2_plane_cm": e_path.tolist(), "V_mp2_path_cm": rs._v_mp2(sf).tolist()}}
+        dev = float(np.max(np.abs(e_path - rs._v_mp2(sf))))
+        print(f"  plane {iso}: path consistency max |dE| = {dev:.1f} cm-1", flush=True)
+    return res
+
+
 def stage_neutral(out):
     r = 1.09 / math.sqrt(3)
     X0 = np.array([[0, 0, 0], [r, r, r], [r, -r, -r], [-r, r, -r], [-r, -r, r]])
@@ -454,7 +514,8 @@ def stage_neutral(out):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
-    ap.add_argument("--stages", default="min,ts,irc,hess,ccsdt,neutral")
+    ap.add_argument("--stages", default="min,ts,irc,hess,ccsdt,neutral,plane2d")
+    ap.add_argument("--plane-h", type=float, default=0.03, help="reaction-plane grid spacing (amu^1/2 Angstrom)")
     ap.add_argument("--workers", type=int, default=1, help="parallel processes for finite-difference Hessians")
     ap.add_argument("--neb-steps", type=int, default=300, help="maximum NEB optimizer steps")
     ap.add_argument("--basis", default="cc-pvtz", help="basis set (cc-pvtz for the case study; small ones for tests)")
@@ -493,6 +554,8 @@ def main() -> int:
         cached("ccsdt", stage_ccsdt, irc)
     if "neutral" in st:
         cached("neutral", stage_neutral)
+    if "plane2d" in st:
+        cached("plane2d", stage_plane2d, a.plane_h)
     return 0
 
 

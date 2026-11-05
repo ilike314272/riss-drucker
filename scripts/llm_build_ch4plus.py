@@ -74,112 +74,17 @@ SYSTEM = ("You are an expert molecular spectroscopist building effective Hamilto
 
 
 # ----------------------------------------------------------------------------- completion backends
-class LimitReached(Exception):
-    """Usage, rate or credit limit: stop the loop, keep what was done, resume later with --resume."""
-
-
-class TransientError(Exception):
-    """Overload, timeout or network failure: worth retrying after a pause."""
-
-
-LIMIT_PAT = re.compile(r"usage limit|limit reached|limit will reset|rate.?limit|quota|credit balance|"
-                       r"too many requests|\b429\b|budget", re.I)
-TRANSIENT_PAT = re.compile(r"overloaded|\b5\d\d\b|timed? ?out|connection|temporar|ECONNRESET|network", re.I)
-
-
-def classify(msg: str) -> Exception:
-    if LIMIT_PAT.search(msg):
-        return LimitReached(msg)
-    if TRANSIENT_PAT.search(msg):
-        return TransientError(msg)
-    return RuntimeError(msg)
+from riss_drucker import llm_loop as LL  # noqa: E402
+from riss_drucker.llm_loop import (Heartbeat, LimitReached, TransientError, classify, parse_answer,  # noqa: E402,F401
+                                   replay_complete, resumed, say, strip_private, with_retries)
 
 
 def claude_cli_complete(model=None, timeout=1800, budget_left=None):
-    """Claude Code print mode, tools disabled, one turn; uses the logged-in subscription unless
-    ANTHROPIC_API_KEY is set (then Claude Code bills the API key). `budget_left()` (USD) is passed as
-    --max-budget-usd so a single call cannot overrun the cap. After each call `complete.last_usage`
-    holds the reported cost and tokens (for a subscription the cost is a usage measure, not a bill)."""
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        print("note: ANTHROPIC_API_KEY is set, so `claude -p` will bill the API key, not your subscription",
-              file=sys.stderr)
-
-    def complete(prompt: str) -> str:
-        cmd = ["claude", "-p", "--tools", "", "--max-turns", "1", "--output-format", "json",
-               "--append-system-prompt", SYSTEM]
-        if model:
-            cmd += ["--model", model]
-        if budget_left is not None and budget_left() is not None:
-            cmd += ["--max-budget-usd", f"{max(budget_left(), 0.01):.2f}"]
-        try:
-            out = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout)
-        except subprocess.TimeoutExpired:
-            raise TransientError(f"claude -p timed out after {timeout} s")
-        except FileNotFoundError:
-            raise RuntimeError("`claude` not found: install Claude Code (curl -fsSL https://claude.ai/install.sh | bash)")
-        try:
-            data = json.loads(out.stdout)
-        except (json.JSONDecodeError, ValueError):
-            data = {}
-        complete.last_usage = {"cost_usd": data.get("total_cost_usd"),
-                               "input_tokens": (data.get("usage") or {}).get("input_tokens"),
-                               "output_tokens": (data.get("usage") or {}).get("output_tokens")}
-        if out.returncode or data.get("is_error") or "result" not in data:
-            msg = f"claude -p failed (exit {out.returncode}): {data.get('result') or data.get('subtype') or ''} " \
-                  f"{out.stderr[-2000:]} {out.stdout[-500:] if not data else ''}"
-            raise classify(msg)
-        return data["result"]
-    complete.last_usage = {}
-    return complete
+    return LL.claude_cli_complete(SYSTEM, model, timeout, budget_left)
 
 
 def api_complete(model):
-    from riss_drucker.llm import anthropic_complete
-    inner = anthropic_complete(model, system=SYSTEM)
-
-    def complete(prompt: str) -> str:
-        try:
-            text = inner(prompt)
-        except Exception as e:                 # anthropic.RateLimitError (429), overloaded (529), low credit, ...
-            status = getattr(e, "status_code", None)
-            msg = f"{type(e).__name__} (status {status}): {e}"
-            if status == 429 or "credit" in str(e).lower():
-                raise LimitReached(msg)
-            if status in (500, 502, 503, 504, 529) or "Connection" in type(e).__name__ or "Timeout" in type(e).__name__:
-                raise TransientError(msg)
-            raise classify(msg)
-        complete.last_usage = dict(inner.last_usage)
-        return text
-    complete.last_usage = {}
-    return complete
-
-
-def say(msg: str = "", indent: int = 0):
-    """Running commentary (stderr, flushed, timestamped)."""
-    pad = " " * indent
-    for i, line in enumerate(str(msg).splitlines() or [""]):
-        print(f"{time.strftime('%H:%M:%S') if i == 0 else '        '} {pad}{line}", file=sys.stderr, flush=True)
-
-
-class Heartbeat:
-    """Prints 'still waiting' every `every` seconds while a call is in flight."""
-
-    def __init__(self, what: str, every: float = 60.0):
-        import threading
-        self.what, self.every, self.t0 = what, every, time.time()
-        self._stop = threading.Event()
-        self._th = threading.Thread(target=self._run, daemon=True)
-
-    def _run(self):
-        while not self._stop.wait(self.every):
-            say(f"... still waiting for {self.what} ({time.time() - self.t0:.0f} s)", 2)
-
-    def __enter__(self):
-        self._th.start()
-        return self
-
-    def __exit__(self, *exc):
-        self._stop.set()
+    return LL.api_complete(SYSTEM, model)
 
 
 def describe_proposal(prop: dict) -> str:
@@ -214,47 +119,6 @@ def describe_score(sc: dict) -> str:
     return "\n".join(out)
 
 
-def with_retries(complete, prompt, retries=3, wait=(30, 90, 270), log=print):
-    """Retry transient failures with backoff; limits and other errors propagate at once."""
-    for i in range(retries + 1):
-        try:
-            return complete(prompt)
-        except TransientError as e:
-            if i == retries:
-                raise RuntimeError(f"gave up after {retries} retries: {e}")
-            log(f"  transient failure ({str(e)[:200]}); retry {i + 1}/{retries} in {wait[min(i, len(wait) - 1)]} s")
-            time.sleep(wait[min(i, len(wait) - 1)])
-
-
-def resumed(saved: list, live):
-    """Serve the saved answers of an interrupted run first (no calls, no usage), then the live backend."""
-    saved = list(saved)
-
-    def complete(prompt: str) -> str:
-        if saved:
-            complete.last_usage = {"resumed": True}
-            return saved.pop(0)
-        if live is None:
-            raise RuntimeError("no saved answers left and no live backend")
-        text = live(prompt)
-        complete.last_usage = getattr(live, "last_usage", {})
-        return text
-    complete.last_usage = {}
-    complete.pending = lambda: len(saved)
-    return complete
-
-
-def replay_complete(path):
-    answers = [r["response"] for r in json.loads(Path(path).read_text())["rounds"]]
-
-    def complete(prompt: str) -> str:
-        if not answers:
-            raise RuntimeError("replay transcript exhausted")
-        return answers.pop(0)
-    return complete
-
-
-# ----------------------------------------------------------------------------- ab initio facts
 def abinitio_facts(abd: Path) -> dict:
     import case_methane_cation_abinitio as A
     from riss_drucker.molecule import Molecule
@@ -639,30 +503,241 @@ def build_prompt(facts, classes, group_table, history) -> str:
     return json.dumps(payload, indent=1, default=str)
 
 
-def parse_answer(text: str) -> dict:
-    m = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.S)
-    if m:
-        blob = m.group(1)
-    elif "{" in text and "}" in text:
-        blob = text[text.index("{"):text.rindex("}") + 1]
-    else:
-        raise ValueError("no JSON object found in the answer (expected one ```json block)")
-    d = json.loads(blob)
-    if "spec" not in d or "roles" not in d:
-        raise ValueError("answer lacks 'spec' or 'roles'")
-    return d
+# ----------------------------------------------------------------------------- adapters
+def _check_roles(prop):
+    if "roles" not in prop:
+        raise ValueError("answer lacks 'roles' (rotor / tunneling / extra for each term)")
 
 
-def strip_private(d):
-    if isinstance(d, dict):
-        return {k: strip_private(v) for k, v in d.items() if not str(k).startswith("_")}
-    return d
+def relation_to_reference(cand, k_c, ref_c, k_r):
+    core = all(equivalent(cand, k_c[n], ref_c, k_r[n]) for n, _ in ISOTOPES)
+    if core and not cand.extra:
+        return "equivalent to the reference model"
+    if core:
+        return f"reference model + {len(cand.extra)} extra term(s) {cand.extra}"
+    return "a different model from the reference"
+
+
+class ExperimentAdapter:
+    """Score proposals against the measured PFI-ZEKE lines (ab initio prior, Bayesian update, CV)."""
+    system = SYSTEM
+
+    def __init__(self, facts, tables, cv=True):
+        from riss_drucker import symmetry as S
+        self.facts, self.tables, self.cv = facts, tables, cv
+        self.classes = observed_classes(tables)
+        self.group_table = S.get_group("Td").character_table()
+
+    def reference(self):
+        return reference_proposal()
+
+    def prompt(self, history):
+        return build_prompt(self.facts, self.classes, self.group_table, history)
+
+    def describe(self, prop):
+        return describe_proposal(prop)
+
+    def evaluate(self, prop, log=say):
+        _check_roles(prop)
+        log("compiling and certifying (hermiticity, time reversal, Td symmetry, level counts) ...", 2)
+        cand = Candidate(prop["spec"], prop["roles"])
+        log(f"certified: {len(cand.bm.blocks)} symmetry blocks; calibrating constants from the ab initio surface "
+            "and scoring against the measured lines ...", 2)
+        sc = score_candidate(cand, self.facts, self.tables, self.cv)
+        sc["score"] = sc["score_cv_rms_mean"]
+        sc["summary"] = describe_score(sc)
+        return cand, sc
+
+    def feedback(self, sc):
+        fb = {n: {kk: sc[n][kk] for kk in ("n_calibration_branches", "n_branches_consistent_with_geometry",
+                                           "prediction_rms_IE_only_cm", "updated_rms_cm", "cv_rms_cm",
+                                           "delta_posterior_cm", "posterior", "shift_in_prior_sd") if kk in sc[n]}
+              for n, _ in ISOTOPES}
+        fb["note"] = ("delta here is 4|sigma|; with extra J-dependent tunneling couplings the N+ > 0 pattern can be "
+                      "absorbed by them, so check whether sigma is still determined by the data "
+                      "(shift_in_prior_sd of sigma near 0 means it is not)")
+        return fb
+
+    def relation(self, cand, sc, ref_c, ref_s):
+        return relation_to_reference(cand, {n: sc[n]["ab_initio_coefficients"] for n, _ in ISOTOPES}, ref_c,
+                                     {n: ref_s[n]["ab_initio_coefficients"] for n, _ in ISOTOPES})
+
+    def final(self, label, cand, sc, prop, ref_s, run):
+        return {"mode": "experiment", "selected": label, "stop_reason": run["stop_reason"],
+                "rounds_done": len(run["rounds"]), "usage_total": run["usage"],
+                "selection_rule": "lowest mean leave-one-position-out rms over CH4+ and CD4+ (Bayesian update with "
+                                  "ab initio prior); the language model's proposal is preferred on ties with the reference",
+                "spec": cand.spec.to_dict(), "roles": cand.roles, "rationale": prop.get("rationale"),
+                "abinitio_basis": self.facts["basis"], "scores": strip_private(sc),
+                "reference_scores": strip_private(ref_s) if ref_s else None,
+                "levels_N_le_5": {n: [{"N": N, "irrep": ir, "k": kk, "E_cm": e}
+                                      for (N, ir, kk), e in sorted(levels(cand, sc[n]["posterior_coefficients"]).items(),
+                                                                   key=lambda t: t[1])] for n, _ in ISOTOPES}}
+
+
+FP_TASK = ("Build the effective Hamiltonian for the vibronic ground state of CH4+ (rotation x tunneling between the "
+           "equivalent Jahn-Teller minima). Its target is the set of FIRST-PRINCIPLES rovibronic levels computed from "
+           "the ab initio surface (not experiment): they include the vibrationally averaged rotor of each well, the "
+           "tunneling splitting from a variational reaction-plane calculation, and the rotation of the molecule-fixed "
+           "frame accumulated along the tunneling path (a hop between neighbouring wells carries a rotation by "
+           "theta about axis n, i.e. the operator exp(-i theta n.J); its expansion gives rotation-tunneling couplings "
+           "of the form i*sym(w[1,j] (a.J)) and J-dependent tunneling). Your terms' coefficients are FITTED to the "
+           "first-principles levels with N+ <= nfit and the model is SCORED by how well it then predicts the levels "
+           "with N+ > nfit (rms, cm-1). The measured spectrum is used only for an independent validation report. "
+           "Choose spaces (including well vectors), group and terms; fewer terms that extrapolate well are better.")
+
+
+class FirstPrinciplesAdapter:
+    """Score proposals by fitting them to first-principles levels (N+ <= nfit) and predicting N+ > nfit."""
+    system = SYSTEM
+
+    def __init__(self, facts, fp: dict, tables=None, nfit=5):
+        from riss_drucker import symmetry as S
+        from riss_drucker.abinitio.firstprinciples import levels_from_json
+        self.facts, self.fp, self.tables, self.nfit = facts, fp, tables, nfit
+        self.nmax = fp["nmax"]
+        self.target = {n: levels_from_json(fp["isotopologues"][n]["levels"]) for n, _ in ISOTOPES}
+        self.group_table = S.get_group("Td").character_table()
+
+    def reference(self):
+        return reference_proposal()
+
+    def describe(self, prop):
+        return describe_proposal(prop)
+
+    def prompt(self, history):
+        from riss_drucker.llm import GRAMMAR
+        fp_facts = {}
+        for n, _ in ISOTOPES:
+            e = self.fp["isotopologues"][n]
+            ta = e["tunneling"]
+            fp_facts[n] = {
+                "tunneling_delta_cm (= 4|sigma|)": round(ta["delta"], 4),
+                "sign_of_sigma": "N+=0 ground level is F2 (Ham's theorem)",
+                "vibrationally_averaged_rotor_tensor_cm (Q_ab J_a J_b, tetrahedral reference frame, well with vector L)":
+                    np.round(np.array(ta["rotor_tensor_averaged_td"]), 5).tolist(),
+                "averaged_A_B_C_cm": np.round(ta["rotational_constants_averaged"], 4).tolist(),
+                "frame_rotation_per_hop": {"angle_deg": round(ta["frame_rotation"]["angle_deg"], 3),
+                                           "axis (reference frame)": np.round(ta["frame_rotation"]["axis"], 4).tolist(),
+                                           "from_well_vector_L": np.round(ta["well_vector_L"], 4).tolist(),
+                                           "to_well_vector_R": np.round(ta["well_vector_R"], 4).tolist()},
+                "first_principles_levels_N_le_2 (cm-1, relative to the N+=0 ground level)":
+                    [{"N": N, "irrep": ir, "E": round(v, 4)} for (N, ir, k), v in
+                     sorted(self.target[n].items(), key=lambda t: t[1]) if N <= 2]}
+        payload = {"task": FP_TASK.replace("nfit", str(self.nfit)), "ab_initio": self.facts,
+                   "first_principles": fp_facts, "levels_fitted_N_le": self.nfit, "levels_predicted_N": [self.nfit + 1, self.nmax],
+                   "grammar": GRAMMAR + "\n" + WELL_GRAMMAR, "group_Td_character_table": self.group_table,
+                   "previous_attempts_and_feedback": history, "answer_format": ANSWER_FORMAT}
+        return json.dumps(payload, indent=1, default=str)
+
+    def _fit(self, cand, name, log):
+        from scipy.optimize import least_squares
+        ta = self.fp["isotopologues"][name]["tunneling"]
+        tgt = self.target[name]
+        A, Bc, C = ta["rotational_constants_averaged"]
+        lv0 = levels(cand, cand.theta({p: 0.0 for p in cand.params}))
+        if set(lv0) != set(tgt):
+            from collections import Counter
+            cm = Counter((N, ir) for N, ir, _ in lv0)
+            ct = Counter((N, ir) for N, ir, _ in tgt)
+            diff = {f"N={N} {ir}": (cm.get((N, ir), 0), ct.get((N, ir), 0)) for N, ir in set(cm) | set(ct)
+                    if cm.get((N, ir), 0) != ct.get((N, ir), 0)}
+            raise ValueError(f"level structure differs from the first-principles levels (model, target counts): "
+                             f"{dict(sorted(diff.items())[:8])}")
+        keys_fit = sorted(k for k in tgt if k[0] <= self.nfit)
+        keys_pred = sorted(k for k in tgt if k[0] > self.nfit)
+        cal_rms, branches = cand.calibrate(A, Bc, C)
+        if not branches:
+            raise ValueError(f"rotor terms cannot reproduce the averaged rigid rotor (calibration rms {cal_rms:.3g})")
+        names = cand.params
+
+        def resid(x, keys):
+            lv = levels(cand, dict(zip(names, x)))
+            return np.array([lv[k] - tgt[k] for k in keys])
+        best = None
+        for br in branches:
+            for s in (1.0, -1.0):
+                x0 = np.array([br["coeffs"].get(p, 0.0) if p in cand.rotor else
+                               (s * ta["sigma_abs"] / cand.hop if p == cand.tun else 0.0) for p in names])
+                sol = least_squares(resid, x0, args=(keys_fit,), x_scale=np.maximum(np.abs(x0), 0.05))
+                if best is None or sol.cost < best.cost:
+                    best = sol
+        x = best.x
+        fit_rms = float(np.sqrt(np.mean(resid(x, keys_fit) ** 2)))
+        pred_rms = float(np.sqrt(np.mean(resid(x, keys_pred) ** 2))) if keys_pred else float("nan")
+        coeffs = dict(zip(names, map(float, x)))
+        out = {"fit_rms_cm": fit_rms, "predict_rms_cm": pred_rms, "n_fit": len(keys_fit), "n_predict": len(keys_pred),
+               "coefficients": coeffs, "delta_cm": 4 * abs(coeffs[cand.tun]) * cand.hop}
+        if self.tables is not None:
+            import case_methane_cation_rovibronic as R
+            rows = [r for r in self.tables[name] if r["N"] and "/" not in r["N"]]
+            Bn = R.NEUTRAL_B[name]
+            e = self.fp["isotopologues"][name]
+            IE = e["ionization_energy_abinitio_cm"] + e.get("validation", {}).get("IE_offset_cm", 0.0)
+            obs = np.array([r["nu"] for r in rows])
+            for _ in range(5):
+                asg = assign(cand, IE, coeffs, rows, Bn)
+                c = calc(cand, IE, coeffs, rows, Bn, asg)
+                IE += float(np.mean(obs - c))
+            c = calc(cand, IE, coeffs, rows, Bn, assign(cand, IE, coeffs, rows, Bn))
+            out["validation_rms_IE_shifted_cm"] = float(np.sqrt(np.mean((obs - c) ** 2)))
+            out["validation_IE_offset_cm"] = IE - e["ionization_energy_abinitio_cm"]
+            out["_IE"] = IE
+        # fields read by plot_ch4plus_sticks.py
+        out.update({"IE_offset": out.get("_IE", self.fp["isotopologues"][name]["ionization_energy_abinitio_cm"]),
+                    "ab_initio_coefficients": coeffs, "posterior_coefficients": coeffs,
+                    "posterior": {"IE": out.get("_IE", 0.0)}, "prediction_rms_IE_only_cm": out.get("validation_rms_IE_shifted_cm", float("nan")),
+                    "updated_rms_cm": out.get("validation_rms_IE_shifted_cm", float("nan")),
+                    "delta_posterior_cm": out["delta_cm"]})
+        return out
+
+    def evaluate(self, prop, log=say):
+        _check_roles(prop)
+        d = dict(prop["spec"])
+        d["J"] = list(range(self.nmax + 1))
+        log("compiling and certifying (hermiticity, time reversal, Td symmetry, level counts) ...", 2)
+        cand = Candidate(d, prop["roles"])
+        log(f"certified: {len(cand.bm.blocks)} symmetry blocks; fitting to the first-principles levels N+ <= {self.nfit} "
+            f"and predicting N+ = {self.nfit + 1}..{self.nmax} ...", 2)
+        sc = {n: self._fit(cand, n, log) for n, _ in ISOTOPES}
+        sc["score"] = float(np.mean([sc[n]["predict_rms_cm"] for n, _ in ISOTOPES]))
+        sc["summary"] = "\n".join(
+            f"{n}: fit rms {sc[n]['fit_rms_cm']:.4f} cm-1 ({sc[n]['n_fit']} levels N+<={self.nfit}), predicted N+>{self.nfit} "
+            f"rms {sc[n]['predict_rms_cm']:.4f} ({sc[n]['n_predict']} levels); delta {sc[n]['delta_cm']:.3f}"
+            + (f"; measured lines (IE shifted only) rms {sc[n]['validation_rms_IE_shifted_cm']:.2f}"
+               if "validation_rms_IE_shifted_cm" in sc[n] else "") for n, _ in ISOTOPES)
+        return cand, sc
+
+    def feedback(self, sc):
+        return {n: {k: v for k, v in sc[n].items() if not k.startswith("_") and k not in
+                    ("ab_initio_coefficients", "posterior_coefficients", "posterior", "IE_offset")} for n, _ in ISOTOPES}
+
+    def relation(self, cand, sc, ref_c, ref_s):
+        return relation_to_reference(cand, {n: sc[n]["coefficients"] for n, _ in ISOTOPES}, ref_c,
+                                     {n: ref_s[n]["coefficients"] for n, _ in ISOTOPES})
+
+    def final(self, label, cand, sc, prop, ref_s, run):
+        return {"mode": "firstprinciples", "selected": label, "stop_reason": run["stop_reason"],
+                "rounds_done": len(run["rounds"]), "usage_total": run["usage"],
+                "selection_rule": f"lowest mean rms of predicted first-principles levels N+ > {self.nfit} after fitting "
+                                  f"N+ <= {self.nfit}; the measured spectrum is not used for selection",
+                "spec": cand.spec.to_dict(), "roles": cand.roles, "rationale": prop.get("rationale"),
+                "abinitio_basis": self.facts["basis"], "first_principles_file_basis": self.fp.get("basis"),
+                "scores": strip_private(sc), "reference_scores": strip_private(ref_s) if ref_s else None,
+                "levels": {n: [{"N": N, "irrep": ir, "k": kk, "E_cm": e}
+                               for (N, ir, kk), e in sorted(levels(cand, sc[n]["coefficients"]).items(),
+                                                            key=lambda t: t[1])] for n, _ in ISOTOPES}}
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--abinitio", required=True)
     ap.add_argument("--pdf", default=None)
+    ap.add_argument("--target", choices=["experiment", "firstprinciples"], default="experiment",
+                    help="experiment: score against the measured lines; firstprinciples: fit to the first-principles "
+                         "levels (--fp) and score by prediction of higher N+ (measured lines only validate)")
+    ap.add_argument("--fp", default=None, help="first-principles levels from scripts/firstprinciples_ch4plus.py")
+    ap.add_argument("--nfit", type=int, default=5, help="firstprinciples: fit levels with N+ <= nfit")
     ap.add_argument("--llm", choices=["claude-cli", "api", "replay"], default="claude-cli")
     ap.add_argument("--model", default=None, help="claude-cli: model alias (e.g. opus); api: model id")
     ap.add_argument("--replay", default=None, help="transcript JSON from an earlier run (--llm replay)")
@@ -682,165 +757,44 @@ def main() -> int:
     ap.add_argument("--retry-wait", type=float, default=30.0, help="first retry pause in s (then x3, x9)")
     a = ap.parse_args()
 
-    from riss_drucker import symmetry as S
     facts = abinitio_facts(Path(a.abinitio))
-    group_table = S.get_group("Td").character_table()
-    tables = classes = None
+    tables = None
     if a.pdf:
         import case_methane_cation_rovibronic as R
         tables = R.read_tables(Path(a.pdf))
-        classes = observed_classes(tables)
+    if a.target == "firstprinciples":
+        if not a.fp:
+            ap.error("--target firstprinciples needs --fp (from scripts/firstprinciples_ch4plus.py)")
+        adapter = FirstPrinciplesAdapter(facts, json.loads(Path(a.fp).read_text()), tables, a.nfit)
+    else:
+        if tables is None and not a.dry_run:
+            ap.error("--pdf is required with --target experiment (proposals are scored against the measured lines)")
+        if tables is None:
+            from riss_drucker import symmetry as S
+            print(build_prompt(facts, None, S.get_group("Td").character_table(), []))
+            return 0
+        adapter = ExperimentAdapter(facts, tables, cv=not a.no_cv)
     if a.dry_run:
-        print(build_prompt(facts, classes, group_table, []))
+        print(adapter.prompt([]))
         return 0
-    if tables is None:
-        ap.error("--pdf is required (the proposals are scored against the measured lines)")
-    usage = {"cost_usd": 0.0, "tokens": 0, "calls": 0}
-
-    def budget_left():
-        return None if a.max_budget_usd is None else a.max_budget_usd - usage["cost_usd"]
-    live = {"claude-cli": lambda: claude_cli_complete(a.model, budget_left=budget_left),
-            "api": lambda: api_complete(a.model or "claude-opus-5-5"),
-            "replay": lambda: replay_complete(a.replay)}[a.llm]()
-    saved_rounds = []
-    if a.resume:
-        saved_rounds = [r for r in json.loads(Path(a.resume).read_text())["rounds"] if "response" in r]
-        for r in saved_rounds:                     # earlier usage counts against the caps
-            u = r.get("usage") or {}
-            usage["cost_usd"] += u.get("cost_usd") or 0.0
-            usage["tokens"] += (u.get("input_tokens") or 0) + (u.get("output_tokens") or 0)
-        print(f"resuming: {len(saved_rounds)} saved answers will be re-evaluated without calls", file=sys.stderr)
-    complete = resumed([r["response"] for r in saved_rounds], live)
-
-    cv = not a.no_cv
-    ref = reference_proposal()
-    ref_cand = Candidate(ref["spec"], ref["roles"])
-    say("scoring the hand-built reference model (six wells with geometric phase, rotor + nearest-well tunneling)")
-    ref_score = score_candidate(ref_cand, facts, tables, cv)
-    say(describe_score(ref_score), 2)
-    say(f"reference score (mean cross-validated rms): {ref_score['score_cv_rms_mean']:.3f} cm-1 -- Claude's proposals "
-        "must match or beat this", 2)
-
-    history, rounds, best = [], [], ("reference", ref_cand, ref_score, ref)
-    stop_reason = "running"
-
-    def save_transcript():
-        Path(a.transcript).write_text(json.dumps({"backend": a.llm, "model": a.model, "rounds": rounds,
-                                                  "usage_total": usage, "stop_reason": stop_reason},
-                                                 indent=1, default=str))
-    for k in range(a.rounds):
-        live_call = complete.pending() == 0            # saved answers cost nothing; caps only gate new calls
-        if live_call and a.max_budget_usd is not None and usage["cost_usd"] >= a.max_budget_usd:
-            stop_reason = f"budget cap reached ({usage['cost_usd']:.2f} >= {a.max_budget_usd} USD)"
-            break
-        if live_call and a.max_total_tokens is not None and usage["tokens"] >= a.max_total_tokens:
-            stop_reason = f"token cap reached ({usage['tokens']} >= {a.max_total_tokens})"
-            break
-        prompt = build_prompt(facts, classes, group_table, history)
-        t0 = time.time()
-        say("")
-        if complete.pending():
-            say(f"round {k + 1}/{a.rounds}: re-using saved answer (no call)")
-        else:
-            say(f"round {k + 1}/{a.rounds}: asking Claude ({len(prompt) // 1000} kB prompt"
-                + (f", feedback from {len(history)} earlier attempt(s)" if history else "") + ")")
-        try:
-            with Heartbeat("Claude"):
-                text = with_retries(complete, prompt, a.retries,
-                                    wait=(a.retry_wait, 3 * a.retry_wait, 9 * a.retry_wait), log=lambda m: say(m, 2))
-        except LimitReached as e:
-            stop_reason = f"usage/rate limit: {str(e)[:500]}"
-            break
-        except KeyboardInterrupt:
-            stop_reason = "interrupted by user"
-            break
-        except Exception as e:
-            stop_reason = f"language-model call failed: {type(e).__name__}: {str(e)[:500]}"
-            break
-        u = dict(getattr(complete, "last_usage", {}) or {})
-        if not u.get("resumed"):
-            usage["calls"] += 1
-            usage["cost_usd"] += u.get("cost_usd") or 0.0
-            usage["tokens"] += (u.get("input_tokens") or 0) + (u.get("output_tokens") or 0)
-        rec = {"round": k + 1, "response": text, "seconds": round(time.time() - t0, 1), "usage": u}
-        say(f"answer received after {rec['seconds']:.0f} s" + (f" (reported usage ${u['cost_usd']:.2f})"
-                                                               if u.get("cost_usd") else ""), 2)
-        try:
-            prop = parse_answer(text)
-            say("Claude proposes:", 2)
-            say(describe_proposal(prop), 4)
-            say("compiling and certifying (hermiticity, time reversal, Td symmetry, level counts) ...", 2)
-            cand = Candidate(prop["spec"], prop["roles"])
-            say(f"certified: {len(cand.bm.blocks)} symmetry blocks; calibrating constants from the ab initio surface "
-                "and scoring against the measured lines ...", 2)
-            sc = score_candidate(cand, facts, tables, cv)
-            core = all(equivalent(cand, sc[n]["ab_initio_coefficients"], ref_cand, ref_score[n]["ab_initio_coefficients"])
-                       for n, _ in ISOTOPES)
-            same = core and not cand.extra            # equivalent only if there is nothing beyond the core
-            relation = ("equivalent to the reference model" if same else
-                        f"reference model + {len(cand.extra)} extra term(s) {cand.extra}" if core else
-                        "a different model from the reference")
-            fb = {"status": "compiled, certified, calibrated and scored", "relation_to_known_model": relation,
-                  "note": ("delta here is 4|sigma|; with extra J-dependent tunneling couplings the N+ > 0 pattern can be "
-                           "absorbed by them, so check whether sigma is still determined by the data "
-                           "(shift_in_prior_sd of sigma near 0 means it is not)") if cand.extra else "",
-                  **{n: {kk: sc[n][kk] for kk in ("n_calibration_branches", "n_branches_consistent_with_geometry",
-                                                   "prediction_rms_IE_only_cm",
-                                                   "updated_rms_cm", "cv_rms_cm", "delta_posterior_cm", "posterior",
-                                                   "shift_in_prior_sd") if kk in sc[n]}
-                     for n, _ in ISOTOPES},
-                  "score_cv_rms_mean": sc["score_cv_rms_mean"],
-                  "reference_score_cv_rms_mean": ref_score["score_cv_rms_mean"]}
-            rec.update(proposal=prop, score=strip_private(sc), equivalent_to_reference=same, relation=relation)
-            if sc["score_cv_rms_mean"] < best[2]["score_cv_rms_mean"] - 1e-4 or (
-                    best[0] == "reference" and sc["score_cv_rms_mean"] <= ref_score["score_cv_rms_mean"] + 1e-4):
-                best = (f"llm round {k + 1}", cand, sc, prop)
-        except Exception as e:          # every failure goes back to the model verbatim
-            fb = {"status": "rejected", "error": f"{type(e).__name__}: {e}"}
-            rec["error"] = fb["error"]
-        if "error" in fb:
-            say(f"REJECTED: {fb['error']}", 2)
-            say("(this message goes back to Claude in the next round)", 4)
-        else:
-            say(describe_score(sc), 2)
-            verdict = (f"score {sc['score_cv_rms_mean']:.3f} cm-1 vs reference {ref_score['score_cv_rms_mean']:.3f}; "
-                       + relation
-                       + ("; now the best model" if best[0] == f"llm round {k + 1}" else "; not better than the best so far"))
-            say(f"ACCEPTED: {verdict}", 2)
-        history.append({"round": k + 1, "proposal": rec.get("proposal", text[:4000]), "feedback": fb})
-        rounds.append(rec)
-        save_transcript()
-    if stop_reason == "running":
-        stop_reason = "completed all rounds"
-    save_transcript()
-    if stop_reason != "completed all rounds":
-        print(f"stopped early: {stop_reason}\n  {len(rounds)} round(s) saved in {a.transcript}; the best model so far "
-              f"is written below. Continue later with:  --resume {a.transcript}", file=sys.stderr)
-
-    label, cand, sc, prop = best
-    say("")
-    say(f"done ({stop_reason}); selected: {label}; {usage['calls']} Claude call(s)"
-        + (f", reported usage ${usage['cost_usd']:.2f}" if usage["cost_usd"] else ""))
-    final = {"selected": label, "stop_reason": stop_reason, "rounds_done": len(rounds), "usage_total": usage,
-             "selection_rule": "lowest mean leave-one-position-out rms over CH4+ and CD4+ "
-                                                  "(Bayesian update with ab initio prior); the language model's "
-                                                  "proposal is preferred on ties with the reference",
-             "spec": cand.spec.to_dict(), "roles": cand.roles, "rationale": prop.get("rationale"),
-             "abinitio_basis": facts["basis"], "scores": strip_private(sc),
-             "reference_scores": strip_private(ref_score),
-             "levels_N_le_5": {n: [{"N": N, "irrep": ir, "k": kk, "E_cm": e}
-                                   for (N, ir, kk), e in sorted(levels(cand, sc[n]["posterior_coefficients"]).items(),
-                                                                key=lambda t: t[1])]
-                               for n, _ in ISOTOPES}}
+    make_live = {"claude-cli": lambda bl: claude_cli_complete(a.model, budget_left=bl),
+                 "api": lambda bl: api_complete(a.model or "claude-opus-5-5"),
+                 "replay": lambda bl: replay_complete(a.replay)}[a.llm]
+    run = LL.run_loop(adapter, make_live, rounds=a.rounds, transcript=a.transcript, max_budget_usd=a.max_budget_usd,
+                      max_total_tokens=a.max_total_tokens, retries=a.retries, retry_wait=a.retry_wait,
+                      resume=a.resume, backend=a.llm, model=a.model)
+    label, cand, sc, prop = run["best"]
+    ref_s = run["reference"][1]
+    final = adapter.final(label, cand, sc, prop, ref_s, run)
     Path(a.out).write_text(json.dumps(final, indent=1, default=str))
-    print(json.dumps({"selected": label, "stop_reason": stop_reason, "usage_total": usage,
-                      "score": sc["score_cv_rms_mean"],
-                      "reference_score": ref_score["score_cv_rms_mean"],
-                      **{n: {"prediction_rms_IE_only_cm": sc[n]["prediction_rms_IE_only_cm"],
-                             "updated_rms_cm": sc[n]["updated_rms_cm"], "cv_rms_cm": sc[n].get("cv_rms_cm"),
-                             "posterior": sc[n]["posterior"], "delta_cm": sc[n]["delta_posterior_cm"]}
-                         for n, _ in ISOTOPES}}, indent=1))
-    if a.figures:
+    short = {"selected": label, "stop_reason": run["stop_reason"], "usage_total": run["usage"], "score": sc["score"],
+             "reference_score": ref_s["score"] if ref_s else None}
+    for n, _ in ISOTOPES:
+        short[n] = {k: v for k, v in sc[n].items() if k in ("prediction_rms_IE_only_cm", "updated_rms_cm", "cv_rms_cm",
+                                                             "posterior", "delta_posterior_cm", "fit_rms_cm",
+                                                             "predict_rms_cm", "validation_rms_IE_shifted_cm", "delta_cm")}
+    print(json.dumps(short, indent=1, default=str))
+    if a.figures and a.target == "experiment":
         plot(Path(a.figures), cand, sc, tables)
     return 0
 

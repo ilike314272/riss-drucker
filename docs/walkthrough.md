@@ -411,6 +411,19 @@ network, language model) only suggests.
   update moves the ab initio constants by 1–2 prior sd. `python scripts/verify_case_studies.py
   [--pdf …]` re-runs every case study and checks its numbers. See
   `docs/case_studies/methane_cation_abinitio.md`.
+- **CH₄⁺ from first principles: done (cc-pVDZ ab initio plane; cc-pVTZ plane runs on the user's
+  machine).** No measured line enters the model:
+  - variational Cartesian reaction-plane tunneling on an anharmonic UMP2 + CCSD(T) surface;
+  - vibrationally averaged rotor;
+  - frame rotation along the path as an exact rotation operator in each hop;
+  - Ham's theorem for the sign of σ.
+
+  Results: δ = 13.4 / 1.00 cm⁻¹ (measured 16.4–17.1 / 1.4–1.74). The spectrum reproduces the
+  measured lines to 1.76 / 0.62 cm⁻¹ with only the IE shifted. The Claude loop can be scored against
+  these levels instead of experiment (`--target firstprinciples`). The loop core is
+  molecule-independent (`rd.llm_loop`, `rd.llm_adapters.LevelsAdapter`).
+  `scripts/ch4plus_background.sh` runs the whole chain in the background and survives SSH
+  disconnects. See `docs/case_studies/methane_cation_firstprinciples.md`.
 - **Real CH₄ lines** (no rotational catalogue; HITRAN needs an account).
 - **Symbolic LM training:** more real case studies are needed before learned weights beat the
   physical prior out of sample.

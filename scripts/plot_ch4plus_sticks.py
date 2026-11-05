@@ -56,12 +56,19 @@ def neutral_levels(B, jmax, T, jet):
     return out, td
 
 
+DIMS = {"A1": 1, "A2": 1, "E": 2, "F1": 3, "F2": 3}
+
+
 def sticks(cand, IE, coeffs, name, B, jmax, T, jet):
     import llm_build_ch4plus as L
-    lev = L.levels(cand, coeffs)
+    return sticks_from_levels(L.levels(cand, coeffs), IE, name, B, jmax, T, jet)
+
+
+def sticks_from_levels(lev, IE, name, B, jmax, T, jet):
+    """Stick spectrum from cation levels {(N, irrep, k): E} (relative to the N=0 ground level)."""
     lower, td = neutral_levels(B, jmax, T, jet)
     gns = td.spin_statistics([SPIN[name]] * 4)
-    dim = {ir: cand.dims.get(ir, 1) for ir in cand.dims}
+    dim = {ir: DIMS.get(ir.split("+")[0], 1) for (_, ir, _) in lev}
     out = []
     for J, g, mult, El in lower:
         pop = gns[g] * mult * (2 * J + 1) * math.exp(-C2 * El / T)
@@ -84,13 +91,17 @@ def main() -> int:
     ap.add_argument("--jmax", type=int, default=6, help="highest neutral J''")
     ap.add_argument("--min-rel", type=float, default=1e-3, help="drop sticks weaker than this (relative)")
     ap.add_argument("--out-dir", default="docs/case_studies/figures")
+    ap.add_argument("--compare", default=None, help="second model JSON drawn below the axis (its final model)")
     a = ap.parse_args()
     import llm_build_ch4plus as L
     import case_methane_cation_rovibronic as R
-    m = json.loads(Path(a.model).read_text())
-    spec = dict(m["spec"])
-    spec["J"] = list(range(a.nmax + 1))
-    cand = L.Candidate({k: spec[k] for k in ("group", "spaces", "terms", "J")}, m["roles"])
+    def load(path):
+        m = json.loads(Path(path).read_text())
+        spec = dict(m["spec"])
+        spec["J"] = list(range(a.nmax + 1))
+        return m, L.Candidate({k: spec[k] for k in ("group", "spaces", "terms", "J")}, m["roles"])
+    m, cand = load(a.model)
+    cmp_ = load(a.compare) if a.compare else None
     tables = R.read_tables(Path(a.pdf)) if a.pdf else None
     od = Path(a.out_dir)
     od.mkdir(parents=True, exist_ok=True)
@@ -99,23 +110,37 @@ def main() -> int:
     import matplotlib.pyplot as plt
     tag = f"{'jet' if a.jet else 'T' + format(a.T, 'g') + 'K'}"
     label = m.get("selected", "model")
+    fp_mode = m.get("mode") == "firstprinciples"
     for name in ("CH4+", "CD4+"):
         sc = m["scores"][name]
         B = R.NEUTRAL_B[name]
-        ai = [s for s in sticks(cand, sc["IE_offset"], sc["ab_initio_coefficients"], name, B, a.jmax, a.T, a.jet)
-              if s[1] >= a.min_rel]
         up = [s for s in sticks(cand, sc["posterior"]["IE"], sc["posterior_coefficients"], name, B, a.jmax, a.T, a.jet)
               if s[1] >= a.min_rel]
+        if cmp_ is not None:
+            mc, cc = cmp_
+            s2 = mc["scores"][name]
+            ai = [s for s in sticks(cc, s2["posterior"]["IE"], s2["posterior_coefficients"], name, B, a.jmax, a.T, a.jet)
+                  if s[1] >= a.min_rel]
+            low_label = (f"compare: {'first-principles' if mc.get('mode') == 'firstprinciples' else 'fitted to experiment'} "
+                         f"({mc.get('selected', 'model')}; rms {s2['updated_rms_cm']:.2f})")
+        elif fp_mode:
+            ai, low_label = [], None
+        else:
+            ai = [s for s in sticks(cand, sc["IE_offset"], sc["ab_initio_coefficients"], name, B, a.jmax, a.T, a.jet)
+                  if s[1] >= a.min_rel]
+            low_label = f"ab initio constants, IE offset only (rms {sc['prediction_rms_IE_only_cm']:.2f})"
+        up_label = (f"effective H fitted to first-principles levels ({label}); IE shifted only: rms "
+                    f"{sc['updated_rms_cm']:.2f} cm$^{{-1}}$ on measured lines" if fp_mode else
+                    f"final model ({label}; rms {sc['updated_rms_cm']:.2f} cm$^{{-1}}$ on measured lines)")
         fig, ax = plt.subplots(figsize=(11, 4.2))
-        ax.vlines([s[0] for s in up], 0, [s[1] for s in up], color="C1", lw=1.0,
-                  label=f"final model ({label}; rms {sc['updated_rms_cm']:.2f} cm$^{{-1}}$ on measured lines)")
-        ax.vlines([s[0] for s in ai], 0, [-s[1] for s in ai], color="C0", lw=1.0,
-                  label=f"ab initio constants, IE offset only (rms {sc['prediction_rms_IE_only_cm']:.2f})")
+        ax.vlines([s[0] for s in up], 0, [s[1] for s in up], color="C2" if fp_mode else "C1", lw=1.0, label=up_label)
+        if ai:
+            ax.vlines([s[0] for s in ai], 0, [-s[1] for s in ai], color="C0", lw=1.0, label=low_label)
         if tables is not None:
             obs = [r["nu"] for r in tables[name] if r["N"] and "/" not in r["N"]]
             ax.plot(obs, np.full(len(obs), 1.06), "kv", ms=4, label="measured lines (Wörner, Qian & Merkt 2007)")
         ax.axhline(0, color="k", lw=0.6)
-        ax.set_ylim(-1.12, 1.15)
+        ax.set_ylim(-1.12 if ai else 0, 1.15)
         ax.set_yticks([-1, -0.5, 0, 0.5, 1])
         ax.set_yticklabels(["1", "0.5", "0", "0.5", "1"])
         ax.set_ylabel("relative intensity")
@@ -129,10 +154,10 @@ def main() -> int:
         plt.close(fig)
         with open(od / f"{stem}.csv", "w") as fh:
             fh.write("model,wavenumber_cm,relative_intensity,J_neutral,sym_neutral,N_cation,sym_cation,index\n")
-            for lab, ss in (("final", up), ("abinitio", ai)):
+            for lab, ss in (("final", up), ("compare" if cmp_ else "abinitio", ai)):
                 for s in ss:
                     fh.write(f"{lab},{s[0]:.3f},{s[1]:.5f},{s[2]},{s[3]},{s[4]},{s[5]},{s[6]}\n")
-        print(f"{name}: {len(up)} final / {len(ai)} ab initio sticks -> {od / stem}.png, .csv")
+        print(f"{name}: {len(up)} final / {len(ai)} {'compare' if cmp_ else 'ab initio'} sticks -> {od / stem}.png, .csv")
     return 0
 
 

@@ -13,6 +13,11 @@ basis (`data/abinitio/ch4plus_ccpvtz`). The cc-pVTZ run took 63 min on a 20-core
 48 min of it for the saddle. The tables below give cc-pVDZ in full and then the basis-set
 comparison.
 
+**Next step:** [methane_cation_firstprinciples.md](methane_cation_firstprinciples.md) replaces the 1D
+tunneling with a variational reaction-plane calculation on an anharmonic ab initio surface, adds
+vibrational averaging and the frame rotation along the path, and scores Claude against the
+first-principles levels instead of experiment.
+
 ## Check it yourself
 
 ```bash

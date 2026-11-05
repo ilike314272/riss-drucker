@@ -72,5 +72,23 @@
  "ch3d": {
   "chi2": 0.4627761515538387,
   "extrap_rms": 0.0011545961528119926
+ },
+ "ch4plus_firstprinciples": {
+  "ccpvdz": {
+   "data": "data/abinitio/ch4plus_ccpvdz",
+   "surface": "ab initio reaction plane",
+   "CH4+": {
+    "delta": 13.375031435446795,
+    "A_avg": 6.470822484252542,
+    "frame_rotation_deg": 10.379532096542851,
+    "rms_IE_shifted": 1.7587590897439642
+   },
+   "CD4+": {
+    "delta": 0.9980740939619382,
+    "A_avg": 3.2651719905096592,
+    "frame_rotation_deg": 10.444577377186073,
+    "rms_IE_shifted": 0.6193556333176758
+   }
+  }
  }
 }
