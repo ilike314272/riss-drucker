@@ -197,3 +197,18 @@ def test_grammar_leading_minus_and_named_dependency(L):
     dup["roles"] = {"A": "rotor", "B": "rotor", "C": "rotor", "sigma": "tunneling", "dBbar": "extra"}
     with pytest.raises(GrammarError, match=r"dependent: .*A .*B .*C .*dBbar = 0"):
         L.Candidate(dup["spec"], dup["roles"])
+
+
+def test_full_stick_spectra_from_model_file(tmp_path):
+    m = ROOT / "docs" / "case_studies" / "ch4plus_llm_model_ccpvtz.json"
+    if not m.exists():
+        pytest.skip("no committed model file")
+    out = subprocess.run([sys.executable, str(ROOT / "scripts" / "plot_ch4plus_sticks.py"), "--model", str(m),
+                          "--T", "20", "--nmax", "6", "--jmax", "4", "--out-dir", str(tmp_path)],
+                         capture_output=True, text=True, cwd=ROOT)
+    assert out.returncode == 0, out.stderr[-3000:]
+    for iso in ("CH4p", "CD4p"):
+        rows = (tmp_path / f"{iso}_sticks_T20K.csv").read_text().splitlines()[1:]
+        assert (tmp_path / f"{iso}_sticks_T20K.png").exists() and len(rows) > 50
+        top = [r for r in rows if r.startswith("final") and float(r.split(",")[2]) > 0.999]
+        assert len(top) <= 3                                    # intensities are shared, not saturated

@@ -103,7 +103,8 @@ def ionization_energy(abd: Path, iso="H"):
 def simulate(model_mod, model, x, sgn, name, T=7.0, fwhm=0.55):
     """Stick spectrum: lowest neutral level of each nuclear-spin species (J=0 A1, J=1 F1, J=2 E)
     to every cation level of the same nuclear-spin class, intensity ~ g_ns (2J+1) exp(-E''/kT) C_dN
-    with C_0 = 1, C_+-1 = 0.75, C_+-2 = 0.5 (as in the paper's simulations)."""
+    with C_0 = 1, C_+-1 = 0.75, C_+-2 = 0.5 (as in the paper's simulations) for the total into each
+    N+, shared among its sub-levels of the allowed class in proportion to their number of states."""
     from riss_drucker import symmetry as S
     lev = model_mod.levels_indexed(model, x, sgn)
     td = S.get_group("Td")
@@ -113,14 +114,15 @@ def simulate(model_mod, model, x, sgn, name, T=7.0, fwhm=0.55):
     lower = [(0, "A1"), (1, "F1"), (2, "E")]
     Cdn = {0: 1.0, 1: 0.75, -1: 0.75, 2: 0.5, -2: 0.5}
     sticks = []
+    dim = {"A1": 1, "A2": 1, "E": 2, "F1": 3, "F2": 3}
     for J, g in lower:
         El = Bn * J * (J + 1)
         pop = gns[g] * (2 * J + 1) * math.exp(-1.4387769 * El / T)
-        for (N, ir, k), e in lev.items():
-            dn = N - J
-            if cls[ir] != cls[g] or abs(dn) > 2:
-                continue
-            sticks.append((x[0] + e - El, pop * Cdn[dn] * (2 * N + 1), J, g, N, ir, k))
+        for N in range(max(0, J - 2), J + 3):
+            targets = [((n, ir, k), e) for (n, ir, k), e in lev.items() if n == N and cls[ir] == cls[g]]
+            tot = sum(dim[ir] for (_, ir, _), _ in targets)
+            for (n, ir, k), e in targets:     # N+ total shared over its sub-levels by number of states
+                sticks.append((x[0] + e - El, pop * Cdn[N - J] * (2 * N + 1) * dim[ir] / tot, J, g, n, ir, k))
     grid = np.linspace(min(s[0] for s in sticks) - 5, max(s[0] for s in sticks) + 5, 4000)
     sig = fwhm / 2.3548
     spec = sum(s[1] * np.exp(-0.5 * ((grid - s[0]) / sig) ** 2) for s in sticks)

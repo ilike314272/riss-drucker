@@ -245,6 +245,51 @@ ab initio value (shift 0.003 prior sd, δ = 0.42 against about 1.4 measured), be
 J-dependent terms absorb the N⁺ > 0 tunneling pattern. The loop now reports such a model as
 "reference + N extra terms" rather than "equivalent", and shows how far σ moved.
 
+**Rounds 3–4 (resumed run, $0.99 reported usage in total).**
+- **Round 3:** the round-2 model without the duplicate term, i.e. the reference plus four
+  couplings. Score 0.732 cm⁻¹, but CD₄⁺ σ was undetermined (see the caveat above).
+- **Round 4:** Claude read round 3's fitted couplings and noticed the two first-order
+  rotation–tunneling terms came out in a 1 : −1 ratio for CH₄⁺ (5.91, −5.74). It identified this as
+  the Coriolis interaction −2B J·L projected on the wells. For a p-like F2 carrier,
+  ⟨v_i|L|v_j⟩ = −i v_i × v_j, which fixes the operator as `gL: i*sym(w[1,3] (Jz - Jx - Jy))`. It
+  dropped the other three couplings, citing inconsistent or implausible fitted values.
+
+This one physical term gives the best score of the run, and σ is determined again:
+
+| | score (mean CV rms) | CH₄⁺ CV rms | CD₄⁺ CV rms | δ CH₄⁺ / CD₄⁺ | σ shift CH₄⁺ / CD₄⁺ (prior sd) |
+|---|---|---|---|---|---|
+| reference | 0.910 | 1.25 | 0.57 | 16.8 / 1.08 | — |
+| round 3: +4 couplings | 0.732 | 1.06 | 0.40 | 15.7 / 0.42 | 1.69 / 0.00 |
+| **round 4: + Coriolis J·L** (selected) | **0.720** | 0.92 | 0.52 | 16.7 / 1.09 | 1.87 / −0.44 |
+
+The selected model, its constants and all levels up to N⁺ = 5 are in
+`ch4plus_llm_model_ccpvtz.json`; the transcripts are `ch4plus_llm_transcript_ccpvtz*.json`.
+
+### Full stick spectra
+
+`scripts/plot_ch4plus_sticks.py --model ch4plus_llm_model_ccpvtz.json [--jet | --T 50]` draws the
+complete predicted spectrum of the model:
+- the final model above the axis and the ab initio constants below it (IE offset only);
+- measured positions marked when `--pdf` is given;
+- all neutral J″ ≤ `--jmax` and cation N⁺ ≤ `--nmax`, with nuclear-spin weights and conserved
+  nuclear-spin class.
+
+`--jet` keeps only the lowest level of each nuclear-spin species, as in the experiment. The total
+intensity into each N⁺ uses the ΔN propensities of the paper's simulations and is shared among
+the N⁺ sub-levels by number of states. Intensities are therefore approximate; positions are the
+model's.
+
+![CH4+ jet](figures/ch4plus_llm_ccpvtz/CH4p_sticks_jet.png)
+
+![CD4+ jet](figures/ch4plus_llm_ccpvtz/CD4p_sticks_jet.png)
+
+![CH4+ 50 K](figures/ch4plus_llm_ccpvtz/CH4p_sticks_T50K.png)
+
+![CD4+ 50 K](figures/ch4plus_llm_ccpvtz/CD4p_sticks_T50K.png)
+
+The full assigned line lists are next to the figures (`*_sticks_*.csv`, columns: model,
+wavenumber, relative intensity, J″, Γ″, N⁺, Γ⁺, index).
+
 ### Running it on your machine (WSL)
 
 Install Claude Code inside the WSL terminal, then log in with your Claude subscription (run
