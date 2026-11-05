@@ -120,10 +120,10 @@ def simulate(model_mod, model, x, sgn, name, T=7.0, fwhm=0.55):
             dn = N - J
             if cls[ir] != cls[g] or abs(dn) > 2:
                 continue
-            sticks.append((x[0] + e - El, pop * Cdn[dn] * (2 * N + 1)))
-    grid = np.linspace(min(p for p, _ in sticks) - 5, max(p for p, _ in sticks) + 5, 4000)
+            sticks.append((x[0] + e - El, pop * Cdn[dn] * (2 * N + 1), J, g, N, ir, k))
+    grid = np.linspace(min(s[0] for s in sticks) - 5, max(s[0] for s in sticks) + 5, 4000)
     sig = fwhm / 2.3548
-    spec = sum(i * np.exp(-0.5 * ((grid - p) / sig) ** 2) for p, i in sticks)
+    spec = sum(s[1] * np.exp(-0.5 * ((grid - s[0]) / sig) ** 2) for s in sticks)
     return sticks, grid, spec / max(spec.max(), 1e-300)
 
 
@@ -270,6 +270,12 @@ def make_figures(fd: Path, res, R, model):
                             (pl["x_up"], "after Bayesian update", "C1")):
             st, grid, spec = simulate(R, model, x, pl["sgn"], name)
             ax.plot(grid, spec, color=col, lw=1.0, label=lab)
+            tag = "abinitio" if "ab initio" in lab else "updated"
+            imax = max(s[1] for s in st)
+            with open(fd / f"methane_cation_{name.replace('+', 'p')}_lines_{tag}.csv", "w") as fh:
+                fh.write("wavenumber_cm,relative_intensity,J_neutral,sym_neutral,N_cation,sym_cation,index\n")
+                for s in sorted(st):
+                    fh.write(f"{s[0]:.3f},{s[1] / imax:.5f},{s[2]},{s[3]},{s[4]},{s[5]},{s[6]}\n")
         for o in pl["obs"]:
             ax.axvline(o, color="k", lw=0.6, alpha=0.6)
         ax.set_xlim(min(pl["obs"]) - 8, max(pl["obs"]) + 8)
