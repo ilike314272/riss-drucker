@@ -5,9 +5,10 @@
 
 Always run (no external input; seconds to a minute):
   * methane cation six-well tunneling from symmetry (T1+T2, delta = 4|sigma|, CH2D2+ pattern)
-  * methane cation from the ab initio surface: the committed UMP2/UCCSD(T) stages in
-    data/abinitio/ch4plus are re-analysed (rotational constants, barrier, tunneling splittings,
-    isotope ratio, ionization energy) and figures are regenerated
+  * methane cation from the ab initio surface: every committed UMP2/UCCSD(T) surface listed in
+    expected_results.json (data/abinitio/ch4plus_<basis>) is re-analysed (rotational constants,
+    barrier, tunneling splittings, isotope ratio, ionization energy) and its figures regenerated
+    in <figures>/methane_cation_<basis>/
 With --pdf (Woerner, Qian & Merkt, JCP 126, 144305 (2007)):
   * rovibronic fits of CH4+, 13CH4+, CD4+ (rms and constants vs the published fit)
   * ab initio effective Hamiltonian vs the measured lines, Bayesian update
@@ -64,27 +65,35 @@ def main() -> int:
     check("CH4+ splitting / |sigma|", m["CH4+"]["splitting_over_sigma"], 4.0, 1e-9)
     check("CH2D2+ J=0 pattern A1, B1+B2, A2 reproduced", float(m["CH2D2+"]["pattern_reproduced"]), 1, 0)
 
-    # 2. ab initio surface -> effective Hamiltonian
-    args = [str(ROOT / "scripts" / "case_methane_cation_abinitio.py"), "--abinitio", str(ROOT / "data" / "abinitio" / "ch4plus"),
-            "--figures", a.figures]
-    if a.pdf:
-        args += ["--pdf", a.pdf]
-    r = run_json(args)
-    e = expected["methane_cation_abinitio"]
-    for iso in ("CH4+", "CD4+"):
-        for k in ("A", "B", "C"):
-            check(f"{iso} {k}_e (UMP2/cc-pVTZ)", r[iso]["rotational_constants_equilibrium"][k], e[iso][k], 1e-3)
-        check(f"{iso} barrier, UCCSD(T)-corrected", r[iso]["barrier_electronic_cm"], e[iso]["barrier"], 0.5)
-        check(f"{iso} tunneling splitting delta (ab initio)", r[iso]["delta_ab_initio"], e[iso]["delta"],
-              max(1e-3, 1e-3 * e[iso]["delta"]))
-    check("isotope ratio delta(CH4+)/delta(CD4+)", r["isotope_ratio_delta"], e["isotope_ratio"], 1e-2 * e["isotope_ratio"])
-    check("adiabatic IE (UCCSD(T) + ZPE)", r["ionization_energy"]["adiabatic_cm"], e["IE"], 0.5)
-    if a.pdf:
+    # 2. ab initio surfaces -> effective Hamiltonian (every committed surface listed in expected_results)
+    for label, e in expected["methane_cation_abinitio"].items():
+        d = ROOT / e["data"]
+        if not d.exists():
+            print(f"skip {label}: {e['data']} not present")
+            continue
+        fig_dir = Path(a.figures) / f"methane_cation_{label}"
+        args = [str(ROOT / "scripts" / "case_methane_cation_abinitio.py"), "--abinitio", str(d), "--figures", str(fig_dir)]
+        if a.pdf:
+            args += ["--pdf", a.pdf]
+        r = run_json(args)
+        t = f"[{label}] "
         for iso in ("CH4+", "CD4+"):
-            eh = r["effective_hamiltonian"][iso]
-            check(f"{iso} ab initio spectrum rms (IE offset only)", eh["prediction_no_fit"]["rms_cm"],
-                  e[iso]["rms_no_fit"], 0.02)
-            check(f"{iso} rms after Bayesian update", eh["bayesian_update"]["rms_cm"], e[iso]["rms_updated"], 0.02)
+            for k in ("A", "B", "C"):
+                check(f"{t}{iso} {k}_e", r[iso]["rotational_constants_equilibrium"][k], e[iso][k], 1e-3)
+            check(f"{t}{iso} barrier, UCCSD(T)-corrected", r[iso]["barrier_electronic_cm"], e[iso]["barrier"], 0.5)
+            check(f"{t}{iso} tunneling splitting delta", r[iso]["delta_ab_initio"], e[iso]["delta"],
+                  max(1e-3, 1e-3 * e[iso]["delta"]))
+        check(f"{t}isotope ratio delta(CH4+)/delta(CD4+)", r["isotope_ratio_delta"], e["isotope_ratio"],
+              1e-2 * e["isotope_ratio"])
+        check(f"{t}adiabatic IE (UCCSD(T) + ZPE)", r["ionization_energy"]["adiabatic_cm"], e["IE"], 0.5)
+        if a.pdf:
+            for iso in ("CH4+", "CD4+"):
+                eh = r["effective_hamiltonian"][iso]
+                check(f"{t}{iso} ab initio spectrum rms (IE offset only)", eh["prediction_no_fit"]["rms_cm"],
+                      e[iso]["rms_no_fit"], 0.02)
+                check(f"{t}{iso} rms after Bayesian update", eh["bayesian_update"]["rms_cm"], e[iso]["rms_updated"], 0.02)
+                check(f"{t}{iso} delta after Bayesian update", eh["bayesian_update"]["delta"], e[iso]["delta_updated"], 0.05)
+    if a.pdf:
         rv = load_script("case_methane_cation_rovibronic")
         tables = rv.read_tables(Path(a.pdf))
         model = rv.Model(5)

@@ -104,6 +104,11 @@ IE differs by the field-correction convention: we fit the uncorrected line posit
 - **Sign of σ.** With the well-vector phase convention, the band origin (J″ = 1 → N⁺ = 0 F₂) fixes
   F₂ as the lower vibronic component, so σ > 0 here.
 
+## From the ab initio surface
+
+The same Hamiltonian with A, B, C and σ computed from a UMP2/UCCSD(T) surface (reaction-path
+tunneling, no fitted constants) is in [methane_cation_abinitio.md](methane_cation_abinitio.md).
+
 ## Limits
 
 - **Electron spin not resolved.** Spin-rotation is below the PFI-ZEKE resolution (0.5–1 cm⁻¹); the

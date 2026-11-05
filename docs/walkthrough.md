@@ -404,6 +404,13 @@ network, language model) only suggests.
   Qian & Merkt 2007, PDF supplied by the user). The rms (0.94, 0.94, 0.27 cm⁻¹) and constants match
   the published fits. Two CD₄⁺ table labels were found inconsistent (N⁺ 2 → 3). Tunneling–rotation
   coupling was tested and rejected out of sample. See `docs/case_studies/methane_cation.md`.
+- **CH₄⁺ effective Hamiltonian from ab initio: done (cc-pVDZ; cc-pVTZ pending).** The pipeline is
+  UMP2 minimum, then a least-motion NEB saddle (one imaginary mode), the reaction path, projected
+  Hessians and UCCSD(T) points. It gives A, B, C and δ by 1D reaction-path tunneling with ZPE⊥,
+  and predicts the PFI-ZEKE spectrum with only the IE offset (CD₄⁺ rms 0.54 cm⁻¹). A Bayesian
+  update moves the ab initio constants by 1–2 prior sd. `python scripts/verify_case_studies.py
+  [--pdf …]` re-runs every case study and checks its numbers. See
+  `docs/case_studies/methane_cation_abinitio.md`.
 - **Real CH₄ lines** (no rotational catalogue; HITRAN needs an account).
 - **Symbolic LM training:** more real case studies are needed before learned weights beat the
   physical prior out of sample.

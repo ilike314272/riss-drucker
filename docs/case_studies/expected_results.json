@@ -1,0 +1,51 @@
+{
+ "_note": "Recorded values checked by scripts/verify_case_studies.py. Regenerate only when a change is intended and explained.",
+ "methane_cation_abinitio": {
+  "ccpvdz": {
+   "data": "data/abinitio/ch4plus_ccpvdz",
+   "isotope_ratio": 13.161904654846671,
+   "IE": 99591.55797389548,
+   "CH4+": {
+    "A": 6.671152430416638,
+    "B": 5.117349874490622,
+    "C": 3.695659829450118,
+    "barrier": 979.9693081155419,
+    "delta": 6.841970779131373,
+    "rms_no_fit": 3.941996676989716,
+    "rms_updated": 1.1686320101101937,
+    "delta_updated": 16.69236372341892
+   },
+   "CD4+": {
+    "A": 3.3381403491286292,
+    "B": 2.596449307979173,
+    "C": 1.867853398147362,
+    "barrier": 979.9693081155419,
+    "delta": 0.5198313586485312,
+    "rms_no_fit": 0.5360915495888244,
+    "rms_updated": 0.27026488268011667,
+    "delta_updated": 1.5990761292886793
+   }
+  }
+ },
+ "methane_cation_rovibronic": {
+  "CH4+": {
+   "rms": 0.9437216858504643,
+   "paper_rms": 0.996,
+   "delta": 17.0807994762077
+  },
+  "13CH4+": {
+   "rms": 0.9410678879444639,
+   "paper_rms": 0.998,
+   "delta": 16.62547791063469
+  },
+  "CD4+": {
+   "rms": 0.27360218125187724,
+   "paper_rms": 0.283,
+   "delta": 1.7434524326912446
+  }
+ },
+ "ch3d": {
+  "chi2": 0.4627761515538387,
+  "extrap_rms": 0.0011545961528119926
+ }
+}

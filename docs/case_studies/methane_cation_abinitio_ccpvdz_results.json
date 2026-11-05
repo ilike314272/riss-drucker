@@ -1,0 +1,167 @@
+{
+ "levels_of_theory": {
+  "geometries_hessians": "UMP2/cc-pvdz",
+  "energies": "UCCSD(T)/cc-pvdz at the minimum, saddle and reaction-path points",
+  "program": "pyscf 2.14.0"
+ },
+ "basis": "cc-pvdz",
+ "stationary_points": {
+  "min_CH_bonds_A": [
+   1.0931462732326531,
+   1.0931505657736047,
+   1.1909059734589504,
+   1.1909059734589549
+  ],
+  "ts_imaginary_frequency_cm": -559.6913630116412,
+  "ts_n_imaginary": 1
+ },
+ "CH4+": {
+  "rotational_constants_equilibrium": {
+   "A": 6.671152430416638,
+   "B": 5.117349874490622,
+   "C": 3.695659829450118
+  },
+  "barrier_electronic_cm": 979.9693081155419,
+  "barrier_mp2_cm": 1047.5655576456338,
+  "barrier_zpe_corrected_cm": 610.1743312665794,
+  "path_length_amu_half_A": 0.7752360210319039,
+  "tunneling": {
+   "levels": [
+    164.14491810760862,
+    167.5659034971743,
+    480.41719540617987,
+    522.4843770804423,
+    763.3609667995255,
+    924.4325033286975
+   ],
+   "pair_splitting": 3.4209853895656863,
+   "sigma_abs": 1.7104926947828432,
+   "barrier_above_ground": 446.5980908552799
+  },
+  "delta_ab_initio": 6.841970779131373,
+  "delta_without_zpe": 2.222640263104779,
+  "delta_sensitivity": {
+   "barrier_x0.9": 9.673352652312474,
+   "barrier_x1.1": 4.9265807392160355
+  }
+ },
+ "CD4+": {
+  "rotational_constants_equilibrium": {
+   "A": 3.3381403491286292,
+   "B": 2.596449307979173,
+   "C": 1.867853398147362
+  },
+  "barrier_electronic_cm": 979.9693081155419,
+  "barrier_mp2_cm": 1047.5655576456338,
+  "barrier_zpe_corrected_cm": 671.5471880377263,
+  "path_length_amu_half_A": 1.0632860789474794,
+  "tunneling": {
+   "levels": [
+    127.07226427330562,
+    127.33217995262989,
+    382.1743591205267,
+    386.96483492868,
+    611.8297598807699,
+    651.7364757404628
+   ],
+   "pair_splitting": 0.2599156793242656,
+   "sigma_abs": 0.1299578396621328,
+   "barrier_above_ground": 544.6037207595227
+  },
+  "delta_ab_initio": 0.5198313586485312,
+  "delta_without_zpe": 0.1323597147224973,
+  "delta_sensitivity": {
+   "barrier_x0.9": 0.8537648097140789,
+   "barrier_x1.1": 0.32496647236644094
+  }
+ },
+ "ionization_energy": {
+  "electronic_cm": 101018.8930744492,
+  "zpe_cation_cm": 8555.591860860784,
+  "zpe_neutral_cm": 9982.9269614145,
+  "adiabatic_cm": 99591.55797389548
+ },
+ "isotope_ratio_delta": 13.161904654846671,
+ "effective_hamiltonian": {
+  "CH4+": {
+   "effective_hamiltonian_ab_initio": {
+    "A": 6.671152430416638,
+    "B": 5.117349874490622,
+    "C": 3.695659829450118,
+    "sigma": 1.7104926947828432,
+    "delta": 6.841970779131373
+   },
+   "prediction_no_fit": {
+    "rms_cm": 3.941996676989716,
+    "IE_offset_fitted": 101753.49963600277,
+    "rD_sign": 1.0,
+    "n_lines": 21
+   },
+   "bayesian_update": {
+    "posterior": {
+     "IE": 101751.00131497794,
+     "A": 6.587628855027021,
+     "B": 5.089176937061543,
+     "C": 3.995393718437025,
+     "sigma": 4.17309093085473
+    },
+    "delta": 16.69236372341892,
+    "assignment_iterations": 3,
+    "rms_cm": 1.1686320101101937,
+    "shift_in_prior_sd": {
+     "A": -0.2504022393756038,
+     "B": -0.11010752877976009,
+     "C": 1.622085921428027,
+     "sigma": 1.644643300634726
+    },
+    "paper_constants": {
+     "IE": 101752.2,
+     "A": 6.4,
+     "B": 5.55,
+     "C": 4.03,
+     "delta": 16.4
+    }
+   }
+  },
+  "CD4+": {
+   "effective_hamiltonian_ab_initio": {
+    "A": 3.3381403491286292,
+    "B": 2.596449307979173,
+    "C": 1.867853398147362,
+    "sigma": 0.1299578396621328,
+    "delta": 0.5198313586485312
+   },
+   "prediction_no_fit": {
+    "rms_cm": 0.5360915495888244,
+    "IE_offset_fitted": 102196.88692393756,
+    "rD_sign": -1.0,
+    "n_lines": 19
+   },
+   "bayesian_update": {
+    "posterior": {
+     "IE": 102196.39140348401,
+     "A": 3.3306344506044714,
+     "B": 2.541567449714901,
+     "C": 1.9400895737658512,
+     "sigma": 0.3997690323221698
+    },
+    "delta": 1.5990761292886793,
+    "assignment_iterations": 1,
+    "rms_cm": 0.27026488268011667,
+    "shift_in_prior_sd": {
+     "A": -0.04497053891767696,
+     "B": -0.4227454631647465,
+     "C": 0.7734672934196765,
+     "sigma": 0.6901062896165503
+    },
+    "paper_constants": {
+     "IE": 102196.9,
+     "A": 3.35,
+     "B": 2.53,
+     "C": 1.98,
+     "delta": 1.4
+    }
+   }
+  }
+ }
+}

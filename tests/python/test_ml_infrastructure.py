@@ -218,3 +218,15 @@ def test_reaction_path_tunneling_solver():
     assert np.all(np.diff(spl) < 0)
     r = np.corrcoef(np.sqrt(V0s), np.log(spl))[0, 1]
     assert r < -0.999
+
+
+def test_case_studies_verify():
+    """Re-analyse the committed CH4+ ab initio surface(s) and check every recorded number."""
+    import subprocess
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    out = subprocess.run([sys.executable, str(root / "scripts" / "verify_case_studies.py"), "--figures",
+                          str(Path(__import__("tempfile").mkdtemp()))], capture_output=True, text=True, cwd=root)
+    assert out.returncode == 0, out.stdout[-3000:] + out.stderr[-3000:]
+    assert "FAIL" not in out.stdout

@@ -3,8 +3,8 @@
 
   python scripts/case_methane_cation_abinitio.py --abinitio DIR [--pdf PAPER.pdf] [--figures DIR] [--out JSON]
 
-Input: the cached stages of scripts/abinitio_ch4plus.py (UMP2/cc-pVTZ minimum, saddle, IRC, Hessians;
-UCCSD(T)/cc-pVTZ single points; neutral CH4). Everything below runs in seconds.
+Input: the cached stages of scripts/abinitio_ch4plus.py (UMP2 minimum, saddle, reaction path, Hessians;
+UCCSD(T) single points; neutral CH4) in the basis recorded in the stage files. Everything below runs in seconds.
 
 1. Rotational constants of the C2v minimum (CH4+ and CD4+): A, B, C of the localized rotor.
 2. Reaction path: mass-weighted arc length s, V(s) = UMP2 + [UCCSD(T) - UMP2] (interpolated
@@ -44,6 +44,14 @@ def rotational_constants(xyz, iso):
     return {"A": c[0], "B": c[1], "C": c[2]}
 
 
+def saddle_tangent(H, m):
+    """Cartesian displacement of the imaginary normal mode (mass-weighted eigenvector of the Hessian,
+    translations/rotations are zero modes there and do not mix with a negative eigenvalue)."""
+    sm = np.repeat(np.sqrt(m), 3)
+    w, V = np.linalg.eigh(H / np.outer(sm, sm))
+    return (V[:, 0] / sm).reshape(-1, 3)
+
+
 def path_profile(abd: Path, iso: str):
     from riss_drucker.abinitio.rph import MASS, projected_frequencies
     from riss_drucker.abinitio.tunneling import arc_length, kabsch
@@ -61,6 +69,8 @@ def path_profile(abd: Path, iso: str):
     for k, H in zip(hs["indices"], hs["hessians"]):
         j0, j1 = max(k - 1, 0), min(k + 1, len(path) - 1)
         tan = kabsch(path[k], path[j1], m) - kabsch(path[k], path[j0], m)
+        if k == 0:
+            tan = saddle_tangent(np.array(H), m)      # exact IRC direction at the saddle
         if np.linalg.norm(tan) < 1e-10:
             tan = None
         w = projected_frequencies(np.array(H), path[k], m, tangent=tan)
@@ -128,8 +138,11 @@ def main() -> int:
     import case_methane_cation_rovibronic as R
 
     mn, ts = load(abd, "min"), load(abd, "ts")
-    res = {"levels_of_theory": {"geometries_hessians": "UMP2/cc-pVTZ", "energies": "UCCSD(T)/cc-pVTZ at "
-                                                                                  "min, saddle and IRC points"}}
+    basis = mn.get("meta", {}).get("basis", "?")
+    res = {"levels_of_theory": {"geometries_hessians": f"UMP2/{basis}",
+                                "energies": f"UCCSD(T)/{basis} at the minimum, saddle and reaction-path points",
+                                "program": mn.get("meta", {}).get("program")},
+           "basis": basis}
     res["stationary_points"] = {
         "min_CH_bonds_A": sorted(float(np.linalg.norm(np.array(mn["xyz"])[i] - np.array(mn["xyz"])[0])) for i in range(1, 5)),
         "ts_imaginary_frequency_cm": float(min(ts["frequencies"])),
@@ -182,17 +195,27 @@ def main() -> int:
             from scipy.optimize import least_squares
             prior_mu = x.copy()
             prior_sd = np.array([np.inf, 0.05 * rc["A"], 0.05 * rc["B"], 0.05 * rc["C"], 0.7 * abs(sig) + 0.3])
-            asg = R.assign(model, x, sgn, rows, Bn)
+            # MAP estimate with re-assignment: assign at the current parameters, solve, re-assign,
+            # until the assignment is stable (assignments are not frozen at the prior prediction)
+            p_cur, asg, seen = x.copy(), None, []
+            for _ in range(10):
+                asg_new = R.assign(model, p_cur, sgn, rows, Bn)
+                key = json.dumps(asg_new, sort_keys=True, default=str)
+                if key in seen:
+                    break
+                seen.append(key)
+                asg = asg_new
 
-            def r_(p):
-                c = R.calc_lines(model, p, sgn, rows, Bn, asg)
-                pri = [(p[i] - prior_mu[i]) / prior_sd[i] for i in range(1, 5)]
-                return np.r_[(obs - c) / 0.5, pri]           # sigma_line = 0.5 cm-1 (resolution)
-            sol = least_squares(r_, x, x_scale=np.r_[1.0, 0.1, 0.1, 0.1, 0.5], diff_step=1e-6)
+                def r_(p, asg=asg):
+                    c = R.calc_lines(model, p, sgn, rows, Bn, asg)
+                    pri = [(p[i] - prior_mu[i]) / prior_sd[i] for i in range(1, 5)]
+                    return np.r_[(obs - c) / 0.5, pri]           # sigma_line = 0.5 cm-1 (resolution)
+                sol = least_squares(r_, p_cur, x_scale=np.r_[1.0, 0.1, 0.1, 0.1, 0.5], diff_step=1e-6)
+                p_cur = sol.x
             calc_u = R.calc_lines(model, sol.x, sgn, rows, Bn, asg)
             entry["bayesian_update"] = {
                 "posterior": dict(zip(["IE", "A", "B", "C", "sigma"], map(float, sol.x))),
-                "delta": float(4 * abs(sol.x[4])), "rms_cm": float(np.sqrt(np.mean((obs - calc_u) ** 2))),
+                "delta": float(4 * abs(sol.x[4])), "assignment_iterations": len(seen), "rms_cm": float(np.sqrt(np.mean((obs - calc_u) ** 2))),
                 "shift_in_prior_sd": {k: float((sol.x[i] - prior_mu[i]) / prior_sd[i])
                                       for i, k in zip(range(1, 5), ["A", "B", "C", "sigma"])},
                 "paper_constants": R.PAPER[name]}
@@ -257,15 +280,19 @@ def make_figures(fd: Path, res, R, model):
     fig.tight_layout()
     fig.savefig(fd / "methane_cation_spectra.png", dpi=150)
     plt.close(fig)
-    fig, ax = plt.subplots(figsize=(8, 3.5))
-    for name, mk in (("CH4+", "o"), ("CD4+", "s")):
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)
+    for ax, name, mk in zip(axes, ("CH4+", "CD4+"), ("o", "s")):
         pl = res["effective_hamiltonian"][name]["_plot"]
-        ax.plot(pl["obs"], pl["obs"] - pl["calc_ai"], mk, mfc="none", label=f"{name} ab initio")
-        ax.plot(pl["obs"], pl["obs"] - pl["calc_up"], mk, label=f"{name} updated")
-    ax.axhline(0, color="k", lw=0.5)
-    ax.set_xlabel("line position / cm$^{-1}$")
-    ax.set_ylabel("obs - calc / cm$^{-1}$")
-    ax.legend(fontsize=8, ncol=2)
+        eh = res["effective_hamiltonian"][name]
+        ax.plot(pl["obs"], pl["obs"] - pl["calc_ai"], mk, mfc="none",
+                label=f"ab initio (rms {eh['prediction_no_fit']['rms_cm']:.2f})")
+        ax.plot(pl["obs"], pl["obs"] - pl["calc_up"], mk,
+                label=f"after Bayesian update (rms {eh['bayesian_update']['rms_cm']:.2f})")
+        ax.axhline(0, color="k", lw=0.5)
+        ax.set_title(name)
+        ax.set_xlabel("line position / cm$^{-1}$")
+        ax.legend(fontsize=8)
+    axes[0].set_ylabel("obs - calc / cm$^{-1}$")
     fig.tight_layout()
     fig.savefig(fd / "methane_cation_residuals.png", dpi=150)
     plt.close(fig)
