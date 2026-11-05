@@ -3,7 +3,7 @@
 
   python scripts/abinitio_ch4plus.py --out DIR [--stages min,ts,irc,hess,ccsdt,neutral] [--workers N]
 
-Needs only PySCF, geomeTRIC, NumPy and SciPy (the riss_drucker helpers it uses are loaded from
+Needs only PySCF, geomeTRIC, ASE (NEB), NumPy and SciPy (the riss_drucker helpers it uses are loaded from
 the repository files; no build of the compiled core is required). Run from a repository checkout.
 
 Levels: UMP2/cc-pVTZ geometries, IRC and Hessians (finite differences of analytic gradients);
@@ -33,6 +33,7 @@ import numpy as np
 
 BOHR = 0.529177210903
 WORKERS = 1
+NEB_STEPS = 300
 
 
 def _helpers():
@@ -51,15 +52,32 @@ SYM = ["C", "H", "H", "H", "H"]
 BASIS = "cc-pvtz"
 
 
-def mol_of(X, charge=1, spin=1, basis=BASIS):
+def mol_of(X, charge=1, spin=1, basis=None):
     from pyscf import gto
-    return gto.M(atom=[[s, tuple(x)] for s, x in zip(SYM, X)], basis=basis, charge=charge, spin=spin, verbose=0)
+    return gto.M(atom=[[s, tuple(x)] for s, x in zip(SYM, X)], basis=basis or BASIS, charge=charge, spin=spin,
+                 verbose=0)
+
+
+def scf_ground(m, spin):
+    """SCF converged to the lowest solution: for the open-shell cation an internal stability
+    analysis follows any lower UHF solution (near the Jahn-Teller region a from-scratch guess
+    can land on an excited electronic state)."""
+    from pyscf import scf
+    mf = (scf.UHF(m) if spin else scf.RHF(m)).run(conv_tol=1e-11)
+    if spin:
+        for _ in range(4):
+            mo, _, stable, _ = mf.stability(return_status=True)
+            if stable:
+                break
+            dm = mf.make_rdm1(mo, mf.mo_occ)
+            mf = scf.UHF(m).run(dm, conv_tol=1e-11)
+    return mf
 
 
 def mp2(X, grad=False, charge=1, spin=1):
-    from pyscf import mp, scf
+    from pyscf import mp
     m = mol_of(X, charge, spin)
-    mf = (scf.UHF(m) if spin else scf.RHF(m)).run(conv_tol=1e-11)
+    mf = scf_ground(m, spin)
     pt = mp.MP2(mf).run()
     if not grad:
         return pt.e_tot
@@ -68,9 +86,9 @@ def mp2(X, grad=False, charge=1, spin=1):
 
 
 def ccsdt(X, charge=1, spin=1):
-    from pyscf import cc, scf
+    from pyscf import cc
     m = mol_of(X, charge, spin)
-    mf = (scf.UHF(m) if spin else scf.RHF(m)).run(conv_tol=1e-11)
+    mf = scf_ground(m, spin)
     c = (cc.UCCSD(mf) if spin else cc.CCSD(mf)).run(conv_tol=1e-9)
     return float(c.e_tot + c.ccsd_t())
 
@@ -93,8 +111,10 @@ def hessian(X, charge=1, spin=1, step=0.005):
         tasks.append((((Xb.ravel() + d).reshape(n, 3)) * BOHR, charge, spin))
         tasks.append((((Xb.ravel() - d).reshape(n, 3)) * BOHR, charge, spin))
     if WORKERS > 1:
+        import multiprocessing
         from concurrent.futures import ProcessPoolExecutor
-        with ProcessPoolExecutor(WORKERS) as ex:
+        ctx = multiprocessing.get_context("fork")     # explicit: Python 3.14 defaults to forkserver
+        with ProcessPoolExecutor(WORKERS, mp_context=ctx) as ex:
             grads = list(ex.map(_grad_task, tasks))
     else:
         grads = [_grad_task(t) for t in tasks]
@@ -145,77 +165,245 @@ def optimize_constrained(X, constraints: str, charge=1, spin=1):
     return out.atom_coords(unit="Angstrom")
 
 
-def stage_ts(out, mn):
-    """Cs saddle between two adjacent minima. The bonds that exchange roles (one short-bond H
-    becoming long, one long-bond H becoming short) are equal at the saddle by symmetry: minimize
-    on the seam r(C-Ha) = r(C-Hb) = d for several d, refine the lowest seam point as a transition
-    state, and require exactly one imaginary frequency."""
+def mirror_symmetrize(G, a, b, m):
+    """Average G with its image under the reflection that swaps H_a and H_b: plane through the
+    centre of mass with normal along r_a - r_b. Returns the symmetrized geometry and the 3x3
+    reflection (the other atoms are pushed into the plane)."""
+    com = (m[:, None] * G).sum(0) / m.sum()
+    n = G[a] - G[b]
+    n = n / np.linalg.norm(n)
+    M = np.eye(3) - 2 * np.outer(n, n)
+    Gm = (G - com) @ M.T + com
+    Gm[[a, b]] = Gm[[b, a]]
+    return (G + Gm) / 2, M
+
+
+def _image_gradients(images):
+    tasks = [(G, 1, 1) for G in images]
+    if WORKERS > 1:
+        import multiprocessing
+        from concurrent.futures import ProcessPoolExecutor
+        with ProcessPoolExecutor(WORKERS, mp_context=multiprocessing.get_context("fork")) as ex:
+            out = list(ex.map(_eg_task, tasks))
+    else:
+        out = [_eg_task(t) for t in tasks]
+    return [o[0] for o in out], [o[1] for o in out]
+
+
+def _eg_task(args):
+    X, charge, spin = args
+    return mp2(X, True, charge, spin)
+
+
+def neb(chain, m, k_spring=0.5, iters=300, fmax=3e-3, ci_after=20, log=None, dt_max=0.15, step_max=0.02):
+    """Climbing-image nudged elastic band (Henkelman tangents, FIRE optimizer) on an initial chain of
+    aligned Cartesian geometries (Angstrom; forces Eh/Angstrom); the end points are the two minima
+    and stay fixed. Returns images, energies, climbing index, iterations, final max force."""
+    imgs = [np.array(g, float) for g in chain]
+    n_images = len(imgs)
+    A = imgs[0]
+    v = [np.zeros_like(A) for _ in imgs]
+    dt, alpha, nplus = 0.05, 0.1, 0
+    E = [None] * n_images
+    eA, eB = mp2(imgs[0]), mp2(imgs[-1])
+    ci = None
+    for it in range(iters):
+        e_int, g_int = _image_gradients(imgs[1:-1])
+        E = [eA] + list(e_int) + [eB]
+        G = [None] + list(g_int) + [None]
+        imax = int(np.argmax(E[1:-1])) + 1
+        if it >= ci_after:
+            ci = imax
+        F = [np.zeros_like(A) for _ in imgs]
+        worst = 0.0
+        for i in range(1, n_images - 1):
+            tp, tm = imgs[i + 1] - imgs[i], imgs[i] - imgs[i - 1]
+            if E[i + 1] > E[i] > E[i - 1]:
+                tau = tp
+            elif E[i + 1] < E[i] < E[i - 1]:
+                tau = tm
+            else:
+                dmax = max(abs(E[i + 1] - E[i]), abs(E[i - 1] - E[i]))
+                dmin = min(abs(E[i + 1] - E[i]), abs(E[i - 1] - E[i]))
+                tau = tp * dmax + tm * dmin if E[i + 1] > E[i - 1] else tp * dmin + tm * dmax
+            tau = tau / np.linalg.norm(tau)
+            g = G[i]
+            gpar = np.sum(g * tau) * tau
+            if i == ci:
+                F[i] = -g + 2 * gpar
+            else:
+                fs = k_spring * (np.linalg.norm(tp) - np.linalg.norm(tm)) * tau
+                F[i] = -(g - gpar) + fs
+            worst = max(worst, float(np.max(np.abs(F[i] if i == ci else -(g - gpar)))))
+        if log:
+            log(f"  NEB {it:3d}: max force {worst:.2e}, barrier {(max(E) - eA) * 219474.63:.1f} cm-1, CI {ci}")
+        if ci is not None and worst < fmax:
+            break
+        # FIRE
+        P = sum(float(np.sum(F[i] * v[i])) for i in range(1, n_images - 1))
+        fn = np.sqrt(sum(float(np.sum(F[i] ** 2)) for i in range(1, n_images - 1)))
+        vn = np.sqrt(sum(float(np.sum(v[i] ** 2)) for i in range(1, n_images - 1)))
+        for i in range(1, n_images - 1):
+            v[i] = (1 - alpha) * v[i] + alpha * vn * F[i] / max(fn, 1e-12)
+        if P > 0:
+            nplus += 1
+            if nplus > 5:
+                dt, alpha = min(dt * 1.1, dt_max), alpha * 0.99
+        else:
+            nplus, dt, alpha = 0, dt * 0.5, 0.1
+            v = [np.zeros_like(A) for _ in imgs]
+        for i in range(1, n_images - 1):
+            v[i] = v[i] + dt * F[i]
+            step = dt * v[i]
+            sn = np.max(np.abs(step))
+            if sn > step_max:
+                step *= step_max / sn
+            imgs[i] = imgs[i] + step
+    return imgs, E, ci, it, worst
+
+
+HARTREE_EV = 27.211386245988
+
+
+def neb_ase(chain, fmax_ev=0.05, steps=300, k=0.5, log=None):
+    """Climbing-image NEB with ASE (improved tangents, FIRE). Interior images are evaluated in
+    parallel (--workers) and handed to ASE as single-point results. Units: eV, Angstrom.
+    Returns images (Angstrom), energies (Eh), climbing index, steps, final max force (Eh/Angstrom)."""
+    from ase import Atoms
+    from ase.calculators.singlepoint import SinglePointCalculator
+    from ase.mep import NEB
+    from ase.optimize import FIRE
+    images = [Atoms("".join(SYM), positions=np.array(g)) for g in chain]
+    e0, g0 = mp2(images[0].positions, True)
+    e1, g1 = mp2(images[-1].positions, True)
+    for img, e, g in ((images[0], e0, g0), (images[-1], e1, g1)):
+        img.calc = SinglePointCalculator(img, energy=e * HARTREE_EV, forces=-np.asarray(g) * HARTREE_EV)
+
+    class ParallelNEB(NEB):
+        def get_forces(self):
+            inner = self.images[1:-1]
+            es, gs = _image_gradients([im.positions.copy() for im in inner])
+            for im, e, g in zip(inner, es, gs):
+                im.calc = SinglePointCalculator(im, energy=e * HARTREE_EV, forces=-np.asarray(g) * HARTREE_EV)
+            return super().get_forces()
+    band = ParallelNEB(images, k=k, climb=True, method="improvedtangent", allow_shared_calculator=True)
+    opt = FIRE(band, logfile=None)
+    nstep = 0
+    for nstep, _ in enumerate(opt.irun(fmax=fmax_ev, steps=steps)):
+        if log and nstep % 5 == 0:
+            E = [im.get_potential_energy() / HARTREE_EV for im in images]
+            log(f"  NEB {nstep:3d}: max force {np.max(np.abs(band.get_forces())) / HARTREE_EV:.2e} Eh/A, "
+                f"barrier {(max(E) - E[0]) * 219474.63:.1f} cm-1")
+    E = [im.get_potential_energy() / HARTREE_EV for im in images]
+    ci = int(np.argmax(E[1:-1])) + 1
+    fres = float(np.max(np.abs(band.get_forces()))) / HARTREE_EV
+    return [im.positions.copy() for im in images], E, ci, nstep, fres
+
+
+def relaxed_scan(X, a, b, nq, seam_d):
+    """Constrained minimizations along q = r(C-Ha) - r(C-Hb) from the minimum X to q = 0."""
+    d = [np.linalg.norm(X[i] - X[0]) for i in range(1, 5)]
+    ra0, rb0 = d[a - 1], d[b - 1]
+    q0, mid0 = ra0 - rb0, (ra0 + rb0) / 2
+
+    def con(ra, rb):
+        return f"$set\ndistance 1 {a + 1} {ra:.6f}\ndistance 1 {b + 1} {rb:.6f}\n"
+    path, G = [X.copy()], X.copy()
+    for k in range(1, nq + 1):
+        f = k / nq
+        q = q0 * (1 - f)
+        mid = mid0 + (seam_d - mid0) * f
+        G = optimize_constrained(G, con(mid + q / 2, mid - q / 2))
+        path.append(G.copy())
+    return path
+
+
+def stage_ts(out, mn, nq=6):
+    """Pseudorotation saddle and path: climbing-image NEB between two adjacent minima.
+
+    Adjacent minimum: the same structure with one short-bond H (a) exchanged with one long-bond H
+    (b). Initial chain: a relaxed scan from minimum A along q = r_a - r_b to q = 0, joined to its
+    symmetry image (the same scan seen from minimum B: labels a and b exchanged, aligned, reversed).
+    The two halves need not meet at q = 0 (the q = 0 structure reached from A still belongs to A in
+    the other coordinates); the NEB removes that mismatch and the climbing image converges to the
+    saddle, with no assumption about its symmetry. A geomeTRIC TS refinement from the climbing image
+    is kept only if it stays close, has one imaginary frequency and lies above the minimum."""
     rph, tun = _helpers()
-    projected_frequencies, kabsch = rph.projected_frequencies, tun.kabsch
+    m = masses_of()
     X = np.array(mn["xyz"])
     d = [np.linalg.norm(X[i] - X[0]) for i in range(1, 5)]
     order = np.argsort(d)
-    a, b = 1 + order[0], 1 + order[3]          # short-bond H a, long-bond H b
-    Y = X.copy()
-    Y[[a, b]] = Y[[b, a]]
-    Y = kabsch(X, Y, masses_of())
-    guess = (X + Y) / 2
-    seam = []
-    for dd in (1.10, 1.12, 1.14, 1.16):
-        Z = optimize_constrained(guess, f"$set\ndistance 1 {a + 1} {dd}\ndistance 1 {b + 1} {dd}\n")
-        seam.append((mp2(Z), dd, Z))
-    e0, d0, Z0 = min(seam, key=lambda t: t[0])
-    T = optimize(Z0, transition=True)
-    H = hessian(T)
-    w = projected_frequencies(H, T, masses_of())
-    nimag = int(np.sum(w < -1.0))
-    if nimag != 1:
-        raise RuntimeError(f"saddle search gave {nimag} imaginary frequencies")
-    return {"xyz": T.tolist(), "e_ump2": mp2(T), "frequencies": w.tolist(), "swap": [int(a), int(b)],
-            "seam_scan": [[float(e), float(dd)] for e, dd, _ in seam], "hessian": H.tolist()}
+    a, b = 1 + order[0], 1 + order[3]
+    lines = []
+
+    def log(msg):
+        lines.append(msg)
+        print(msg, flush=True)
+    halfA = relaxed_scan(X, a, b, nq, (d[order[0]] + d[order[3]]) / 2)
+    halfB = []
+    for G in halfA:
+        Gb = G.copy()
+        Gb[[a, b]] = Gb[[b, a]]
+        halfB.append(Gb)
+    halfB = [tun.kabsch(halfA[-1], G, m) for G in halfB]
+    chain = halfA + halfB[::-1][1:]
+    for i in range(1, len(chain)):
+        chain[i] = tun.kabsch(chain[i - 1], chain[i], m)
+    imgs, E, ci, nit, fres = neb_ase(chain, steps=NEB_STEPS, log=log)
+    T = imgs[ci]
+    refined = None
+    try:
+        R = optimize(T, transition=True)
+        HR = hessian(R)
+        wR = rph.projected_frequencies(HR, R, m)
+        eR = mp2(R)
+        if (int(np.sum(wR < -1.0)) == 1 and np.max(np.abs(tun.kabsch(T, R, m) - T)) < 0.15
+                and eR > mn["e_ump2"] + 1e-6):
+            refined = (R, HR, wR, eR)
+        else:
+            log("  TS refinement rejected (moved away, wrong curvature or fell to the minimum)")
+    except Exception as exc:
+        log(f"  TS refinement failed: {exc}")
+    if refined is None:
+        H = hessian(T)
+        w = rph.projected_frequencies(H, T, m)
+        eT, gT = mp2(T, True)
+        src = "neb_climbing_image"
+    else:
+        T, H, w, eT = refined
+        gT = mp2(T, True)[1]
+        src = "geomeTRIC TS refinement from the climbing image"
+    half = list(range(ci, -1, -1))
+    return {"xyz": T.tolist(), "e_ump2": float(eT), "frequencies": w.tolist(), "n_imaginary": int(np.sum(w < -1.0)),
+            "residual_gradient_rms": float(np.sqrt(np.mean(np.asarray(gT) ** 2))), "source": src,
+            "swap": [int(a), int(b)], "neb": {"iterations": int(nit), "final_max_force": float(fres),
+                                              "energies": [float(e) for e in E], "climbing_index": int(ci),
+                                              "images": [g.tolist() for g in imgs]},
+            "half_path": {"path": [T.tolist()] + [imgs[i].tolist() for i in half[1:]],
+                          "e_ump2": [float(eT)] + [float(E[i]) for i in half[1:]]},
+            "hessian": H.tolist(), "log": lines}
 
 
-def stage_irc(out, ts, mn, h=0.02, max_steps=400):
-    """Mass-weighted steepest descent (Euler steps of h amu^1/2 A, with a corrector) from the saddle."""
-    kabsch = _helpers()[1].kabsch
+def stage_irc(out, ts, mn, n_fine=24):
+    """Reaction path, saddle -> minimum: the NEB half path, refined by inserting points along a
+    cubic interpolation of the aligned images (energies recomputed at UMP2)."""
+    from scipy.interpolate import CubicSpline
+    tun = _helpers()[1]
     m = masses_of()
-    T = np.array(ts["xyz"])
-    H = np.array(ts["hessian"])
-    sm = np.repeat(np.sqrt(m), 3)
-    w, V = np.linalg.eigh(H / np.outer(sm, sm))
-    v = V[:, 0]                                           # imaginary mode (mass weighted)
-    disp = (v / sm).reshape(5, 3)
-    best = None
-    for sgn in (1, -1):                                   # pick the side that leads to the given minimum
-        X = T + sgn * 0.02 * disp / np.sqrt(np.sum(m[:, None] * disp**2))
-        path, E = [T.copy(), X.copy()], [ts["e_ump2"]]
-        e, g = mp2(X, True)
-        E.append(e)
-        for _ in range(max_steps):
-            gm = (g / np.sqrt(m)[:, None])
-            nrm = np.linalg.norm(gm)
-            if nrm < 2e-4:
-                break
-            Xp = X - h * (gm / nrm) / np.sqrt(m)[:, None]
-            ep, gp = mp2(Xp, True)
-            gmp = gp / np.sqrt(m)[:, None]
-            Xn = X - h * 0.5 * (gm / nrm + gmp / max(np.linalg.norm(gmp), 1e-12)) / np.sqrt(m)[:, None]
-            en, gn = mp2(Xn, True)
-            if en > e:                                    # passed the minimum
-                break
-            X, e, g = Xn, en, gn
-            path.append(X.copy())
-            E.append(e)
-        endpoint = kabsch(np.array(mn["xyz"]), X, m)
-        dev = float(np.max(np.abs(np.sort(np.linalg.norm(endpoint - endpoint[0], axis=1)) -
-                                  np.sort(np.linalg.norm(np.array(mn["xyz"]) - np.array(mn["xyz"])[0], axis=1)))))
-        cand = {"path": [p.tolist() for p in path], "e_ump2": E, "endpoint_bond_deviation_A": dev,
-                "endpoint_minus_min_energy_cm": (E[-1] - mn["e_ump2"]) * 219474.6313705, "side": sgn}
-        if best is None or dev < best["endpoint_bond_deviation_A"]:
-            best = cand
-        if dev < 5e-3:
-            break
-    return best
+    hp = [np.array(p) for p in ts["half_path"]["path"]]
+    for i in range(1, len(hp)):
+        hp[i] = tun.kabsch(hp[i - 1], hp[i], m)
+    s = tun.arc_length(hp, m)
+    cs = CubicSpline(s, np.array(hp).reshape(len(hp), -1), axis=0)
+    sf = np.linspace(0, s[-1], n_fine)
+    path = [cs(x).reshape(5, 3) for x in sf]
+    path[0], path[-1] = hp[0], hp[-1]
+    E, _ = _image_gradients(path)
+    E[0], E[-1] = ts["e_ump2"], ts["half_path"]["e_ump2"][-1]
+    end = tun.kabsch(np.array(mn["xyz"]), path[-1], m)
+    return {"path": [p.tolist() for p in path], "e_ump2": [float(e) for e in E],
+            "type": "climbing-image NEB half path (cubic refinement)",
+            "endpoint_deviation_A": float(np.max(np.abs(end - np.array(mn["xyz"]))))}
 
 
 def stage_hess(out, irc, npts=12):
@@ -244,13 +432,20 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--stages", default="min,ts,irc,hess,ccsdt,neutral")
     ap.add_argument("--workers", type=int, default=1, help="parallel processes for finite-difference Hessians")
+    ap.add_argument("--neb-steps", type=int, default=300, help="maximum NEB optimizer steps")
+    ap.add_argument("--basis", default="cc-pvtz", help="basis set (cc-pvtz for the case study; small ones for tests)")
     a = ap.parse_args()
-    global WORKERS
+    global WORKERS, BASIS, NEB_STEPS
+    NEB_STEPS = a.neb_steps
     WORKERS = max(1, a.workers)
+    BASIS = a.basis
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     import pyscf
     meta = {"program": f"pyscf {pyscf.__version__}", "basis": BASIS}
+    mf = out / "ch4plus_min.json"
+    if mf.exists() and json.loads(mf.read_text()).get("meta", {}).get("basis", BASIS) != BASIS:
+        raise SystemExit(f"{mf} was computed with another basis; use a separate --out directory")
 
     def cached(name, fn, *args):
         f = out / f"ch4plus_{name}.json"
