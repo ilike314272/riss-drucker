@@ -68,15 +68,15 @@ class LLMProposer:
 
 
 def anthropic_complete(model: str = "claude-opus-5-5", *, max_tokens: int = 16000, effort: str = "high",
-                       fallback: bool = True) -> Callable[[str], str]:
+                       fallback: bool = True, system: str | None = None) -> Callable[[str], str]:
     """Completion function backed by the Claude Messages API (anthropic SDK; credentials
     from the environment). Adaptive thinking is on by default on this model; effort
     sets its depth. With fallback=True a policy decline is re-run server-side on a
     fallback model; a final refusal raises RuntimeError."""
     import anthropic
     client = anthropic.Anthropic()
-    system = ("You are an expert molecular spectroscopist building effective Hamiltonians. "
-              "Answer only with term lines in the given grammar.")
+    system = system or ("You are an expert molecular spectroscopist building effective Hamiltonians. "
+                        "Answer only with term lines in the given grammar.")
 
     def complete(prompt: str) -> str:
         kw = dict(model=model, max_tokens=max_tokens, system=system, output_config={"effort": effort},

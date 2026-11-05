@@ -139,3 +139,68 @@ treated harmonically.
   stability following.
 - **Spectrum simulation.** The rotational line strengths use the ΔN-dependent factors of the
   paper's simulations. Only line *positions* are compared quantitatively.
+
+## Letting Claude build the model (`scripts/llm_build_ch4plus.py`)
+
+Above, the model *structure* (six wells with the geometric phase, rotor terms, nearest-well
+tunneling) was written by hand. `scripts/llm_build_ch4plus.py` asks Claude to propose it from the
+ab initio facts. Claude never supplies a number:
+
+1. **Prompt.** Claude sees the facts (C2v minima, how many there are, the Cs saddle, barrier, σ,
+   rigid-rotor constants), the measured line *classes*, the grammar and the Td character table.
+   It does not see the hand-built model. It answers with spaces, group, terms and a role per
+   term (rotor / tunneling / extra).
+2. **Compile and certify.** The library compiles the proposal and certifies hermiticity, time
+   reversal, symmetry, counts and the representation. Every failure goes back to Claude
+   verbatim in the next round.
+3. **Constants from the surface.** Rotor terms are calibrated so the untunneled levels equal the
+   ab initio rigid rotor in every well. This works for any normalization the proposal uses.
+   Geometry fixes which constant lies along each well's C2 axis, which leaves the B/C swap and
+   the sign of σ to the data, as in the hand fit. The tunneling term is set to the ab initio σ.
+4. **Score.** Each proposal is scored by:
+   - the prediction with only the IE offset;
+   - a Bayesian update on A, B, C and σ (a prior of 5% on A, B, C, as above);
+   - leave-one-position-out cross-validation.
+
+   The hand-built reference model goes through the identical pipeline. The final model is the
+   best by cross-validated rms; the output says whose it is and whether it is equivalent to the
+   reference.
+
+Offline tests (`tests/python/test_llm_loop.py`) replay three answers: no JSON, the phase-free
+model, and an equivalent model with different names and normalization. The first two are
+rejected; the phase-free one fails because "model has no level of class A1 at N+=1", which the
+measured J″ = 0 line requires. The third is accepted and reproduces the case-study numbers.
+
+### Running it on your machine (WSL)
+
+Install Claude Code inside the WSL terminal, then log in with your Claude subscription (run
+`claude` once and follow the browser prompt):
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+```bash
+claude
+```
+
+Inspect what Claude will be shown:
+
+```bash
+python scripts/llm_build_ch4plus.py --abinitio data/abinitio/ch4plus_ccpvdz --pdf JCP_126_144305.pdf --dry-run | less
+```
+
+Run the loop with Claude Code print mode on your subscription. Each round is one `claude -p`
+call with tools disabled.
+
+```bash
+python scripts/llm_build_ch4plus.py --abinitio data/abinitio/ch4plus_ccpvdz --pdf JCP_126_144305.pdf --llm claude-cli --rounds 4 --figures figs_llm
+```
+
+- **API billing instead:** use `--llm api` with `ANTHROPIC_API_KEY` set. With `--llm claude-cli`,
+  leave the variable *unset* (otherwise `claude -p` bills the key).
+- **Outputs:**
+  - `ch4plus_llm_model.json`: the selected spec, constants, scores, and levels up to N⁺ = 5;
+  - `ch4plus_llm_transcript.json`: every prompt answer and its feedback.
+- **Reproduce a run exactly:** `--llm replay --replay ch4plus_llm_transcript.json`.
+- **cc-pVTZ:** point `--abinitio` at `data/abinitio/ch4plus_ccpvtz` once that surface is in.
