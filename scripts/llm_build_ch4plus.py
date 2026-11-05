@@ -154,6 +154,65 @@ def api_complete(model):
     return complete
 
 
+def say(msg: str = "", indent: int = 0):
+    """Running commentary (stderr, flushed, timestamped)."""
+    pad = " " * indent
+    for i, line in enumerate(str(msg).splitlines() or [""]):
+        print(f"{time.strftime('%H:%M:%S') if i == 0 else '        '} {pad}{line}", file=sys.stderr, flush=True)
+
+
+class Heartbeat:
+    """Prints 'still waiting' every `every` seconds while a call is in flight."""
+
+    def __init__(self, what: str, every: float = 60.0):
+        import threading
+        self.what, self.every, self.t0 = what, every, time.time()
+        self._stop = threading.Event()
+        self._th = threading.Thread(target=self._run, daemon=True)
+
+    def _run(self):
+        while not self._stop.wait(self.every):
+            say(f"... still waiting for {self.what} ({time.time() - self.t0:.0f} s)", 2)
+
+    def __enter__(self):
+        self._th.start()
+        return self
+
+    def __exit__(self, *exc):
+        self._stop.set()
+
+
+def describe_proposal(prop: dict) -> str:
+    sp = prop.get("spec", {})
+    lines = [f"group {sp.get('group')}, N+ = {sp.get('J')}"]
+    for s in sp.get("spaces", []):
+        if s.get("kind") == "well":
+            lines.append(f"space: {len(s.get('vectors', []))} wells carrying {s.get('irrep')} electronic functions, "
+                         f"geometric phase {'ON' if s.get('geometric_phase', True) else 'OFF'}")
+        else:
+            lines.append(f"space: {s.get('kind')}")
+    roles = prop.get("roles", {})
+    for term in sp.get("terms", []):
+        name = term.split(":")[0].strip()
+        lines.append(f"term [{roles.get(name, 'extra'):9s}] {term}")
+    r = (prop.get("rationale") or "").strip()
+    if r:
+        lines.append("Claude's reasoning: " + (r if len(r) < 900 else r[:900] + " ..."))
+    return "\n".join(lines)
+
+
+def describe_score(sc: dict) -> str:
+    out = []
+    for n, _ in ISOTOPES:
+        s = sc[n]
+        p = s["posterior"]
+        out.append(f"{n}: ab initio prediction rms {s['prediction_rms_IE_only_cm']:.2f} cm-1 -> after update "
+                   f"{s['updated_rms_cm']:.2f}" + (f", cross-validated {s['cv_rms_cm']:.2f}" if "cv_rms_cm" in s else "")
+                   + f"; A B C = {p['A']:.3f} {p['B']:.3f} {p['C']:.3f}, delta = {s['delta_posterior_cm']:.2f} cm-1"
+                   + f" ({s['n_branches_consistent_with_geometry']} of {s['n_calibration_branches']} calibrations fit the geometry)")
+    return "\n".join(out)
+
+
 def with_retries(complete, prompt, retries=3, wait=(30, 90, 270), log=print):
     """Retry transient failures with backoff; limits and other errors propagate at once."""
     for i in range(retries + 1):
@@ -655,8 +714,11 @@ def main() -> int:
     cv = not a.no_cv
     ref = reference_proposal()
     ref_cand = Candidate(ref["spec"], ref["roles"])
+    say("scoring the hand-built reference model (six wells with geometric phase, rotor + nearest-well tunneling)")
     ref_score = score_candidate(ref_cand, facts, tables, cv)
-    print(f"reference model: score {ref_score['score_cv_rms_mean']:.3f} cm-1", file=sys.stderr)
+    say(describe_score(ref_score), 2)
+    say(f"reference score (mean cross-validated rms): {ref_score['score_cv_rms_mean']:.3f} cm-1 -- Claude's proposals "
+        "must match or beat this", 2)
 
     history, rounds, best = [], [], ("reference", ref_cand, ref_score, ref)
     stop_reason = "completed all rounds"
@@ -675,9 +737,16 @@ def main() -> int:
             break
         prompt = build_prompt(facts, classes, group_table, history)
         t0 = time.time()
+        say("")
+        if complete.pending():
+            say(f"round {k + 1}/{a.rounds}: re-using saved answer (no call)")
+        else:
+            say(f"round {k + 1}/{a.rounds}: asking Claude ({len(prompt) // 1000} kB prompt"
+                + (f", feedback from {len(history)} earlier attempt(s)" if history else "") + ")")
         try:
-            text = with_retries(complete, prompt, a.retries, wait=(a.retry_wait, 3 * a.retry_wait, 9 * a.retry_wait),
-                                log=lambda m: print(m, file=sys.stderr))
+            with Heartbeat("Claude"):
+                text = with_retries(complete, prompt, a.retries,
+                                    wait=(a.retry_wait, 3 * a.retry_wait, 9 * a.retry_wait), log=lambda m: say(m, 2))
         except LimitReached as e:
             stop_reason = f"usage/rate limit: {str(e)[:500]}"
             break
@@ -693,9 +762,16 @@ def main() -> int:
             usage["cost_usd"] += u.get("cost_usd") or 0.0
             usage["tokens"] += (u.get("input_tokens") or 0) + (u.get("output_tokens") or 0)
         rec = {"round": k + 1, "response": text, "seconds": round(time.time() - t0, 1), "usage": u}
+        say(f"answer received after {rec['seconds']:.0f} s" + (f" (reported usage ${u['cost_usd']:.2f})"
+                                                               if u.get("cost_usd") else ""), 2)
         try:
             prop = parse_answer(text)
+            say("Claude proposes:", 2)
+            say(describe_proposal(prop), 4)
+            say("compiling and certifying (hermiticity, time reversal, Td symmetry, level counts) ...", 2)
             cand = Candidate(prop["spec"], prop["roles"])
+            say(f"certified: {len(cand.bm.blocks)} symmetry blocks; calibrating constants from the ab initio surface "
+                "and scoring against the measured lines ...", 2)
             sc = score_candidate(cand, facts, tables, cv)
             same = all(equivalent(cand, sc[n]["ab_initio_coefficients"], ref_cand, ref_score[n]["ab_initio_coefficients"])
                        for n, _ in ISOTOPES)
@@ -714,8 +790,15 @@ def main() -> int:
         except Exception as e:          # every failure goes back to the model verbatim
             fb = {"status": "rejected", "error": f"{type(e).__name__}: {e}"}
             rec["error"] = fb["error"]
-        print(f"round {k + 1}: {fb.get('status')} {fb.get('error', '')} "
-              f"{fb.get('score_cv_rms_mean', '')}", file=sys.stderr)
+        if "error" in fb:
+            say(f"REJECTED: {fb['error']}", 2)
+            say("(this message goes back to Claude in the next round)", 4)
+        else:
+            say(describe_score(sc), 2)
+            verdict = (f"score {sc['score_cv_rms_mean']:.3f} cm-1 vs reference {ref_score['score_cv_rms_mean']:.3f}; "
+                       + ("equivalent to the reference model" if same else "differs from the reference model")
+                       + ("; now the best model" if best[0] == f"llm round {k + 1}" else "; not better than the best so far"))
+            say(f"ACCEPTED: {verdict}", 2)
         history.append({"round": k + 1, "proposal": rec.get("proposal", text[:4000]), "feedback": fb})
         rounds.append(rec)
         save_transcript()
@@ -725,6 +808,9 @@ def main() -> int:
               f"is written below. Continue later with:  --resume {a.transcript}", file=sys.stderr)
 
     label, cand, sc, prop = best
+    say("")
+    say(f"done ({stop_reason}); selected: {label}; {usage['calls']} Claude call(s)"
+        + (f", reported usage ${usage['cost_usd']:.2f}" if usage["cost_usd"] else ""))
     final = {"selected": label, "stop_reason": stop_reason, "rounds_done": len(rounds), "usage_total": usage,
              "selection_rule": "lowest mean leave-one-position-out rms over CH4+ and CD4+ "
                                                   "(Bayesian update with ab initio prior); the language model's "
