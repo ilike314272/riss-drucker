@@ -1,0 +1,808 @@
+{
+ "backend": "claude-cli",
+ "model": "opus",
+ "rounds": [
+  {
+   "round": 1,
+   "response": "```json\n{\n  \"spec\": {\n    \"group\": \"Td\",\n    \"spaces\": [\n      {\n        \"kind\": \"well\",\n        \"name\": \"wells\",\n        \"irrep\": \"F2\",\n        \"vectors\": [\n          [-0.7071067811865476, 0.0, 0.7071067811865476],\n          [0.7071067811865476, -0.7071067811865476, 0.0],\n          [0.0, 0.7071067811865476, -0.7071067811865476],\n          [0.7071067811865476, 0.0, 0.7071067811865476],\n          [0.7071067811865476, 0.7071067811865476, 0.0],\n          [0.0, 0.7071067811865476, 0.7071067811865476]\n        ],\n        \"geometric_phase\": true\n      },\n      {\n        \"kind\": \"rot\"\n      }\n    ],\n    \"terms\": [\n      \"A: sym(w[1,1] Jy Jy)\",\n      \"B: 0.5*sym(w[1,1] (Jx+Jz) (Jx+Jz))\",\n      \"C: 0.5*sym(w[1,1] (Jx-Jz) (Jx-Jz))\",\n      \"sigma: sym(w[1,2])\",\n      \"rt1: i*sym(w[1,2] (Jy+Jz))\",\n      \"rt2: sym(w[1,2] (Jy+Jz) (Jy+Jz))\",\n      \"rt3: i*sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz))\",\n      \"rt4: sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz))\"\n    ],\n    \"J\": [0, 1, 2, 3, 4, 5]\n  },\n  \"roles\": {\n    \"A\": \"rotor\",\n    \"B\": \"rotor\",\n    \"C\": \"rotor\",\n    \"sigma\": \"tunneling\",\n    \"rt1\": \"extra\",\n    \"rt2\": \"extra\",\n    \"rt3\": \"extra\",\n    \"rt4\": \"extra\"\n  },\n  \"rationale\": \"Six wells carry signed F2 vectors along the (1,1,0)-type lines, so geometric_phase=true gives N+=0 = F1+F2 with splitting 4|sigma|. Well 1 is the reported L line. A positive w[1,2] element with v1.v2 = -1/2 makes F2 the ground level, as Ham's theorem requires; this assumes calibration sets the element to +|sigma|, and the compiler was not inspected. In well 1 the C2 axis is y (A); the positive Q_xz places B along (1,0,1) and C along (1,0,-1). The Q_xx-Q_zz and small Q_xy, Q_yz values are not invariant under the well's stabilizer, so they are omitted. The Cs element y<->z swaps wells 1 and 2 and allows hop axes only along x and (0,1,1). The reported axis is essentially (0,1,1), so the tiny Jx component is dropped to keep the model small. Expanding exp(-i theta n.J) gives alternating real and imaginary terms, rt1 to rt4. Since theta*N is about 1.5 at N+=8, the expansion is carried to fourth order, and these terms should carry the extrapolation; no centrifugal terms are added because the target levels are described as rotor plus tunneling plus frame rotation. Data caveat: under the only Td element mapping the CH4+ hop onto the CD4+ hop (C2y), the reported CH4+ axis becomes the opposite of the reported CD4+ axis. Mass scaling should not flip this sign, so the axis or hop-direction convention should be checked. The rt terms start at 0 and are fitted, so this should not block the fit, but rt1 and rt3 may differ in sign between isotopologues. This spec has not been compiled or fitted.\"\n}\n```",
+   "seconds": 160.6,
+   "usage": {
+    "cost_usd": 0.38920760000000004,
+    "input_tokens": 2,
+    "output_tokens": 16115,
+    "models_served": [
+     "claude-opus-5-5"
+    ],
+    "model_requested": "opus"
+   },
+   "proposal": {
+    "spec": {
+     "group": "Td",
+     "spaces": [
+      {
+       "kind": "well",
+       "name": "wells",
+       "irrep": "F2",
+       "vectors": [
+        [
+         -0.7071067811865476,
+         0.0,
+         0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         -0.7071067811865476,
+         0.0
+        ],
+        [
+         0.0,
+         0.7071067811865476,
+         -0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         0.0,
+         0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         0.7071067811865476,
+         0.0
+        ],
+        [
+         0.0,
+         0.7071067811865476,
+         0.7071067811865476
+        ]
+       ],
+       "geometric_phase": true
+      },
+      {
+       "kind": "rot"
+      }
+     ],
+     "terms": [
+      "A: sym(w[1,1] Jy Jy)",
+      "B: 0.5*sym(w[1,1] (Jx+Jz) (Jx+Jz))",
+      "C: 0.5*sym(w[1,1] (Jx-Jz) (Jx-Jz))",
+      "sigma: sym(w[1,2])",
+      "rt1: i*sym(w[1,2] (Jy+Jz))",
+      "rt2: sym(w[1,2] (Jy+Jz) (Jy+Jz))",
+      "rt3: i*sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz))",
+      "rt4: sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz))"
+     ],
+     "J": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    "roles": {
+     "A": "rotor",
+     "B": "rotor",
+     "C": "rotor",
+     "sigma": "tunneling",
+     "rt1": "extra",
+     "rt2": "extra",
+     "rt3": "extra",
+     "rt4": "extra"
+    },
+    "rationale": "Six wells carry signed F2 vectors along the (1,1,0)-type lines, so geometric_phase=true gives N+=0 = F1+F2 with splitting 4|sigma|. Well 1 is the reported L line. A positive w[1,2] element with v1.v2 = -1/2 makes F2 the ground level, as Ham's theorem requires; this assumes calibration sets the element to +|sigma|, and the compiler was not inspected. In well 1 the C2 axis is y (A); the positive Q_xz places B along (1,0,1) and C along (1,0,-1). The Q_xx-Q_zz and small Q_xy, Q_yz values are not invariant under the well's stabilizer, so they are omitted. The Cs element y<->z swaps wells 1 and 2 and allows hop axes only along x and (0,1,1). The reported axis is essentially (0,1,1), so the tiny Jx component is dropped to keep the model small. Expanding exp(-i theta n.J) gives alternating real and imaginary terms, rt1 to rt4. Since theta*N is about 1.5 at N+=8, the expansion is carried to fourth order, and these terms should carry the extrapolation; no centrifugal terms are added because the target levels are described as rotor plus tunneling plus frame rotation. Data caveat: under the only Td element mapping the CH4+ hop onto the CD4+ hop (C2y), the reported CH4+ axis becomes the opposite of the reported CD4+ axis. Mass scaling should not flip this sign, so the axis or hop-direction convention should be checked. The rt terms start at 0 and are fitted, so this should not block the fit, but rt1 and rt3 may differ in sign between isotopologues. This spec has not been compiled or fitted."
+   },
+   "score": {
+    "CH4+": {
+     "fit_rms_cm": 0.03574039566402842,
+     "predict_rms_cm": 0.048374693553860953,
+     "n_fit": 90,
+     "n_predict": 112,
+     "coefficients": {
+      "A": 40.19160456081356,
+      "B": 31.848279461214748,
+      "C": 22.615528678863694,
+      "sigma": 78.60633314363162,
+      "rt1": 10.105173192611414,
+      "rt2": -0.6731896619334133,
+      "rt3": -0.025288987114156235,
+      "rt4": 0.000842738525885525
+     },
+     "delta_cm": 13.101055523938602,
+     "validation_rms_IE_shifted_cm": 1.8141353447170494,
+     "validation_IE_offset_cm": 370.73797157694935,
+     "IE_offset": 101752.24885148235,
+     "ab_initio_coefficients": {
+      "A": 40.19160456081356,
+      "B": 31.848279461214748,
+      "C": 22.615528678863694,
+      "sigma": 78.60633314363162,
+      "rt1": 10.105173192611414,
+      "rt2": -0.6731896619334133,
+      "rt3": -0.025288987114156235,
+      "rt4": 0.000842738525885525
+     },
+     "posterior_coefficients": {
+      "A": 40.19160456081356,
+      "B": 31.848279461214748,
+      "C": 22.615528678863694,
+      "sigma": 78.60633314363162,
+      "rt1": 10.105173192611414,
+      "rt2": -0.6731896619334133,
+      "rt3": -0.025288987114156235,
+      "rt4": 0.000842738525885525
+     },
+     "posterior": {
+      "IE": 101752.24885148235
+     },
+     "prediction_rms_IE_only_cm": 1.8141353447170494,
+     "updated_rms_cm": 1.8141353447170494,
+     "delta_posterior_cm": 13.101055523938602
+    },
+    "CD4+": {
+     "fit_rms_cm": 0.00034623881386469104,
+     "predict_rms_cm": 0.0013393295440717213,
+     "n_fit": 90,
+     "n_predict": 112,
+     "coefficients": {
+      "A": 20.28356939379101,
+      "B": 16.17141210822238,
+      "C": 11.442606796690523,
+      "sigma": 5.482790254978224,
+      "rt1": 0.7210829718300235,
+      "rt2": -0.04734301328220784,
+      "rt3": -0.002005843686699776,
+      "rt4": 6.96111998301844e-05
+     },
+     "delta_cm": 0.9137983758297039,
+     "validation_rms_IE_shifted_cm": 0.6329963569138469,
+     "validation_IE_offset_cm": 435.2658226969943,
+     "IE_offset": 102196.42841460298,
+     "ab_initio_coefficients": {
+      "A": 20.28356939379101,
+      "B": 16.17141210822238,
+      "C": 11.442606796690523,
+      "sigma": 5.482790254978224,
+      "rt1": 0.7210829718300235,
+      "rt2": -0.04734301328220784,
+      "rt3": -0.002005843686699776,
+      "rt4": 6.96111998301844e-05
+     },
+     "posterior_coefficients": {
+      "A": 20.28356939379101,
+      "B": 16.17141210822238,
+      "C": 11.442606796690523,
+      "sigma": 5.482790254978224,
+      "rt1": 0.7210829718300235,
+      "rt2": -0.04734301328220784,
+      "rt3": -0.002005843686699776,
+      "rt4": 6.96111998301844e-05
+     },
+     "posterior": {
+      "IE": 102196.42841460298
+     },
+     "prediction_rms_IE_only_cm": 0.6329963569138469,
+     "updated_rms_cm": 0.6329963569138469,
+     "delta_posterior_cm": 0.9137983758297039
+    },
+    "score": 0.024857011548966336,
+    "summary": "CH4+: fit rms 0.0357 cm-1 (90 levels N+<=5), predicted N+>5 rms 0.0484 (112 levels); delta 13.101; measured lines (IE shifted only) rms 1.81\nCD4+: fit rms 0.0003 cm-1 (90 levels N+<=5), predicted N+>5 rms 0.0013 (112 levels); delta 0.914; measured lines (IE shifted only) rms 0.63"
+   },
+   "relation": "a different model from the reference",
+   "equivalent_to_reference": false
+  },
+  {
+   "round": 2,
+   "response": "```json\n{\n  \"spec\": {\n    \"group\": \"Td\",\n    \"spaces\": [\n      {\n        \"kind\": \"well\",\n        \"name\": \"wells\",\n        \"irrep\": \"F2\",\n        \"vectors\": [\n          [-0.7071067811865476, 0.0, 0.7071067811865476],\n          [0.7071067811865476, -0.7071067811865476, 0.0],\n          [0.0, 0.7071067811865476, -0.7071067811865476],\n          [0.7071067811865476, 0.0, 0.7071067811865476],\n          [0.7071067811865476, 0.7071067811865476, 0.0],\n          [0.0, 0.7071067811865476, 0.7071067811865476]\n        ],\n        \"geometric_phase\": true\n      },\n      {\n        \"kind\": \"rot\"\n      }\n    ],\n    \"terms\": [\n      \"A: sym(w[1,1] Jy Jy)\",\n      \"B: 0.5*sym(w[1,1] (Jx+Jz) (Jx+Jz))\",\n      \"C: 0.5*sym(w[1,1] (Jx-Jz) (Jx-Jz))\",\n      \"sigma: sym(w[1,2])\",\n      \"rt1: i*sym(w[1,2] (Jy+Jz))\",\n      \"rtx: i*sym(w[1,2] Jx)\",\n      \"rt2: sym(w[1,2] (Jy+Jz) (Jy+Jz))\",\n      \"rtx2: sym(w[1,2] (Jx (Jy+Jz) + (Jy+Jz) Jx))\",\n      \"rt3: i*sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz))\",\n      \"rt4: sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz))\",\n      \"rt5: i*sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz))\"\n    ],\n    \"J\": [0, 1, 2, 3, 4, 5]\n  },\n  \"roles\": {\n    \"A\": \"rotor\",\n    \"B\": \"rotor\",\n    \"C\": \"rotor\",\n    \"sigma\": \"tunneling\",\n    \"rt1\": \"extra\",\n    \"rtx\": \"extra\",\n    \"rt2\": \"extra\",\n    \"rtx2\": \"extra\",\n    \"rt3\": \"extra\",\n    \"rt4\": \"extra\",\n    \"rt5\": \"extra\"\n  },\n  \"rationale\": \"This keeps the round 1 wells, rotor terms and hop series, and adds three terms from the same exp(-i theta n.J) hop. Round 1 supports that form: sym divides by 24, so sigma/24 = 3.275 matches sigma_abs/delta, and rt1/sigma = 0.129 is close to theta*n_y = 0.131. rt2 and rt3 also have roughly the expected size (rt2/24 = -0.028 vs -0.028; rt3/24 = -0.00105 vs -0.00122), and rt4/24 = 3.5e-5 vs 4.0e-5. The fitted A, B, C also match the stabilizer-averaged tensor (6.698, 5.308, 3.770), so no centrifugal or Q_xx-Q_zz terms are added; Q_xx-Q_zz and Q_xy are odd under the well stabilizer. The main addition is rtx. The Cs reflection y<->z maps wells 1<->2 and allows hop axes along x and (0,1,1), and round 1 dropped the x component. The estimated size sigma*theta*|n_x| is 0.0142 for CH4+ and 0.00015 for CD4+, a ratio of about 93, close to the round 1 fit-residual ratio of about 103. That points to the missing axis tilt as the dominant fit error, though it is an inference from scaling only. rtx2 is the matching second-order cross term {Jx, Jy+Jz} from (n.J)^2; its estimated coefficient is about -sigma*2.8e-4, which can reach several hundredths of a cm-1 at N+=8. rt5 continues the series, since theta*N is about 1.5 at N+=8 and the fifth-order term is about 0.06*sigma for extreme alignment; its expected sign is positive. A sixth-order term is left out because N+<=5 would constrain it poorly. The fit is per isotopologue, so the different reported n_x values for CH4+ and CD4+ need no shared axis. I checked the new terms' invariance and time-reversal parity by hand, but this spec has not been compiled or fitted, and rt5 may be weakly determined for CD4+.\"\n}\n```",
+   "seconds": 88.7,
+   "usage": {
+    "cost_usd": 0.2524586,
+    "input_tokens": 2,
+    "output_tokens": 9082,
+    "models_served": [
+     "claude-opus-5-5"
+    ],
+    "model_requested": "opus"
+   },
+   "proposal": {
+    "spec": {
+     "group": "Td",
+     "spaces": [
+      {
+       "kind": "well",
+       "name": "wells",
+       "irrep": "F2",
+       "vectors": [
+        [
+         -0.7071067811865476,
+         0.0,
+         0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         -0.7071067811865476,
+         0.0
+        ],
+        [
+         0.0,
+         0.7071067811865476,
+         -0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         0.0,
+         0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         0.7071067811865476,
+         0.0
+        ],
+        [
+         0.0,
+         0.7071067811865476,
+         0.7071067811865476
+        ]
+       ],
+       "geometric_phase": true
+      },
+      {
+       "kind": "rot"
+      }
+     ],
+     "terms": [
+      "A: sym(w[1,1] Jy Jy)",
+      "B: 0.5*sym(w[1,1] (Jx+Jz) (Jx+Jz))",
+      "C: 0.5*sym(w[1,1] (Jx-Jz) (Jx-Jz))",
+      "sigma: sym(w[1,2])",
+      "rt1: i*sym(w[1,2] (Jy+Jz))",
+      "rtx: i*sym(w[1,2] Jx)",
+      "rt2: sym(w[1,2] (Jy+Jz) (Jy+Jz))",
+      "rtx2: sym(w[1,2] (Jx (Jy+Jz) + (Jy+Jz) Jx))",
+      "rt3: i*sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz))",
+      "rt4: sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz))",
+      "rt5: i*sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz))"
+     ],
+     "J": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    "roles": {
+     "A": "rotor",
+     "B": "rotor",
+     "C": "rotor",
+     "sigma": "tunneling",
+     "rt1": "extra",
+     "rtx": "extra",
+     "rt2": "extra",
+     "rtx2": "extra",
+     "rt3": "extra",
+     "rt4": "extra",
+     "rt5": "extra"
+    },
+    "rationale": "This keeps the round 1 wells, rotor terms and hop series, and adds three terms from the same exp(-i theta n.J) hop. Round 1 supports that form: sym divides by 24, so sigma/24 = 3.275 matches sigma_abs/delta, and rt1/sigma = 0.129 is close to theta*n_y = 0.131. rt2 and rt3 also have roughly the expected size (rt2/24 = -0.028 vs -0.028; rt3/24 = -0.00105 vs -0.00122), and rt4/24 = 3.5e-5 vs 4.0e-5. The fitted A, B, C also match the stabilizer-averaged tensor (6.698, 5.308, 3.770), so no centrifugal or Q_xx-Q_zz terms are added; Q_xx-Q_zz and Q_xy are odd under the well stabilizer. The main addition is rtx. The Cs reflection y<->z maps wells 1<->2 and allows hop axes along x and (0,1,1), and round 1 dropped the x component. The estimated size sigma*theta*|n_x| is 0.0142 for CH4+ and 0.00015 for CD4+, a ratio of about 93, close to the round 1 fit-residual ratio of about 103. That points to the missing axis tilt as the dominant fit error, though it is an inference from scaling only. rtx2 is the matching second-order cross term {Jx, Jy+Jz} from (n.J)^2; its estimated coefficient is about -sigma*2.8e-4, which can reach several hundredths of a cm-1 at N+=8. rt5 continues the series, since theta*N is about 1.5 at N+=8 and the fifth-order term is about 0.06*sigma for extreme alignment; its expected sign is positive. A sixth-order term is left out because N+<=5 would constrain it poorly. The fit is per isotopologue, so the different reported n_x values for CH4+ and CD4+ need no shared axis. I checked the new terms' invariance and time-reversal parity by hand, but this spec has not been compiled or fitted, and rt5 may be weakly determined for CD4+."
+   },
+   "score": {
+    "CH4+": {
+     "fit_rms_cm": 0.002836302549369308,
+     "predict_rms_cm": 0.016686865832609733,
+     "n_fit": 90,
+     "n_predict": 112,
+     "coefficients": {
+      "A": 40.19021817748671,
+      "B": 31.850440041650575,
+      "C": 22.618576468910145,
+      "sigma": 78.56233679271064,
+      "rt1": 10.264343900318504,
+      "rtx": -0.32355009148106934,
+      "rt2": -0.6718983840753527,
+      "rtx2": 0.02159501871956711,
+      "rt3": -0.0294660784914957,
+      "rt4": 0.0009789980569351782,
+      "rt5": 3.1428086415754894e-05
+     },
+     "delta_cm": 13.093722798785105,
+     "validation_rms_IE_shifted_cm": 1.8174238917260352,
+     "validation_IE_offset_cm": 370.7356137147726,
+     "IE_offset": 101752.24649362017,
+     "ab_initio_coefficients": {
+      "A": 40.19021817748671,
+      "B": 31.850440041650575,
+      "C": 22.618576468910145,
+      "sigma": 78.56233679271064,
+      "rt1": 10.264343900318504,
+      "rtx": -0.32355009148106934,
+      "rt2": -0.6718983840753527,
+      "rtx2": 0.02159501871956711,
+      "rt3": -0.0294660784914957,
+      "rt4": 0.0009789980569351782,
+      "rt5": 3.1428086415754894e-05
+     },
+     "posterior_coefficients": {
+      "A": 40.19021817748671,
+      "B": 31.850440041650575,
+      "C": 22.618576468910145,
+      "sigma": 78.56233679271064,
+      "rt1": 10.264343900318504,
+      "rtx": -0.32355009148106934,
+      "rt2": -0.6718983840753527,
+      "rtx2": 0.02159501871956711,
+      "rt3": -0.0294660784914957,
+      "rt4": 0.0009789980569351782,
+      "rt5": 3.1428086415754894e-05
+     },
+     "posterior": {
+      "IE": 101752.24649362017
+     },
+     "prediction_rms_IE_only_cm": 1.8174238917260352,
+     "updated_rms_cm": 1.8174238917260352,
+     "delta_posterior_cm": 13.093722798785105
+    },
+    "CD4+": {
+     "fit_rms_cm": 2.7809320219224652e-05,
+     "predict_rms_cm": 0.00024555960713767484,
+     "n_fit": 90,
+     "n_predict": 112,
+     "coefficients": {
+      "A": 20.283572254190034,
+      "B": 16.171403086128002,
+      "C": 11.442598366501548,
+      "sigma": 5.482854619572635,
+      "rt1": 0.7207216055258061,
+      "rtx": 0.0033835366383574562,
+      "rt2": -0.0472861941411317,
+      "rtx2": -0.0002402260721962566,
+      "rt3": -0.002074805411032479,
+      "rt4": 6.472320970061796e-05,
+      "rt5": 1.6914087257751849e-06
+     },
+     "delta_cm": 0.9138091032621057,
+     "validation_rms_IE_shifted_cm": 0.6329440965645173,
+     "validation_IE_offset_cm": 435.26582807728846,
+     "IE_offset": 102196.42841998328,
+     "ab_initio_coefficients": {
+      "A": 20.283572254190034,
+      "B": 16.171403086128002,
+      "C": 11.442598366501548,
+      "sigma": 5.482854619572635,
+      "rt1": 0.7207216055258061,
+      "rtx": 0.0033835366383574562,
+      "rt2": -0.0472861941411317,
+      "rtx2": -0.0002402260721962566,
+      "rt3": -0.002074805411032479,
+      "rt4": 6.472320970061796e-05,
+      "rt5": 1.6914087257751849e-06
+     },
+     "posterior_coefficients": {
+      "A": 20.283572254190034,
+      "B": 16.171403086128002,
+      "C": 11.442598366501548,
+      "sigma": 5.482854619572635,
+      "rt1": 0.7207216055258061,
+      "rtx": 0.0033835366383574562,
+      "rt2": -0.0472861941411317,
+      "rtx2": -0.0002402260721962566,
+      "rt3": -0.002074805411032479,
+      "rt4": 6.472320970061796e-05,
+      "rt5": 1.6914087257751849e-06
+     },
+     "posterior": {
+      "IE": 102196.42841998328
+     },
+     "prediction_rms_IE_only_cm": 0.6329440965645173,
+     "updated_rms_cm": 0.6329440965645173,
+     "delta_posterior_cm": 0.9138091032621057
+    },
+    "score": 0.008466212719873705,
+    "summary": "CH4+: fit rms 0.0028 cm-1 (90 levels N+<=5), predicted N+>5 rms 0.0167 (112 levels); delta 13.094; measured lines (IE shifted only) rms 1.82\nCD4+: fit rms 0.0000 cm-1 (90 levels N+<=5), predicted N+>5 rms 0.0002 (112 levels); delta 0.914; measured lines (IE shifted only) rms 0.63"
+   },
+   "relation": "a different model from the reference",
+   "equivalent_to_reference": false
+  },
+  {
+   "round": 3,
+   "response": "```json\n{\n  \"spec\": {\n    \"group\": \"Td\",\n    \"spaces\": [\n      {\n        \"kind\": \"well\",\n        \"name\": \"wells\",\n        \"irrep\": \"F2\",\n        \"vectors\": [\n          [-0.7071067811865476, 0.0, 0.7071067811865476],\n          [0.7071067811865476, -0.7071067811865476, 0.0],\n          [0.0, 0.7071067811865476, -0.7071067811865476],\n          [0.7071067811865476, 0.0, 0.7071067811865476],\n          [0.7071067811865476, 0.7071067811865476, 0.0],\n          [0.0, 0.7071067811865476, 0.7071067811865476]\n        ],\n        \"geometric_phase\": true\n      },\n      {\n        \"kind\": \"rot\"\n      }\n    ],\n    \"terms\": [\n      \"A: sym(w[1,1] Jy Jy)\",\n      \"B: 0.5*sym(w[1,1] (Jx+Jz) (Jx+Jz))\",\n      \"C: 0.5*sym(w[1,1] (Jx-Jz) (Jx-Jz))\",\n      \"sigma: sym(w[1,2])\",\n      \"rt1: i*sym(w[1,2] (Jy+Jz))\",\n      \"rt2: sym(w[1,2] (Jy+Jz) (Jy+Jz))\",\n      \"rt3: i*sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz))\",\n      \"rt4: sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz))\",\n      \"rt5: i*sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz))\",\n      \"tilt: sym(w[1,2] (i*Jx - 0.0655*(Jx (Jy+Jz) + (Jy+Jz) Jx) - i*0.0028602*(Jx (Jy+Jz) (Jy+Jz) + (Jy+Jz) Jx (Jy+Jz) + (Jy+Jz) (Jy+Jz) Jx) + 0.00009367*(Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) + (Jy+Jz) Jx (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) Jx (Jy+Jz) + (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx)))\",\n      \"tail: sym(w[1,2] ((Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + i*0.0187143*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) - 0.00030645*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz)))\"\n    ],\n    \"J\": [0, 1, 2, 3, 4, 5]\n  },\n  \"roles\": {\n    \"A\": \"rotor\",\n    \"B\": \"rotor\",\n    \"C\": \"rotor\",\n    \"sigma\": \"tunneling\",\n    \"rt1\": \"extra\",\n    \"rt2\": \"extra\",\n    \"rt3\": \"extra\",\n    \"rt4\": \"extra\",\n    \"rt5\": \"extra\",\n    \"tilt\": \"extra\",\n    \"tail\": \"extra\"\n  },\n  \"rationale\": \"Round 2 coefficients follow sigma*exp(i(b K + c Jx)), with K = Jy+Jz, b = rt1/sigma (0.13065 for CH4+, 0.13145 for CD4+) and c = rtx/sigma. For CH4+, the predicted rt2 to rt4 are -0.671, -0.0292 and 9.5e-4, against fitted -0.672, -0.0295 and 9.8e-4. The fitted rtx2/rtx ratios (-0.067, -0.071) also match -b/2 = -0.0655. Two omissions remain. (1) The third-order tilt term was missing. Its estimated coefficient is -sigma b^2 c/6, about 9e-4 for CH4+, which gives up to about 0.045 cm-1 at N+=8 and about 0.01 cm-1 at N+=5. The round 2 fit residual ratio CH4+/CD4+ is about 100, close to the ratio of sigma*n_x (about 95), so this term is the likely main error, though that is an inference from scaling. I therefore replace the free rtx and rtx2 with one parameter, tilt, the first-order c derivative of the exponential through fourth order, with ratios fixed at b = 0.131. Tilt should fit near sigma*theta*n_x, about -0.34 for CH4+, and the sign and size for CD4+ should follow the reported n_x (about +0.003 to +0.004). (2) The K series stopped at fifth order, although b*K reaches about 1.5 at N+=8 and the K^6 term can reach about 0.05 cm-1 there. N+<=5 constrains a free K^6, K^7 or K^8 poorly, so one parameter, tail, carries them with ratios fixed from (i b K)^n/n!. It should fit near -sigma b^6/720, about -5.4e-7 for CH4+ and -3.9e-8 for CD4+. With the tail present, rt5 should move toward its exponential value of about 2.5e-5, from 3.1e-5. The term count stays at 11. The rotor terms and wells are unchanged, and Q_xx-Q_zz and Q_xy stay excluded as odd under the well stabilizer. By hand, the reflection y<->z sends Jx to -Jx and K to -K, so each new term is Hermitian and time-reversal even, but this spec has not been compiled or fitted. Mixed real and imaginary parts inside sym and the long operator products have not been tried in this grammar, and the fixed b = 0.131 is an approximation for both isotopologues, by about 0.3%.\"\n}\n```",
+   "seconds": 108.6,
+   "usage": {
+    "cost_usd": 0.3098906,
+    "input_tokens": 2,
+    "output_tokens": 10928,
+    "models_served": [
+     "claude-opus-5-5"
+    ],
+    "model_requested": "opus"
+   },
+   "proposal": {
+    "spec": {
+     "group": "Td",
+     "spaces": [
+      {
+       "kind": "well",
+       "name": "wells",
+       "irrep": "F2",
+       "vectors": [
+        [
+         -0.7071067811865476,
+         0.0,
+         0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         -0.7071067811865476,
+         0.0
+        ],
+        [
+         0.0,
+         0.7071067811865476,
+         -0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         0.0,
+         0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         0.7071067811865476,
+         0.0
+        ],
+        [
+         0.0,
+         0.7071067811865476,
+         0.7071067811865476
+        ]
+       ],
+       "geometric_phase": true
+      },
+      {
+       "kind": "rot"
+      }
+     ],
+     "terms": [
+      "A: sym(w[1,1] Jy Jy)",
+      "B: 0.5*sym(w[1,1] (Jx+Jz) (Jx+Jz))",
+      "C: 0.5*sym(w[1,1] (Jx-Jz) (Jx-Jz))",
+      "sigma: sym(w[1,2])",
+      "rt1: i*sym(w[1,2] (Jy+Jz))",
+      "rt2: sym(w[1,2] (Jy+Jz) (Jy+Jz))",
+      "rt3: i*sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz))",
+      "rt4: sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz))",
+      "rt5: i*sym(w[1,2] (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz))",
+      "tilt: sym(w[1,2] (i*Jx - 0.0655*(Jx (Jy+Jz) + (Jy+Jz) Jx) - i*0.0028602*(Jx (Jy+Jz) (Jy+Jz) + (Jy+Jz) Jx (Jy+Jz) + (Jy+Jz) (Jy+Jz) Jx) + 0.00009367*(Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) + (Jy+Jz) Jx (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) Jx (Jy+Jz) + (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx)))",
+      "tail: sym(w[1,2] ((Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + i*0.0187143*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) - 0.00030645*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz)))"
+     ],
+     "J": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    "roles": {
+     "A": "rotor",
+     "B": "rotor",
+     "C": "rotor",
+     "sigma": "tunneling",
+     "rt1": "extra",
+     "rt2": "extra",
+     "rt3": "extra",
+     "rt4": "extra",
+     "rt5": "extra",
+     "tilt": "extra",
+     "tail": "extra"
+    },
+    "rationale": "Round 2 coefficients follow sigma*exp(i(b K + c Jx)), with K = Jy+Jz, b = rt1/sigma (0.13065 for CH4+, 0.13145 for CD4+) and c = rtx/sigma. For CH4+, the predicted rt2 to rt4 are -0.671, -0.0292 and 9.5e-4, against fitted -0.672, -0.0295 and 9.8e-4. The fitted rtx2/rtx ratios (-0.067, -0.071) also match -b/2 = -0.0655. Two omissions remain. (1) The third-order tilt term was missing. Its estimated coefficient is -sigma b^2 c/6, about 9e-4 for CH4+, which gives up to about 0.045 cm-1 at N+=8 and about 0.01 cm-1 at N+=5. The round 2 fit residual ratio CH4+/CD4+ is about 100, close to the ratio of sigma*n_x (about 95), so this term is the likely main error, though that is an inference from scaling. I therefore replace the free rtx and rtx2 with one parameter, tilt, the first-order c derivative of the exponential through fourth order, with ratios fixed at b = 0.131. Tilt should fit near sigma*theta*n_x, about -0.34 for CH4+, and the sign and size for CD4+ should follow the reported n_x (about +0.003 to +0.004). (2) The K series stopped at fifth order, although b*K reaches about 1.5 at N+=8 and the K^6 term can reach about 0.05 cm-1 there. N+<=5 constrains a free K^6, K^7 or K^8 poorly, so one parameter, tail, carries them with ratios fixed from (i b K)^n/n!. It should fit near -sigma b^6/720, about -5.4e-7 for CH4+ and -3.9e-8 for CD4+. With the tail present, rt5 should move toward its exponential value of about 2.5e-5, from 3.1e-5. The term count stays at 11. The rotor terms and wells are unchanged, and Q_xx-Q_zz and Q_xy stay excluded as odd under the well stabilizer. By hand, the reflection y<->z sends Jx to -Jx and K to -K, so each new term is Hermitian and time-reversal even, but this spec has not been compiled or fitted. Mixed real and imaginary parts inside sym and the long operator products have not been tried in this grammar, and the fixed b = 0.131 is an approximation for both isotopologues, by about 0.3%."
+   },
+   "score": {
+    "CH4+": {
+     "fit_rms_cm": 0.00031234118553867866,
+     "predict_rms_cm": 0.004135514145692781,
+     "n_fit": 90,
+     "n_predict": 112,
+     "coefficients": {
+      "A": 40.18957966219918,
+      "B": 31.85121368146909,
+      "C": 22.618320589498122,
+      "sigma": 78.56346330533417,
+      "rt1": 10.260726704762455,
+      "rt2": -0.6705657063282782,
+      "rt3": -0.02913504680075277,
+      "rt4": 0.0009791325566167043,
+      "rt5": 2.4688414904019793e-05,
+      "tilt": -0.3407950208142784,
+      "tail": -9.720905875613292e-07
+     },
+     "delta_cm": 13.093910550889028,
+     "validation_rms_IE_shifted_cm": 1.8171876661111837,
+     "validation_IE_offset_cm": 370.73552136775106,
+     "IE_offset": 101752.24640127315,
+     "ab_initio_coefficients": {
+      "A": 40.18957966219918,
+      "B": 31.85121368146909,
+      "C": 22.618320589498122,
+      "sigma": 78.56346330533417,
+      "rt1": 10.260726704762455,
+      "rt2": -0.6705657063282782,
+      "rt3": -0.02913504680075277,
+      "rt4": 0.0009791325566167043,
+      "rt5": 2.4688414904019793e-05,
+      "tilt": -0.3407950208142784,
+      "tail": -9.720905875613292e-07
+     },
+     "posterior_coefficients": {
+      "A": 40.18957966219918,
+      "B": 31.85121368146909,
+      "C": 22.618320589498122,
+      "sigma": 78.56346330533417,
+      "rt1": 10.260726704762455,
+      "rt2": -0.6705657063282782,
+      "rt3": -0.02913504680075277,
+      "rt4": 0.0009791325566167043,
+      "rt5": 2.4688414904019793e-05,
+      "tilt": -0.3407950208142784,
+      "tail": -9.720905875613292e-07
+     },
+     "posterior": {
+      "IE": 101752.24640127315
+     },
+     "prediction_rms_IE_only_cm": 1.8171876661111837,
+     "updated_rms_cm": 1.8171876661111837,
+     "delta_posterior_cm": 13.093910550889028
+    },
+    "CD4+": {
+     "fit_rms_cm": 1.248048264340951e-06,
+     "predict_rms_cm": 3.7874942007636775e-05,
+     "n_fit": 90,
+     "n_predict": 112,
+     "coefficients": {
+      "A": 20.283574971627278,
+      "B": 16.17140198485488,
+      "C": 11.442597164509875,
+      "sigma": 5.482861720177207,
+      "rt1": 0.7206610405588602,
+      "rt2": -0.047369807632228304,
+      "rt3": -0.002075043731821677,
+      "rt4": 6.858253574768932e-05,
+      "rt5": 1.7991889802424343e-06,
+      "tilt": 0.0036382460401827798,
+      "tail": -4.4407102535368135e-08
+     },
+     "delta_cm": 0.9138102866962012,
+     "validation_rms_IE_shifted_cm": 0.63294179651166,
+     "validation_IE_offset_cm": 435.26582423727086,
+     "IE_offset": 102196.42841614326,
+     "ab_initio_coefficients": {
+      "A": 20.283574971627278,
+      "B": 16.17140198485488,
+      "C": 11.442597164509875,
+      "sigma": 5.482861720177207,
+      "rt1": 0.7206610405588602,
+      "rt2": -0.047369807632228304,
+      "rt3": -0.002075043731821677,
+      "rt4": 6.858253574768932e-05,
+      "rt5": 1.7991889802424343e-06,
+      "tilt": 0.0036382460401827798,
+      "tail": -4.4407102535368135e-08
+     },
+     "posterior_coefficients": {
+      "A": 20.283574971627278,
+      "B": 16.17140198485488,
+      "C": 11.442597164509875,
+      "sigma": 5.482861720177207,
+      "rt1": 0.7206610405588602,
+      "rt2": -0.047369807632228304,
+      "rt3": -0.002075043731821677,
+      "rt4": 6.858253574768932e-05,
+      "rt5": 1.7991889802424343e-06,
+      "tilt": 0.0036382460401827798,
+      "tail": -4.4407102535368135e-08
+     },
+     "posterior": {
+      "IE": 102196.42841614326
+     },
+     "prediction_rms_IE_only_cm": 0.63294179651166,
+     "updated_rms_cm": 0.63294179651166,
+     "delta_posterior_cm": 0.9138102866962012
+    },
+    "score": 0.002086694543850209,
+    "summary": "CH4+: fit rms 0.0003 cm-1 (90 levels N+<=5), predicted N+>5 rms 0.0041 (112 levels); delta 13.094; measured lines (IE shifted only) rms 1.82\nCD4+: fit rms 0.0000 cm-1 (90 levels N+<=5), predicted N+>5 rms 0.0000 (112 levels); delta 0.914; measured lines (IE shifted only) rms 0.63"
+   },
+   "relation": "a different model from the reference",
+   "equivalent_to_reference": false
+  },
+  {
+   "round": 4,
+   "response": "```json\n{\n  \"spec\": {\n    \"group\": \"Td\",\n    \"spaces\": [\n      {\n        \"kind\": \"well\",\n        \"name\": \"wells\",\n        \"irrep\": \"F2\",\n        \"vectors\": [\n          [-0.7071067811865476, 0.0, 0.7071067811865476],\n          [0.7071067811865476, -0.7071067811865476, 0.0],\n          [0.0, 0.7071067811865476, -0.7071067811865476],\n          [0.7071067811865476, 0.0, 0.7071067811865476],\n          [0.7071067811865476, 0.7071067811865476, 0.0],\n          [0.0, 0.7071067811865476, 0.7071067811865476]\n        ],\n        \"geometric_phase\": true\n      },\n      {\n        \"kind\": \"rot\"\n      }\n    ],\n    \"terms\": [\n      \"A: sym(w[1,1] Jy Jy)\",\n      \"B: 0.5*sym(w[1,1] (Jx+Jz) (Jx+Jz))\",\n      \"C: 0.5*sym(w[1,1] (Jx-Jz) (Jx-Jz))\",\n      \"sigma: sym(w[1,2] + w[1,2]*(i*(0.13061*(Jy+Jz)-0.00434*Jx) - 0.5*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) - i*0.16666666667*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) + 0.04166666667*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) + i*0.00833333333*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) - 0.00138888889*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) - i*0.00019841270*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) + 0.00002480159*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) + i*0.000000000000030502*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) - 0.00000000000000039841*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz)))\",\n      \"db: sym(w[1,2] (i*(Jy+Jz) - 0.13103*(Jy+Jz) (Jy+Jz) - i*0.00858443*(Jy+Jz) (Jy+Jz) (Jy+Jz) + 0.00037494*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + i*0.0000122821*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) - 0.000000321864*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) - i*0.00000000702899*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + 0.000000000131573*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz)))\",\n      \"dc: sym(w[1,2] (i*Jx - 0.06572*(Jx (Jy+Jz) + (Jy+Jz) Jx) - i*0.00431912*(Jx (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) Jx) + 0.000189235*(Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx) + i*0.00000621825*(Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx) - 0.000000163465*(Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx) - i*0.00000000358098*(Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx) + 0.0000000000672405*(Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx)))\",\n      \"dcc: sym(w[1,2] (Jx Jx + i*0.13144*Jx (Jy+Jz) Jx - 0.00863824*Jx (Jy+Jz) (Jy+Jz) Jx - i*0.00037847*Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx + 0.0000124365*Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx + i*0.000000326931*Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx))\"\n    ],\n    \"J\": [0, 1, 2, 3, 4, 5]\n  },\n  \"roles\": {\n    \"A\": \"rotor\",\n    \"B\": \"rotor\",\n    \"C\": \"rotor\",\n    \"sigma\": \"tunneling\",\n    \"db\": \"extra\",\n    \"dc\": \"extra\",\n    \"dcc\": \"extra\"\n  },\n  \"rationale\": \"Round 3 coefficients match sigma*exp(i(b K + c Jx)), K = Jy+Jz, with b and c equal to theta*n from the reported hop. CH4+: b = 0.13062 and c = -0.00434, fitted 0.13060 and -0.00434. CD4+: b = 0.13144 and c = +0.00067, fitted 0.13144 and +0.00066, after mapping the reported axis into the well 1->2 frame with the overall sign flip noted in round 1. A, B and C already equal 6 times the stabilizer-averaged tensor, for example 6*6.69826 = 40.190. I therefore replace the free series with the exponential itself, reducing 11 terms to 7. sigma is the full series in L = b0 K + c0 Jx through order 8 at the CH4+ values, with a K-only tail for orders 9 and 10; the omitted order-11 term is about 6e-6 cm-1 at most at N+=8. The isotopologue difference and the rounding of the reported axis are carried by three derivative terms. db is dE/db, taken at the midpoint b = 0.13103 so the CD4+ second-order b error cancels. dc is dE/dc, taken at b = 0.13144 so the CD4+ b-c cross term is included by telescoping. The form i(Jx E + E Jx)/2 is exactly proportional to the true derivative because [K,[K,Jx]] = 2Jx closes the rotation. dcc is the second order in c, about -sigma*dc^2/2 (about -7e-5 for CD4+), needed because CD4+ lies 0.005 from the base c; it should fit near 0 for CH4+. The likely cause of the round 3 residuals is the truncated tilt series plus the missing c^2 term: the fit-residual ratio of 250 lies between sigma*c (93) and sigma*c^2 (610), though this is inferred from scaling. Expected fits are db and dc of about 1e-3 for CH4+, and db about 4.5e-3 and dc about 0.0275 for CD4+. By hand, the reflection y<->z sends L to -L, Jx to -Jx and K to -K, and swaps wells 1 and 2, so each truncated series maps to its Hermitian conjugate and is time-reversal even. No bare scalar is added to an operator, to avoid any ambiguity in how the compiler treats it. This spec has not been compiled or fitted. The main risks are compile time for the eighth-power products of L, and the assumption that the target contains exactly this hop exponential with no further hop or centrifugal terms.\"\n}\n```",
+   "seconds": 257.4,
+   "usage": {
+    "cost_usd": 0.6446866,
+    "input_tokens": 2,
+    "output_tokens": 26417,
+    "models_served": [
+     "claude-opus-5-5"
+    ],
+    "model_requested": "opus"
+   },
+   "proposal": {
+    "spec": {
+     "group": "Td",
+     "spaces": [
+      {
+       "kind": "well",
+       "name": "wells",
+       "irrep": "F2",
+       "vectors": [
+        [
+         -0.7071067811865476,
+         0.0,
+         0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         -0.7071067811865476,
+         0.0
+        ],
+        [
+         0.0,
+         0.7071067811865476,
+         -0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         0.0,
+         0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         0.7071067811865476,
+         0.0
+        ],
+        [
+         0.0,
+         0.7071067811865476,
+         0.7071067811865476
+        ]
+       ],
+       "geometric_phase": true
+      },
+      {
+       "kind": "rot"
+      }
+     ],
+     "terms": [
+      "A: sym(w[1,1] Jy Jy)",
+      "B: 0.5*sym(w[1,1] (Jx+Jz) (Jx+Jz))",
+      "C: 0.5*sym(w[1,1] (Jx-Jz) (Jx-Jz))",
+      "sigma: sym(w[1,2] + w[1,2]*(i*(0.13061*(Jy+Jz)-0.00434*Jx) - 0.5*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) - i*0.16666666667*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) + 0.04166666667*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) + i*0.00833333333*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) - 0.00138888889*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) - i*0.00019841270*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) + 0.00002480159*(0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) (0.13061*(Jy+Jz)-0.00434*Jx) + i*0.000000000000030502*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) - 0.00000000000000039841*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz)))",
+      "db: sym(w[1,2] (i*(Jy+Jz) - 0.13103*(Jy+Jz) (Jy+Jz) - i*0.00858443*(Jy+Jz) (Jy+Jz) (Jy+Jz) + 0.00037494*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + i*0.0000122821*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) - 0.000000321864*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) - i*0.00000000702899*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + 0.000000000131573*(Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz)))",
+      "dc: sym(w[1,2] (i*Jx - 0.06572*(Jx (Jy+Jz) + (Jy+Jz) Jx) - i*0.00431912*(Jx (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) Jx) + 0.000189235*(Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx) + i*0.00000621825*(Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx) - 0.000000163465*(Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx) - i*0.00000000358098*(Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx) + 0.0000000000672405*(Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) + (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx)))",
+      "dcc: sym(w[1,2] (Jx Jx + i*0.13144*Jx (Jy+Jz) Jx - 0.00863824*Jx (Jy+Jz) (Jy+Jz) Jx - i*0.00037847*Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx + 0.0000124365*Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx + i*0.000000326931*Jx (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) (Jy+Jz) Jx))"
+     ],
+     "J": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    "roles": {
+     "A": "rotor",
+     "B": "rotor",
+     "C": "rotor",
+     "sigma": "tunneling",
+     "db": "extra",
+     "dc": "extra",
+     "dcc": "extra"
+    },
+    "rationale": "Round 3 coefficients match sigma*exp(i(b K + c Jx)), K = Jy+Jz, with b and c equal to theta*n from the reported hop. CH4+: b = 0.13062 and c = -0.00434, fitted 0.13060 and -0.00434. CD4+: b = 0.13144 and c = +0.00067, fitted 0.13144 and +0.00066, after mapping the reported axis into the well 1->2 frame with the overall sign flip noted in round 1. A, B and C already equal 6 times the stabilizer-averaged tensor, for example 6*6.69826 = 40.190. I therefore replace the free series with the exponential itself, reducing 11 terms to 7. sigma is the full series in L = b0 K + c0 Jx through order 8 at the CH4+ values, with a K-only tail for orders 9 and 10; the omitted order-11 term is about 6e-6 cm-1 at most at N+=8. The isotopologue difference and the rounding of the reported axis are carried by three derivative terms. db is dE/db, taken at the midpoint b = 0.13103 so the CD4+ second-order b error cancels. dc is dE/dc, taken at b = 0.13144 so the CD4+ b-c cross term is included by telescoping. The form i(Jx E + E Jx)/2 is exactly proportional to the true derivative because [K,[K,Jx]] = 2Jx closes the rotation. dcc is the second order in c, about -sigma*dc^2/2 (about -7e-5 for CD4+), needed because CD4+ lies 0.005 from the base c; it should fit near 0 for CH4+. The likely cause of the round 3 residuals is the truncated tilt series plus the missing c^2 term: the fit-residual ratio of 250 lies between sigma*c (93) and sigma*c^2 (610), though this is inferred from scaling. Expected fits are db and dc of about 1e-3 for CH4+, and db about 4.5e-3 and dc about 0.0275 for CD4+. By hand, the reflection y<->z sends L to -L, Jx to -Jx and K to -K, and swaps wells 1 and 2, so each truncated series maps to its Hermitian conjugate and is time-reversal even. No bare scalar is added to an operator, to avoid any ambiguity in how the compiler treats it. This spec has not been compiled or fitted. The main risks are compile time for the eighth-power products of L, and the assumption that the target contains exactly this hop exponential with no further hop or centrifugal terms."
+   },
+   "score": {
+    "CH4+": {
+     "fit_rms_cm": 9.974195308564279e-06,
+     "predict_rms_cm": 0.0003291524828654534,
+     "n_fit": 90,
+     "n_predict": 112,
+     "coefficients": {
+      "A": 40.18958660388382,
+      "B": 31.851187431651073,
+      "C": 22.618256616917837,
+      "sigma": 78.56481133774535,
+      "db": 0.0008737665927825595,
+      "dc": -5.0278131839707116e-05,
+      "dcc": 2.023869098772357e-06
+     },
+     "delta_cm": 13.094135222957558,
+     "validation_rms_IE_shifted_cm": 1.8172037207071898,
+     "validation_IE_offset_cm": 370.73549128171,
+     "IE_offset": 101752.24637118711,
+     "ab_initio_coefficients": {
+      "A": 40.18958660388382,
+      "B": 31.851187431651073,
+      "C": 22.618256616917837,
+      "sigma": 78.56481133774535,
+      "db": 0.0008737665927825595,
+      "dc": -5.0278131839707116e-05,
+      "dcc": 2.023869098772357e-06
+     },
+     "posterior_coefficients": {
+      "A": 40.18958660388382,
+      "B": 31.851187431651073,
+      "C": 22.618256616917837,
+      "sigma": 78.56481133774535,
+      "db": 0.0008737665927825595,
+      "dc": -5.0278131839707116e-05,
+      "dcc": 2.023869098772357e-06
+     },
+     "posterior": {
+      "IE": 101752.24637118711
+     },
+     "prediction_rms_IE_only_cm": 1.8172037207071898,
+     "updated_rms_cm": 1.8172037207071898,
+     "delta_posterior_cm": 13.094135222957558
+    },
+    "CD4+": {
+     "fit_rms_cm": 5.787203484775058e-06,
+     "predict_rms_cm": 2.7039192324403873e-05,
+     "n_fit": 90,
+     "n_predict": 112,
+     "coefficients": {
+      "A": 20.283574928297277,
+      "B": 16.171401255977532,
+      "C": 11.44259713349311,
+      "sigma": 5.4828697905016455,
+      "db": 0.004547966515928782,
+      "dc": 0.02749288168229862,
+      "dcc": 5.143294387592991e-05
+     },
+     "delta_cm": 0.9138116317502742,
+     "validation_rms_IE_shifted_cm": 0.6329419015058629,
+     "validation_IE_offset_cm": 435.2658221013262,
+     "IE_offset": 102196.42841400731,
+     "ab_initio_coefficients": {
+      "A": 20.283574928297277,
+      "B": 16.171401255977532,
+      "C": 11.44259713349311,
+      "sigma": 5.4828697905016455,
+      "db": 0.004547966515928782,
+      "dc": 0.02749288168229862,
+      "dcc": 5.143294387592991e-05
+     },
+     "posterior_coefficients": {
+      "A": 20.283574928297277,
+      "B": 16.171401255977532,
+      "C": 11.44259713349311,
+      "sigma": 5.4828697905016455,
+      "db": 0.004547966515928782,
+      "dc": 0.02749288168229862,
+      "dcc": 5.143294387592991e-05
+     },
+     "posterior": {
+      "IE": 102196.42841400731
+     },
+     "prediction_rms_IE_only_cm": 0.6329419015058629,
+     "updated_rms_cm": 0.6329419015058629,
+     "delta_posterior_cm": 0.9138116317502742
+    },
+    "score": 0.00017809583759492863,
+    "summary": "CH4+: fit rms 0.0000 cm-1 (90 levels N+<=5), predicted N+>5 rms 0.0003 (112 levels); delta 13.094; measured lines (IE shifted only) rms 1.82\nCD4+: fit rms 0.0000 cm-1 (90 levels N+<=5), predicted N+>5 rms 0.0000 (112 levels); delta 0.914; measured lines (IE shifted only) rms 0.63"
+   },
+   "relation": "a different model from the reference",
+   "equivalent_to_reference": false
+  }
+ ],
+ "usage_total": {
+  "cost_usd": 1.5962434,
+  "tokens": 62550,
+  "calls": 4
+ },
+ "stop_reason": "completed all rounds"
+}
