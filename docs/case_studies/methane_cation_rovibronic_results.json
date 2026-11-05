@@ -1,0 +1,137 @@
+{
+ "source": "Woerner, Qian, Merkt, J. Chem. Phys. 126, 144305 (2007), Tables VI-IX",
+ "note": "derived results only; the measured line tables are read from the paper by the script",
+ "model": "rotation x six T2-geometric-phase wells, Td; localized rotor A J_a^2 + (B+C)/2 (J_b^2+J_c^2) +- (B-C)/2 {J_b,J_c} and nearest-well tunneling, both symmetrized from one well",
+ "species": {
+  "CH4+": {
+   "n_lines": 21,
+   "rms_cm": 0.9437216858504643,
+   "paper_rms_cm": 0.9960973847972898,
+   "constants": {
+    "IE": 101750.30094613983,
+    "A": 6.368324901551978,
+    "B": 5.676743500690691,
+    "C": 4.115258283336483,
+    "sigma": 4.270199869051925
+   },
+   "sd": {
+    "IE": 0.4902631023308431,
+    "A": 0.33855942641330633,
+    "B": 0.24199976528107361,
+    "C": 0.11117301290081728,
+    "sigma": 0.13439027468173806
+   },
+   "delta": 17.0807994762077,
+   "delta_sd": 0.5375610987269522,
+   "paper_constants": {
+    "IE": 101752.2,
+    "A": 6.4,
+    "B": 5.55,
+    "C": 4.03,
+    "delta": 16.4
+   },
+   "relabelled": [],
+   "best_tunneling_rotation_term": {
+    "term": "tr5: sym(Jx Jx w[3,5]) + h.c.",
+    "rms_cm": 0.9244533200334571,
+    "bic": 14.967920321179161,
+    "dBIC": 2.1781153184683344
+   },
+   "without_geometric_phase": {
+    "error": "model has no level of class A1 at N+=1 (line J''=0 A1 at 101777.88 cm-1)"
+   }
+  },
+  "13CH4+": {
+   "n_lines": 20,
+   "rms_cm": 0.9410678879444639,
+   "paper_rms_cm": 0.9983908105177631,
+   "constants": {
+    "IE": 101755.33123711126,
+    "A": 6.753825711763894,
+    "B": 5.618970169928543,
+    "C": 3.9418830475141604,
+    "sigma": 4.156369477658672
+   },
+   "sd": {
+    "IE": 0.51308297256525,
+    "A": 0.3856650259136517,
+    "B": 0.2454634123805553,
+    "C": 0.10872145260773582,
+    "sigma": 0.1464381165572732
+   },
+   "delta": 16.62547791063469,
+   "delta_sd": 0.5857524662290928,
+   "paper_constants": {
+    "IE": 101756.6,
+    "A": 6.3,
+    "B": 5.7,
+    "C": 4.05,
+    "delta": 16.2
+   },
+   "relabelled": [],
+   "best_tunneling_rotation_term": {
+    "term": "tr6: sym(Jx Jy w[1,3]) + h.c.",
+    "rms_cm": 0.8604009205973709,
+    "bic": 11.96012117633462,
+    "dBIC": -0.5889402901967848
+   },
+   "without_geometric_phase": {
+    "error": "model has no level of class A1 at N+=1 (line J''=0 A1 at 101782.26 cm-1)"
+   }
+  },
+  "CD4+": {
+   "n_lines": 19,
+   "rms_cm": 0.27360218125187724,
+   "paper_rms_cm": 0.2826007039883957,
+   "constants": {
+    "IE": 102196.30704657234,
+    "A": 3.3353573059837,
+    "B": 2.5114505163575918,
+    "C": 1.995340278368509,
+    "sigma": 0.43586310817281115
+   },
+   "sd": {
+    "IE": 0.1522710099661117,
+    "A": 0.03163026478050662,
+    "B": 0.03744718765161324,
+    "C": 0.028269381622264177,
+    "sigma": 0.06260904690650634
+   },
+   "delta": 1.7434524326912446,
+   "delta_sd": 0.2504361876260254,
+   "paper_constants": {
+    "IE": 102196.9,
+    "A": 3.35,
+    "B": 2.53,
+    "C": 1.98,
+    "delta": 1.4
+   },
+   "relabelled": [
+    "J''=2 E -> E at 102207.3: N+ 2 -> 3",
+    "J''=2 E -> E at 102211.2: N+ 2 -> 3"
+   ],
+   "best_tunneling_rotation_term": {
+    "term": "tr6: sym(Jx Jy w[1,3]) + h.c.",
+    "rms_cm": 0.1791660002689656,
+    "bic": -47.67218215420762,
+    "dBIC": -13.14333245759964
+   },
+   "without_geometric_phase": {
+    "rms_cm": 0.9009412883913225,
+    "bic": 10.758217819673053,
+    "delta": 1.9040037922207012
+   }
+  }
+ },
+ "leave_one_position_out_rms_cm": {
+  "CD4+": {
+   "base": 0.597,
+   "with_best_extension": 0.597
+  },
+  "CH4+": {
+   "base": 1.376,
+   "with_best_extension": 1.393
+  }
+ },
+ "decision": "tunneling-rotation coupling not kept: BIC gains come from repeated line positions; leave-one-position-out prediction does not improve"
+}

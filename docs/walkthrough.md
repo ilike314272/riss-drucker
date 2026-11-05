@@ -399,12 +399,11 @@ network, language model) only suggests.
 - **Proposer training on case studies:** `rd.symbolic_lm` (see the next section).
 
 **Still open:**
-- **CH₄⁺ rotational-tunneling fit.** `WellSpace` with Td and its subgroups now reproduces the
-  published six-well tunneling structure: T1 + T2 with δ = 4|σ|, and the CH₂D₂⁺ A1 / B1+B2 / A2
-  pattern with Grütter, Wörner & Merkt's (2009) constants
-  (`docs/case_studies/methane_cation.md`, open-access ETH copy). What is missing is the
-  rotational-tunneling Hamiltonian (per-well rotor axes) needed to fit their PFI-ZEKE lines. The
-  2007 CH₄⁺/CD₄⁺ paper with the full level list remains closed access.
+- **CH₄⁺ rovibronic spectrum: done.** The six-well T₂ geometric-phase tunneling ⊗ rotation model
+  is built by symmetry and fitted to the measured PFI-ZEKE lines of CH₄⁺, ¹³CH₄⁺ and CD₄⁺ (Wörner,
+  Qian & Merkt 2007, PDF supplied by the user). The rms (0.94, 0.94, 0.27 cm⁻¹) and constants match
+  the published fits. Two CD₄⁺ table labels were found inconsistent (N⁺ 2 → 3). Tunneling–rotation
+  coupling was tested and rejected out of sample. See `docs/case_studies/methane_cation.md`.
 - **Real CH₄ lines** (no rotational catalogue; HITRAN needs an account).
 - **Symbolic LM training:** more real case studies are needed before learned weights beat the
   physical prior out of sample.

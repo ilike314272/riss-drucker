@@ -374,3 +374,21 @@ def test_methane_cation_six_well_tunneling_from_symmetry():
     assert c["certificates_passed"] and c["splitting_over_sigma"] == pytest.approx(4.0, abs=1e-9)
     d = out["CH2D2+"]
     assert d["well_orbits"] == [(1,), (2,), (3, 4, 5, 6)] and d["pattern_reproduced"]
+
+
+@pytest.mark.skipif(not __import__("os").environ.get("RISS_CH4PLUS_PDF"),
+                    reason="needs the PDF of Woerner, Qian & Merkt, JCP 126, 144305 (2007) in RISS_CH4PLUS_PDF")
+def test_methane_cation_rovibronic_fit_matches_published_quality():
+    import importlib.util
+    import os
+    import pathlib
+    p = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "case_methane_cation_rovibronic.py"
+    spec = importlib.util.spec_from_file_location("cmcr", p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    tables = mod.read_tables(pathlib.Path(os.environ["RISS_CH4PLUS_PDF"]))
+    model = mod.Model(5)
+    f = min((mod.fit_species("CD4+", tables["CD4+"], model, s) for s in (1.0, -1.0)), key=lambda x: x["rms_cm"])
+    assert f["rms_cm"] < 0.35 and abs(f["constants"]["A"] - 3.35) < 0.1 and abs(f["delta"] - 1.4) < 0.6
+    g = min((mod.fit_species("CH4+", tables["CH4+"], model, s) for s in (1.0, -1.0)), key=lambda x: x["rms_cm"])
+    assert g["rms_cm"] < 1.05 and abs(g["delta"] - 16.4) < 2.0

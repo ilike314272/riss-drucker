@@ -95,6 +95,7 @@ class WellSpace:
     name: str
     irrep: str
     vectors: list
+    geometric_phase: bool = True     # False: wells permuted without signs (phase-free model)
     kind: str = "well"
 
 
@@ -415,7 +416,7 @@ class _Well(_Space):
                 if abs(abs(d[m]) - 1) > 1e-6:
                     raise SymmetryError(f"well vectors are not permuted by {decl.irrep} (element {gi})")
                 pm.append(m)
-                sg.append(float(np.sign(d[m])))
+                sg.append(float(np.sign(d[m])) if decl.geometric_phase else 1.0)
             self.perm.append(pm)
             self.sign.append(sg)
 
