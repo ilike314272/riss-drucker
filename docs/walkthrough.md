@@ -399,9 +399,11 @@ network, language model) only suggests.
 - **Proposer training on case studies:** `rd.symbolic_lm` (see the next section).
 
 **Still open:**
-- **CH₄⁺ real data.** The full level list (Wörner et al., J. Chem. Phys. 126, 144305, 2007) is not
-  openly accessible. Its strong-coupling tunnelling between six C2v wells (splitting ~16 cm⁻¹,
-  Grütter, Wörner & Merkt 2009) needs a large-amplitude well basis, not a truncated harmonic one.
+- **CH₄⁺ rovibronic spectrum: done.** The six-well T₂ geometric-phase tunneling ⊗ rotation model
+  is built by symmetry and fitted to the measured PFI-ZEKE lines of CH₄⁺, ¹³CH₄⁺ and CD₄⁺ (Wörner,
+  Qian & Merkt 2007, PDF supplied by the user). The rms (0.94, 0.94, 0.27 cm⁻¹) and constants match
+  the published fits. Two CD₄⁺ table labels were found inconsistent (N⁺ 2 → 3). Tunneling–rotation
+  coupling was tested and rejected out of sample. See `docs/case_studies/methane_cation.md`.
 - **Real CH₄ lines** (no rotational catalogue; HITRAN needs an account).
 - **Symbolic LM training:** more real case studies are needed before learned weights beat the
   physical prior out of sample.

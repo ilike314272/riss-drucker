@@ -1,0 +1,87 @@
+{
+ "CH4+": {
+  "well_representation": {
+   "F1": 1,
+   "F2": 1
+  },
+  "dictionary_operators": 2,
+  "molien_certificate": true,
+  "certificates_passed": true,
+  "sigma_from_delta_16": -4.0,
+  "levels": {
+   "F1": -8.0,
+   "F2": 8.0
+  },
+  "splitting": 16.0,
+  "splitting_over_sigma": 4.0
+ },
+ "CH2D2+": {
+  "well_orbits": [
+   [
+    1
+   ],
+   [
+    2
+   ],
+   [
+    3,
+    4,
+    5,
+    6
+   ]
+  ],
+  "dictionary_operators": 8,
+  "certificates_passed": true,
+  "levels_J0": [
+   [
+    0.0,
+    "B1"
+   ],
+   [
+    120.19999999999999,
+    "A1"
+   ],
+   [
+    123.59999999999994,
+    "B2"
+   ],
+   [
+    123.60000000000002,
+    "B1"
+   ],
+   [
+    127.0,
+    "A2"
+   ],
+   [
+    243.20000000000005,
+    "B2"
+   ]
+  ],
+  "four_well_isomer": [
+   [
+    120.19999999999999,
+    "A1"
+   ],
+   [
+    123.59999999999994,
+    "B2"
+   ],
+   [
+    123.60000000000002,
+    "B1"
+   ],
+   [
+    127.0,
+    "A2"
+   ]
+  ],
+  "published_pattern": {
+   "A1": 120.19999999999999,
+   "B": 123.6,
+   "A2": 127.0
+  },
+  "pattern_reproduced": true,
+  "ratio_sigma_CH4_over_CH2D2": 2.3529411764705883
+ }
+}

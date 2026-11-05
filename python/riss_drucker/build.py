@@ -88,6 +88,18 @@ class TorsionSpace:
 
 
 @dataclass
+class WellSpace:
+    """Localized minima ("wells") of a large-amplitude / Jahn-Teller problem. Each well carries an
+    adiabatic electronic function given as a vector in the carrier space of `irrep`; the group
+    permutes the wells with signs (rho(g) v_n = s v_m), which encodes the geometric phase."""
+    name: str
+    irrep: str
+    vectors: list
+    geometric_phase: bool = True     # False: wells permuted without signs (phase-free model)
+    kind: str = "well"
+
+
+@dataclass
 class OscSpace:
     name: str
     nmax: int
@@ -95,7 +107,7 @@ class OscSpace:
 
 
 _SPACE_TYPES = {"vib": VibSpace, "rot": RotSpace, "spin": SpinSpace, "elec": ElecSpace, "torsion": TorsionSpace,
-                "osc": OscSpace}
+                "osc": OscSpace, "well": WellSpace}
 
 
 def _space_dict(s) -> dict:
@@ -385,6 +397,54 @@ class _Osc(_Space):
         return float(sum(float(s) ** v for v in range(self.n + 1)))
 
 
+class _Well(_Space):
+    kind = "well"
+
+    def __init__(self, group, decl: WellSpace):
+        self.g, self.name = group, decl.name
+        V = np.array(decl.vectors, float)
+        V = V / np.linalg.norm(V, axis=1, keepdims=True)
+        self.n = len(V)
+        self.perm, self.sign = [], []
+        for gi in range(group.order):
+            rho = np.real(group.rep(decl.irrep)[gi])
+            pm, sg = [], []
+            for v in V:
+                w = rho @ v
+                d = V @ w
+                m = int(np.argmax(np.abs(d)))
+                if abs(abs(d[m]) - 1) > 1e-6:
+                    raise SymmetryError(f"well vectors are not permuted by {decl.irrep} (element {gi})")
+                pm.append(m)
+                sg.append(float(np.sign(d[m])) if decl.geometric_phase else 1.0)
+            self.perm.append(pm)
+            self.sign.append(sg)
+
+    def owns(self, atom):
+        return atom[0] == "w"
+
+    def dim(self, tj):
+        return self.n
+
+    def labels(self, tj):
+        return [f"well={k + 1}" for k in range(self.n)]
+
+    def atom(self, a, tj):
+        M = sp.lil_matrix((self.n, self.n), dtype=complex)
+        M[a[1] - 1, a[2] - 1] = 1.0
+        return M.tocsr()
+
+    def U(self, gi, tj):
+        return sp.csr_matrix((np.array(self.sign[gi], complex), (self.perm[gi], np.arange(self.n))),
+                             shape=(self.n, self.n))
+
+    def theta(self, tj):
+        return sp.identity(self.n, dtype=complex, format="csr")
+
+    def char(self, gi, tj, sector=None):
+        return float(sum(s for k, (m, s) in enumerate(zip(self.perm[gi], self.sign[gi])) if m == k))
+
+
 def _sym_power_columns(rho: np.ndarray, n: int, basis: list[tuple]) -> np.ndarray:
     """Matrix of Sym^n(rho) on orthonormal occupation states |nu> = prod (a_c^+)^nu_c / sqrt(nu_c!) |0>,
     with a_c^+ -> sum_c' rho_c'c a_c'^+."""
@@ -545,7 +605,7 @@ class _Vib(_Space):
 
 # ---- grammar --------------------------------------------------------------------------------
 
-_TOK = re.compile(r"\s*(sym\(|h\.c\.|e\[[^\]]*\]|Pe\[[^\]]*\]|(?:cos|sin)\d+(?:\.\d+)?\[\w+\]|[pq]\[\w+\]|"
+_TOK = re.compile(r"\s*(sym\(|h\.c\.|w\[\d+,\d+\]|e\[[^\]]*\]|Pe\[[^\]]*\]|(?:cos|sin)\d+(?:\.\d+)?\[\w+\]|[pq]\[\w+\]|"
                   r"[JSN][xyz2]|a\d+[a-z]?\+?|[qp]\d+[a-z]?|n\d+|\d+\.\d*(?:[eE][-+]?\d+)?|\d+(?:[eE][-+]?\d+)?|"
                   r"I|i|[()*+\-/])")
 
@@ -579,8 +639,8 @@ def poly_mul(a: dict, b: dict) -> dict:
 def dagger_atom(a):
     if a[0] == "b":
         return ("b", "a" if a[1] == "c" else "c", a[2], a[3])
-    if a[0] == "e":
-        return ("e", a[2], a[1])
+    if a[0] in ("e", "w"):
+        return (a[0], a[2], a[1])
     return a
 
 
@@ -633,6 +693,7 @@ class Context:
         self.rot = any(s.kind == "rot" for s in spaces)
         self.spin = any(s.kind == "spin" for s in spaces)
         self.elec = next((s for s in spaces if s.kind == "elec"), None)
+        self.well = next((s for s in spaces if s.kind == "well"), None)
         self.coords = {s.name: s.kind for s in spaces if s.kind in ("torsion", "osc")}
         self.mode_irrep = {m.name: m.irrep for m in self.vib.modes} if self.vib else {}
         self._act = {}
@@ -671,6 +732,10 @@ class Context:
                     v = r1[i1, c1] * np.conj(r2[i2, c2])
                     if abs(v) > 1e-14:
                         out.append((("e", l1, l2), v))
+        elif t == "w":
+            wl = self.well
+            i, j = atom[1] - 1, atom[2] - 1
+            out = [(("w", wl.perm[gi][i] + 1, wl.perm[gi][j] + 1), wl.sign[gi][i] * wl.sign[gi][j])]
         elif t == "f":
             _, fn, k, name = atom
             s, c = el.coord(name)
@@ -701,14 +766,14 @@ class Context:
                 seg = segs[si]
                 if seg[0][0] == "b":
                     parts.append(_normal_order_bosons(tuple(seg)))
-                elif seg[0][0] == "e":
+                elif seg[0][0] in ("e", "w"):
                     cur = seg[0]
                     ok = True
                     for nx in seg[1:]:
                         if cur[2] != nx[1]:
                             ok = False
                             break
-                        cur = ("e", cur[1], nx[2])
+                        cur = (cur[0], cur[1], nx[2])
                     parts.append({(cur,): 1.0} if ok else {})
                 else:
                     parts.append({tuple(seg): 1.0})
@@ -868,6 +933,13 @@ class Parser:
                 if x not in ctx.elec.index:
                     raise GrammarError(f"unknown electronic component {x!r} (have {ctx.elec.comps})")
             return {(("e", a, b),): 1.0}
+        if t.startswith("w["):
+            if ctx.well is None:
+                raise GrammarError(f"{t}: no well space")
+            i, j = (int(x) for x in t[2:-1].split(","))
+            if not (1 <= i <= ctx.well.n and 1 <= j <= ctx.well.n):
+                raise GrammarError(f"{t}: wells are 1..{ctx.well.n}")
+            return {(("w", i, j),): 1.0}
         if t.startswith("Pe["):
             st = t[3:-1].strip()
             labs = [l for l in ctx.elec.comps if ctx.elec.state_of[l][0] == st] if ctx.elec else []
@@ -952,8 +1024,10 @@ def runtime_spaces(spec: BuildSpec, group: Group) -> list:
             out.append(_Torsion(group, d))
         elif d.kind == "osc":
             out.append(_Osc(group, d))
+        elif d.kind == "well":
+            out.append(_Well(group, d))
     kinds = [s.kind for s in out]
-    for k in ("rot", "spin", "elec", "vib"):
+    for k in ("rot", "spin", "elec", "vib", "well"):
         if kinds.count(k) > 1:
             raise GrammarError(f"at most one {k} space")
     return out
@@ -1320,6 +1394,8 @@ def _basic_atoms(ctx, s):
         return [("p", s.name)] + [("f", fn, k, s.name) for k in ks for fn in ("cos", "sin")]
     if s.kind == "osc":
         return [("q", s.name), ("p", s.name)]
+    if s.kind == "well":
+        return [("w", i + 1, j + 1) for i in range(s.n) for j in range(s.n)]
     return []
 
 

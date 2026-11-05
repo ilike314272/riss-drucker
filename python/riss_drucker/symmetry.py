@@ -354,6 +354,22 @@ class Group:
                 return abs(chi[i] + chi[0]) < 1e-6
         return False
 
+    def subgroup(self, keep, name: str, names: dict | None = None) -> "Group":
+        """Subgroup of the elements with keep(element) true (e.g. the symmetry of an isotopologue).
+        The parent's irrep matrices restricted to it are kept as `restricted[parent_irrep]`
+        (usable by spaces declared with the parent's irrep names)."""
+        els = [g for g in self.elements if keep(g)]
+        sub = Group(name, els[1:] if len(els) > 1 else [], double=self.double, periods=self.periods,
+                    names=names or {})
+        sub.restricted = {nm: [rep[self.find(g)] for g in sub.elements] for nm, rep in self.irreps.items()}
+        return sub
+
+    def rep(self, name: str):
+        """Irrep matrices by name, falling back to restricted parent irreps."""
+        if name in self.irreps:
+            return self.irreps[name]
+        return getattr(self, "restricted", {})[name]
+
     # -- character algebra ---------------------------------------------------------------
     def physical(self, name: str) -> bool:
         """Invariant under the gauge subgroup (character = dim on every gauge element)."""
