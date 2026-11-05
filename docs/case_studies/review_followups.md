@@ -25,9 +25,9 @@ python scripts/review_followups.py all --data DATA_DIR --pdf JCP_126_144305.pdf
 | 4 | Correlated inputs fitted as independent | Valid | Not yet changed |
 | 5 | "Full rank" is not identifiability | Valid | K-stack hold-out added for CH3D; the H2CO Ka split is not done yet |
 | 6 | CH₄⁺ statistics overstated | **Confirmed** | Per-isotopologue σ estimated (CH₄⁺ ≈ 1.1 cm⁻¹, not 0.5). The frame-rotation claim is rewritten as "suggestive for CH₄⁺, no evidence for CD₄⁺". |
-| 7 | δ not tested against its sensitivity | Confirmed | Uncertainty budget below |
+| 7 | δ not tested against its sensitivity | Confirmed | Uncertainty budget below: the measured δ lies inside it |
 | 8 | Docs and verifier drifted | Confirmed | cc-pVTZ first-principles values recorded and checked; stale tables replaced; the verifier is described as a reproducibility check |
-| 9 | Claude evidence thin, first-principles scoring circular | **Confirmed by the live run** | Dictionary baseline and hidden-truth synthetic molecule added (below); the circularity is documented |
+| 9 | Claude evidence thin, first-principles scoring circular | **Confirmed**: the plain dictionary matches or beats Claude | Dictionary baseline and hidden-truth synthetic molecule added (below); the circularity is documented |
 | 10 | H2O2 headline omits the ZPE row | Valid | Headline now quotes both: 0.15–1.6% without ZPE, 0.5–2.0% with it (splitting 10.0 vs 11.4) |
 | 11 | H2S solver tuned on its own data | Valid | Not yet changed |
 | 12 | Error prior may be biased | Valid | Not yet changed |
@@ -92,20 +92,55 @@ motivated Coriolis term generalizes better for CH₄⁺; the richer models do no
 
 ## 7. Uncertainty budget for δ
 
-See `review_followups_results.md` (section 5) for the full table. Each variant changes one input
-and recomputes the converged reaction-plane splitting:
-- the CCSD(T) correction ×0 and ×2 (it is applied along the path only);
-- the zero-point energy of the remaining modes ×0.9 and ×1.1;
-- the harmonic valley instead of the ab initio plane;
-- the basis set.
+Each row changes one input and recomputes the converged reaction-plane splitting (cm⁻¹,
+CH₄⁺ / CD₄⁺). Measured: 16.4–17.1 / 1.4–1.74.
 
-UHF ⟨S²⟩ at the minimum and saddle measures spin contamination.
+| Variant | cc-pVDZ | cc-pVTZ |
+|---|---|---|
+| Base (ab initio plane, CCSD(T) correction along the path) | 13.4 / 1.00 | 13.1 / 0.92 |
+| CCSD(T) correction ×0 (pure MP2) | 11.1 / 0.78 | 10.0 / 0.63 |
+| CCSD(T) correction ×2 | 16.3 / 1.32 | 17.5 / 1.38 |
+| ZPE of the remaining modes ×0.9 | 12.5 / 0.94 | 12.1 / 0.85 |
+| ZPE of the remaining modes ×1.1 | 14.4 / 1.07 | 14.3 / 0.99 |
+| Harmonic valley instead of the ab initio plane | 9.1 / 0.87 | 8.3 / 0.72 |
+
+- **The measurement is inside the budget.** The largest single uncertainty is the CCSD(T)
+  correction, which is applied along the path only. Its plausible range alone moves δ(CH₄⁺) from
+  10 to 17.5 cm⁻¹. "80% of the measured δ" is therefore within the method's uncertainty, neither a
+  confirmed success nor a confirmed shortfall.
+- **The next calculation is clear:** coupled-cluster energies on (part of) the plane, so the
+  correction is computed rather than assumed constant across the valley.
+- **Spin contamination is negligible:** UHF ⟨S²⟩ = 0.756 at the minimum and 0.758 at the saddle
+  (pure doublet 0.75).
 
 ## 9. Baselines
 
-See `review_followups_results.md` (section 3). On CH₄⁺, every symmetry-allowed first- and
-second-order rotation–tunneling operator is tried, singly and by greedy forward selection to four
-extra terms. They are scored exactly like Claude's proposals, against experiment and against the
-first-principles levels. The hidden-truth synthetic molecule is water with three undisclosed
-quartic/sextic terms and 10⁻⁵ cm⁻¹ noise, fitted to J ≤ 6 and scored on J = 7–9. Claude cannot
-have read the answer to it.
+**CH₄⁺, the operator dictionary without a language model**, scored exactly like Claude's proposals.
+The candidates are 3 first-order and 8 second-order symmetry-allowed rotation–tunneling
+operators; two duplicate the rotor and are rejected by the compiler.
+
+| Scoring | Reference | Dictionary, greedy 1 → 4 terms | Claude's proposals |
+|---|---|---|---|
+| Against experiment (mean leave-one-position-out rms, cm⁻¹) | 0.91 | 0.83 → 0.78 → **0.68** → 0.68 | 0.72 (Coriolis term), 0.73 (four couplings) |
+| Against first-principles levels (mean predicted rms, N⁺ > 5) | 0.70 | 0.44 → 0.31 → 0.15 → **0.15** | 0.35 (four couplings), 0.53 (Coriolis); 0.0002 when the frame-rotation operator from the prompt was written out |
+
+- **The plain dictionary matches or beats Claude in both modes.** Claude's proposals were
+  physically reasoned and certified, but on these data they are not better than a systematic
+  search.
+- **Claude only wins outright by copying the generating operator,** which is circular.
+- **The strongest point in Claude's favour is the harder split:** the Coriolis term is the one
+  proposal that improves leave-one-N⁺-group-out prediction for CH₄⁺ (1.70 vs 2.43 cm⁻¹). The
+  dictionary models have not been run through that split yet.
+
+**Hidden-truth synthetic molecule** (water-like asymmetric top; hidden terms `sym(JxJxJyJy)`,
+`sym(JyJyJyJy)`, `sym(JxJxJxJxJzJz)`; noise 10⁻⁵ cm⁻¹; fit J ≤ 6, score J = 7–9):
+
+| Model | Predicted rms (J = 7–9), cm⁻¹ |
+|---|---|
+| Reference (rigid rotor plan) | 0.76 |
+| True model | 3.9×10⁻⁵ |
+| Dictionary greedy, 4 steps | 6.0×10⁻⁵: recovers all three hidden terms plus one spurious one; its first pick was wrong |
+| Claude | not run here: `review_followups.py baselines --llm --model opus` on the WSL machine |
+
+This is the test that can show whether Claude adds anything beyond the dictionary: it cannot have
+read the answer, and the bar is set.
