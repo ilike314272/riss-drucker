@@ -50,6 +50,8 @@ set(RD_CORE_SOURCES
   src/models/torsion_rotor.cpp
   src/angular.cpp
   src/models/asym_rotor.cpp
+  src/models/open_rotor.cpp
+  src/models/lam.cpp
 )
 add_library(riss_drucker_core STATIC ${RD_CORE_SOURCES})
 add_library(riss_drucker::core ALIAS riss_drucker_core)

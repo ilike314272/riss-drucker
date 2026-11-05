@@ -241,14 +241,61 @@ compile, 2j ≤ 8 in tests) and 6j orthogonality (tests). Bound 1e-13.
   unless `allow_ehamil_derived=True`.
 - **Network inversion:** weights 1/σ². Each component is anchored at the given level
   (MARVEL ground state at 0) or, if none is given, at its first level; such energies are
-  reported as floating. Transitions with \|normalized residual\| > 5 get their σ inflated
-  ×10 and the solve repeats until stable. A level with one transition is unconfirmed.
+  reported as floating.
+  - *Outlier detection:* Huber IRLS on capped precision, σ_eff = max(σ, median σ).
+  - *Clean solves:* full-precision solves on the clean set, re-judging every line against
+    \|r\|/σ > 5 (worst first; lines that fit again are un-flagged).
+  - Lines with a negative wavenumber in a MARVEL file are MARVEL deletions and are ignored.
+  - A level with one clean transition is unconfirmed. A level reachable only through flagged
+    lines keeps its robust estimate, marked `isolated_by_outliers`, with no uncertainty.
+  - Outlier indices refer to the caller's input list.
+- **Octic Watson terms:** + sign for all octic terms, like the sextic terms
+  (`models/asym_rotor.hpp`).
+- **Order continuation and the robust-fit guard:** fit high orders by continuation
+  (`fit_by_order`). `fit_robust` warns, and is not `trustworthy`, if its starting fit did
+  not converge or if the outlier fraction is > 0.25.
 - **Round trip:** a constants record is validated when its constants reproduce the
   paper's lines/levels with rms ≤ 2 × (paper rms, or median reference σ) and no
   residual > 5 × that scale. Otherwise it is quarantined with the reason. The paper's
   sign and name conventions are mapped through `convention.name_map`.
 
-## 14. Physics conventions
+## 14. Open-shell rotor (fixed in M8 work)
+
+- **Basis:** at fixed J the Hund's case (a) product |J P⟩|S Σ⟩ (P, Σ are molecule-fixed
+  projections), which is complete: (2J+1)(2S+1) = Σ_N (2N+1). The molecule-fixed J
+  obeys anomalous commutation and is represented as (J_x, −J_y, J_z) of the normal
+  matrices. S is normal. N = J − S (anomalous). All operators are real in this basis
+  (certificate `reality`).
+- **Operators** (cm⁻¹, see `models/open_rotor.hpp`):
+  - rotor A N_a² + B N_b² + C N_c²;
+  - spin-rotation ε_αα N_α S_α (diagonal tensor);
+  - spin-spin D_ss (S_z² − S²/3) + E_ss (S_x² − S_y²) in representation axes;
+  - Watson A quartic distortion of N;
+  - Brown-Sears Δ_N^S N²(N·S);
+  - spin-spin distortion ½{N², S_z² − S²/3}.
+- **Linear Σ limit:** B = C with A large; ε = γ; D_ss = 2λ; Δ_N^S = γ_D; D_ss_N = 2λ_D.
+- **Half-integer J:** a doubled 2J, so odd 2S gives the Kramers / GSE class. The spec's
+  group chain records the double group (`D2^(2)`).
+- **Compile certificates:** Hermiticity; reality; N² eigenvalues N(N+1) with multiplicity
+  2N+1; N·S eigenvalues equal both the 6j-based value and (J(J+1) − N(N+1) − S(S+1))/2.
+- **Labels** (`riss_drucker.open_shell.assign`): N from ⟨N²⟩, Ka from ⟨N_a²⟩. F_i is
+  numbered from the largest J for given N (F₁: J = N + S). `purity` reports N mixing.
+
+## 15. Large-amplitude motion models (fixed in M8 work)
+
+- **Inversion (`inversion`):** H = G p² + V₂x² + V₄x⁴ + V₆x⁶ in a dimensionless coordinate
+  x, plus symmetric-top rotation B(J(J+1) − K²) + C K², plus inversion-rotation coupling
+  Bx2·x²(J(J+1) − K²) + Cx2·x²K².
+  - Basis: harmonic-oscillator functions of q = x/basis_scale. Polynomial operators are
+    built in a basis 8 functions larger, then truncated, so the matrix elements are exact.
+  - Blocks: (J, K ≥ 0, parity `+`/`−`). K > 0 levels are doubly degenerate (±K).
+- **RAM torsion (`ram_torsion`):** H = A J_a² + B J_b² + C J_c² + D_ab(J_aJ_b + J_bJ_a) + F p²
+  + D_pa p J_a + Σ_L V_L(1 − cos Lγ)/2 in |J K⟩|m⟩, with blocks (J, σ = m mod n).
+  - Gauge: F(p − ρJ_a)² ⇒ D_pa = −2Fρ, and A absorbs Fρ².
+  - With B = C and D_ab = 0 it reproduces `torsion_rotor` exactly. With ρ = 0 and V = 0 it
+    equals the principal-axis rotor + F m².
+
+## 16. Physics conventions
 
 | Item | Status | Milestone |
 |---|---|---|
@@ -262,3 +309,172 @@ compile, 2j ≤ 8 in tests) and 6j orthogonality (tests). Bound 1e-13.
 | Exact angular algebra: in-house C++ (benchmark above) | fixed | M2 |
 | Isoscalar-factor multiplicity labels (gauge): construction and ordering | *open* | M8 |
 | Uncertainty convention: 1σ internally; 2σ sources converted at ingestion | proposed | M4 |
+
+## 17. Effective vibrational Hamiltonians and ML interfaces (fixed in M7 infrastructure work)
+
+- **Terms are text, never matrices.** A term is `"<param>: <expr>"` in the grammar of
+  `rd.grammar`. `n<mode>` is Σ_c a†_c a_c over the mode's components (without the ½).
+  Ladder operators act on harmonic-oscillator states, with ⟨n+1|a†|n⟩ = √(n+1). The
+  coefficient multiplies the operator exactly as written, so `k: a1+ a2 a2 + h.c.` has
+  ⟨0,2|H|1,0⟩ = √2·k.
+- **Canonical form.** Normal ordered (creators to the left), with sorted factors and the
+  largest coefficient scaled to +1. The canonical string is hashed (SHA-256).
+  Two terms with the same hash in one spec are a compile error ("same operator").
+- **`sym(...)`** is the group average (1/|G|) Σ_g g·O. If it vanishes, the term is rejected,
+  never silently dropped.
+- **Degenerate components** use Cartesian real bases: F2 is (x, y, z) and transforms as
+  (x, y, z) under Td's signed permutations. E is ((2z² − x² − y²)/√6, (x² − y²)/√2) for
+  components (x, y). C2v irreps are A1, A2, B1, B2, with B1 symmetric under σ(xz).
+- **Polyads.** P = Σ w_i n_i, with the weights set per mode. Blocks are labelled `irrep=P=<p>`.
+  A term that changes P is a compile error.
+- **Proposers** return a list of term strings. Lines that do not parse are dropped by the
+  proposer. Terms that parse but fail a certificate raise `GrammarError` at compile time.
+- **Datasets:** an `npz` shard per `shard_size` samples plus `manifest.json` (canonical spec,
+  prior, feature definitions, seed, block keys, library version and commit). Level features are the lowest `n_levels` eigenvalues per
+  block, in block order. Moment features are [center, halfwidth, μ_0 … μ_{N−1}] per block,
+  with the KPM moments normalized by the dimension (exact) or by R·dim (stochastic).
+- **Point sets** (`pointset/1` JSON): energies in hartree as computed. Conversion to cm⁻¹
+  uses `HARTREE_TO_CM` = 219474.6313705 at ingestion.
+
+## 18. Dynamic builder, symmetry groups and algebraic certificates (fixed in M7/M8 work)
+
+**Groups (`rd.symmetry`).** A group is the closure of its generators. Each element carries an
+equivalent rotation R (proper), its SU(2) lift u, a parity (−1 for E* type), a permutation of
+identical nuclei and an affine action γ → sγ + c on each large-amplitude coordinate.
+- Operator action: g·J_a = Σ_b R_ba J_b, g·a_c = Σ_c' ρ(g)_c'c a_c', g·f(γ) = f(sγ + c). Hence
+  R(gh) = R(g)R(h), ρ(gh) = ρ(g)ρ(h), and h_gh = h_h ∘ h_g for coordinate maps.
+- Point groups are given by point operations O. Then R = det(O)·O, parity = det(O), and the
+  vector irrep (F2 in Td, E in C3v) is O itself.
+- Irreps come from decomposing the regular representation with a random commutant element,
+  split over ℂ when the real piece is not absolutely irreducible. They are named from a stored
+  character table on the generators; unnamed ones get G<d>_<k>, spinor ones S<d>_<k>.
+- Integer results (multiplicities, Frobenius-Schur indicators, spin weights) are rounded from
+  floats. A non-integer is an error.
+- Double groups (`double=True`) put the SU(2) lift in the element identity. They are needed
+  whenever one space has half-integer angular momentum, even if the product is single valued.
+- Gauge elements (generator flag `gauge=True`) are redundancies of the coordinates, not
+  symmetries. Only irreps trivial on the gauge subgroup are physical blocks.
+  - H₂O₂ example: the frame is z = O1→O2 and x = the bisector of the OH projections, with the
+    torsion t the full HOOH dihedral on [0, 4π). The gauge element (t → t + 2π, C2z) makes
+    K-odd states use antiperiodic torsional functions.
+  - In G8(H2O2), swap = C2x with t → t, and E* = C2y with t → −t.
+
+**Spaces and bases (`rd.build`).**
+- **Rotation:** |J k⟩, k = −J..J ascending. J_mf = (Jx, −Jy, Jz) of the standard matrices
+  (anomalous, section 14). U(g) = D^J(c u c†) with c the lift of C2y, so that
+  U J_mf,a U† = Σ_b R_ba J_mf,b.
+- **Spin:** |S s⟩ with standard matrices; U = D^S(u).
+- **Electronic:** components `<state><x|y|z>` with U = ρ_Γ(g).
+- **Vibrational:** occupation states over Cartesian components. U on n quanta is Sym^n(ρ).
+  Truncation is by polyad P = Σ w n (conserved, blocks) or by total quanta (`nmax`).
+- **Torsion:** e^{i(m/κ)γ}, |m| ≤ m_max (in units of 1/κ), κ = 1 for period 2π and 2 for 4π.
+  U|m⟩ = e^{i(m/κ)c}|sm⟩.
+- **Oscillator coordinate:** HO basis; U|n⟩ = sⁿ|n⟩.
+- **Kronecker order:** rotation first, then spin, then the declared order.
+
+**Time reversal.** Θ = U_Θ K with U_Θ = exp(iπJ_y) and exp(iπS_y) on the rotation and spin
+spaces, |m⟩ → |−m⟩ on torsion, and identity elsewhere. Θ includes the space-fixed π rotation,
+so Θ² = +1 whenever rotation is present: blocks are real. A spin space without a rotation space
+is refused.
+
+**Compilation and certificates.** Terms are canonicalized before checking: cross-space atoms
+commute, bosons are normal ordered, and electronic products are reduced. A term must pass
+- Hermiticity, Θ-evenness and symmetry under every generator (symbolic, then again on the
+  matrices at every J);
+- polyad conservation;
+- independence of all term matrices over the compiled blocks.
+
+Per J and polyad sector:
+- the product-space character must reproduce the sector dimension;
+- the projected dimension of each irrep must equal its character count;
+- the Θ-fixed real basis must have the block dimension;
+- block matrices must be real;
+- U must implement the grammar's group action on every atom and form a homomorphism;
+- Θ must act on the atoms with the stated parities.
+
+Complex-type irreps are blocked as Γ+Γ* (real, separably degenerate). Quaternionic irreps with
+Θ² = +1 are refused. Block keys: `J2=<2J>|irrep=<Γ>|...|sub=P=<p>`.
+
+**Operator dictionary and Molien counts (`rd.algebra`).**
+- A multidegree gives, per space:
+  - boson degree n;
+  - J degree n;
+  - torsion (k in units of 1/κ, p power m);
+  - oscillator degree;
+  - finite spaces (spin, electronic) in full.
+- The leading symbol is the commutative image on infinite spaces and the exact matrix on
+  finite spaces. The dictionary keeps a maximal independent set of symbols of
+  sym(word) + h.c. and sym(i·word) + h.c.
+- Its size must equal (D ± T)/2. Here D = 1/|G| Σ_g Π χ_s(g) and T = 1/|G| Σ_g Π τ_s(g), where
+  τ_s is the trace of (†∘Θ)∘g. The sign is + for time-reversal-even terms (Hamiltonian) and −
+  for odd ones (generators K, with S = iK). The per-space traces are:
+
+| Space | χ_s | τ_s |
+|---|---|---|
+| bosons | [z⁰] h_n over c and a weighted z^{±w} | h_{n/2}(λ²) for even n |
+| J | h_n(R) | (−1)ⁿ h_n(R) |
+| spin | \|χ^S\|² | (−1)^{2S} χ^S(u²) |
+| electronic | \|χ_el\|² | χ_el(g²) |
+| torsion | (1+s) cos(kc) sᵐ, or sᵐ for k = 0 | (−1)ᵐ χ |
+| oscillator | (n+1)sⁿ | sⁿ for even n |
+
+**Redundancy.**
+- The test is dim(span{O_k} ∩ span{[S_j, H₀]}) at the current parameters. Generators K have
+  the requested degrees. H₀ defaults to the terms with at most two atoms per word, at their
+  current values.
+- The intersection uses floating-point ranks with relative tolerance 10⁻⁹, order by order:
+  linearized, not a closed-form normal form.
+- Fisher rank ≤ n_terms − redundant is a result certificate.
+
+**Reaction-path Hamiltonian (`rd.abinitio.rph`).**
+- The generalized inertia tensor is built from the body-frame coordinates r(γ) on the
+  extended path, with Fourier fits of order K in γ/2.
+- H = ½ Σ π_i G_ij π_j + V' + V + ΔZPE, with ħ²/(amu Å²) = 33.7152583 cm⁻¹.
+- V' = ħ²[−(G_tt L)'/8 + G_tt L²/32], L = (ln det I)'. This is the exact Podolsky
+  pseudopotential for a single internal coordinate; the J–p cross terms reduce to
+  J_a{G_at, p}/2.
+- Each coefficient function is expanded only in the Fourier functions for which the term is
+  invariant; the compiler's own symmetry test decides which.
+- ΔZPE comes from Hessians projected on translations, rotations and the path tangent.
+- Angles are the actual dihedral of each relaxed geometry, not the scan label.
+
+## 19. Kramers blocks, catalogues, molecule front end, symbolic LM (fixed in M9 work)
+
+- **Kramers systems.** If Θ² = −1 on the product space (an odd number of electrons and no
+  rotation space), blocks are complex Hermitian.
+  - In the partner-1 irrep basis W, a block A is stored as the real symmetric
+    [[Re A, −Im A], [Im A, Re A]], so every level appears twice.
+  - `BuiltBlock.kramers` marks such blocks. `BuiltModel.eig` returns every second eigenvalue,
+    with complex vectors x + iy. `autobuild.observations_for` maps level index i to 2i in the
+    compiled model.
+  - Complex-type irreps are not paired with Γ* (Γ* is the Kramers partner, with the same levels).
+  - The block sub-label carries `kramers=1`.
+- **Vanishing operators.** If a term's matrix at a given J is below 10⁻¹⁰(1+2J)^order, the
+  relative matrix certificates are skipped at that J. The operator is identically zero there,
+  e.g. K±3 operators at J = 1.
+- **Certified rank.** The rank r counts singular values with s > 10⁻⁹ s₀. It is accepted only if
+  s_{r−1}/s_r ≥ 10⁴; otherwise GrammarError.
+- **SPCAT catalogues.** Fields: FREQ(13) ERR(8) LGINT(8) DR(2) ELO(10) GUP(3) TAG(7) QNFMT(4)
+  QN′ QN″. A negative TAG means a measured frequency; a negative ERR means cm⁻¹ units. Levels are
+  E″ and E″ + ν; levels reached several ways must agree (default 10⁻³ cm⁻¹), and the worst spread
+  is reported.
+- **Molecule frame.** COM at the origin, principal axes, z = unique axis (symmetric top) or a
+  (asymmetric and spherical tops), right-handed. Operations are identified by (perm, det);
+  O = Procrustes(X → X[perm]) with that det. The framework is symmetrized by
+  X ← mean_g O_gᵀ X[perm_g], four iterations; the shift is recorded as `symmetrized_shift_A`.
+- **Mulliken names.**
+  - Principal axis: the highest-order Cₙ; for cubic groups the C4 (or C2/S4) axis.
+  - Secondary: a C2 perpendicular to the principal axis that is not also a higher-order axis,
+    otherwise a σv. Subscript 1/2: for 1-D irreps + → 1; for degenerate irreps + → 2.
+  - Suffix g/u from i; otherwise ′/″ from σh.
+  - Eₖ from χ(Cₙ) = 2cos(2πk/n) for n ≥ 5. B1/B2/B3 by the kept C2 (z, y, x) in D2/D2h. Cubic
+    1-D irreps are always A.
+  - Collisions get `_k`.
+- **Group serialization.** `group_to_dict` stores the generators (R, parity, perm, coords,
+  gauge) and the names keyed by (dim, characters on the generators). `group_from_dict` rebuilds
+  the same names.
+- **Symbolic LM.** p = σ(w·f) over the features listed in `rd.symbolic_lm.FEATURES`.
+  - Detuning = |Σω(created) − Σω(annihilated)|/ω_min, capped at 3.
+  - Training: L2 logistic regression towards the physical prior (λ = 3), damped Newton.
+  - Shipping rule: learned weights replace the prior only if their mean leave-one-source-out AUC
+    is higher.

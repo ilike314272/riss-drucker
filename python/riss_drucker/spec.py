@@ -22,7 +22,7 @@ from . import _core
 OPERATOR_LIBRARY_VERSION = "1"
 CONVENTIONS = "docs/conventions.md (v1)"
 
-_KINDS = ("asym_rotor", "torsion_rotor")
+_KINDS = ("asym_rotor", "torsion_rotor", "open_rotor", "inversion", "ram_torsion", "built")
 
 
 def _canonical(obj: Any) -> Any:
@@ -67,6 +67,38 @@ class ModelSpec:
                                      "m_max": int(m_max), "j_max": int(j_max), "kp_coupling": bool(kp_coupling)},
                    group_chain=(f"C{int(n_fold)}v(M)",))
 
+    @classmethod
+    def open_rotor(cls, *, two_s: int, n_max: int, axis: str = "Ir", order: int = 4, spin_rotation: bool = True,
+                   spin_spin: bool = False) -> "ModelSpec":
+        """Open-shell asymmetric rotor, electron spin S = two_s / 2 (Kramers class for odd two_s)."""
+        return cls("open_rotor", {"two_s": int(two_s), "n_max": int(n_max), "axis": axis, "order": int(order),
+                                  "spin_rotation": bool(spin_rotation), "spin_spin": bool(spin_spin)},
+                   group_chain=("D2", "D2^(2)" if two_s % 2 else "D2"))
+
+    @classmethod
+    def inversion(cls, *, n_basis: int = 40, basis_scale: float = 1.0, potential_order: int = 4, j_max: int = 0,
+                  rotation_coupling: bool = False) -> "ModelSpec":
+        """LAM: inversion double well (+ symmetric-top rotation and coupling)."""
+        return cls("inversion", {"n_basis": int(n_basis), "basis_scale": float(basis_scale),
+                                 "potential_order": int(potential_order), "j_max": int(j_max),
+                                 "rotation_coupling": bool(rotation_coupling)}, group_chain=("D3h(M)",))
+
+    @classmethod
+    def ram_torsion(cls, *, n_fold: int = 3, v_orders=(1,), m_max: int = 15, j_max: int = 5, axis: str = "Ir",
+                    d_ab: bool = True) -> "ModelSpec":
+        """LAM: rho-axis internal rotation in an asymmetric rotor (full K mixing)."""
+        return cls("ram_torsion", {"n_fold": int(n_fold), "v_orders": sorted(set(int(v) for v in v_orders)),
+                                   "m_max": int(m_max), "j_max": int(j_max), "axis": axis, "d_ab": bool(d_ab)},
+                   group_chain=(f"G{2 * int(n_fold)}(M)",))
+
+    @classmethod
+    def built(cls, build_spec) -> "ModelSpec":
+        """A dynamically built model (rd.build.BuildSpec): spaces, group, grammar terms."""
+        d = build_spec.to_dict()
+        return cls("built", d, group_chain=(str(d["group"]),),
+                   electronic_states=tuple(sorted({str(st[0]) for sp in d["spaces"] if sp["kind"] == "elec"
+                                                   for st in sp["states"]})) or ("ground",))
+
     # -- canonical form and hash ---------------------------------------------
     def canonical(self) -> dict:
         return _canonical({
@@ -90,6 +122,9 @@ class ModelSpec:
 
     # -- compile -----------------------------------------------------------------
     def compile(self):
+        if self.kind == "built":
+            from .build import BuildSpec, compile_build
+            return compile_build(BuildSpec.from_dict(self.structure)).model
         if len(self.electronic_states) != 1:
             # TODO(riss-drucker-v1): multi-surface models (Phase B).
             raise NotImplementedError("multiple electronic states are a later phase")
@@ -98,5 +133,11 @@ class ModelSpec:
             return _core.compile_asym_rotor(j_min=s["j_min"], j_max=s["j_max"], reduction=s["reduction"],
                                             axis=s["axis"], order=s["order"],
                                             extra_operators=list(s["extra_operators"]))
+        if self.kind == "open_rotor":
+            return _core.compile_open_rotor(**s)
+        if self.kind == "inversion":
+            return _core.compile_inversion(**s)
+        if self.kind == "ram_torsion":
+            return _core.compile_ram_torsion(**{**s, "v_orders": list(s["v_orders"])})
         return _core.compile_torsion_rotor(n_fold=s["n_fold"], v_orders=list(s["v_orders"]),
                                            m_max=s["m_max"], j_max=s["j_max"], kp_coupling=s["kp_coupling"])

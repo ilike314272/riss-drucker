@@ -19,7 +19,7 @@ using Eigen::MatrixXd;
 struct JOps {  // dense operators on |J K>, K = -J..J (index K + J)
   int J;
   double j2;
-  MatrixXd Jz2, P2, P4, P6, Jx2, Jy2, X;  // X = Jx^2 - Jy^2 = P2 / 2
+  MatrixXd Jz2, P2, P4, P6, P8, Jx2, Jy2, X;  // X = Jx^2 - Jy^2 = P2 / 2
 };
 
 JOps make_jops(int J) {
@@ -37,6 +37,7 @@ JOps make_jops(int J) {
   o.P2 = Jp2 + Jm2;
   o.P4 = Jp2 * Jp2 + Jm2 * Jm2;
   o.P6 = Jp2 * Jp2 * Jp2 + Jm2 * Jm2 * Jm2;
+  o.P8 = Jp2 * Jp2 * Jp2 * Jp2 + Jm2 * Jm2 * Jm2 * Jm2;
   const MatrixXd I = MatrixXd::Identity(n, n);
   o.X = 0.5 * o.P2;
   o.Jx2 = 0.5 * (j2 * I - o.Jz2 + o.X);
@@ -97,6 +98,25 @@ std::vector<OpDef> operator_table(const AsymRotorSpec& s) {
       t.push_back({"h3", 6, [](const JOps& o) -> MatrixXd { return o.P6; }});
     }
   }
+  if (s.order >= 8) {
+    const bool A = s.reduction == "A";
+    t.push_back({"LJ", 8, [I](const JOps& o) -> MatrixXd { return std::pow(o.j2, 4) * I(o); }});
+    t.push_back({"LJJK", 8, [](const JOps& o) -> MatrixXd { return std::pow(o.j2, 3) * o.Jz2; }});
+    t.push_back({"LJK", 8, [](const JOps& o) -> MatrixXd { return o.j2 * o.j2 * o.Jz2 * o.Jz2; }});
+    t.push_back({"LKKJ", 8, [](const JOps& o) -> MatrixXd { return o.j2 * o.Jz2 * o.Jz2 * o.Jz2; }});
+    t.push_back({"LK", 8, [](const JOps& o) -> MatrixXd { return o.Jz2 * o.Jz2 * o.Jz2 * o.Jz2; }});
+    if (A) {
+      t.push_back({"lJ", 8, [](const JOps& o) -> MatrixXd { return 2.0 * std::pow(o.j2, 3) * o.X; }});
+      t.push_back({"lJK", 8, [](const JOps& o) -> MatrixXd { return o.j2 * o.j2 * anti(o.Jz2, o.X); }});
+      t.push_back({"lKJ", 8, [](const JOps& o) -> MatrixXd { return o.j2 * anti(o.Jz2 * o.Jz2, o.X); }});
+      t.push_back({"lK", 8, [](const JOps& o) -> MatrixXd { return anti(o.Jz2 * o.Jz2 * o.Jz2, o.X); }});
+    } else {
+      t.push_back({"l1", 8, [](const JOps& o) -> MatrixXd { return std::pow(o.j2, 3) * o.P2; }});
+      t.push_back({"l2", 8, [](const JOps& o) -> MatrixXd { return o.j2 * o.j2 * o.P4; }});
+      t.push_back({"l3", 8, [](const JOps& o) -> MatrixXd { return o.j2 * o.P6; }});
+      t.push_back({"l4", 8, [](const JOps& o) -> MatrixXd { return o.P8; }});
+    }
+  }
   for (const auto& e : s.extra_operators) {
     if (e == "J2") t.push_back({"J2", 2, [I](const JOps& o) -> MatrixXd { return o.j2 * I(o); }});
     else throw std::invalid_argument("asym_rotor: unknown extra operator '" + e + "' (known: J2)");
@@ -107,7 +127,8 @@ std::vector<OpDef> operator_table(const AsymRotorSpec& s) {
 void validate(const AsymRotorSpec& s) {
   if (s.j_min < 0 || s.j_max < s.j_min) throw std::invalid_argument("asym_rotor: need 0 <= j_min <= j_max");
   if (s.reduction != "A" && s.reduction != "S") throw std::invalid_argument("asym_rotor: reduction must be A or S");
-  if (s.order != 2 && s.order != 4 && s.order != 6) throw std::invalid_argument("asym_rotor: order must be 2, 4 or 6");
+  if (s.order != 2 && s.order != 4 && s.order != 6 && s.order != 8)
+    throw std::invalid_argument("asym_rotor: order must be 2, 4, 6 or 8");
 }
 
 // Wang basis: columns of U, grouped into blocks E+, E-, O+, O-.

@@ -121,3 +121,21 @@ def test_model_error_restores_coverage_under_misspecification():
     assert posterior.calibrate_model_error(m4, ok, TRUE, band_of=jpar)["model_error"] < 5e-5
     with pytest.raises(ValueError):
         rd.fit(m4, ok, TRUE, model_error=-1.0)
+
+
+def test_order_continuation_and_robust_guard():
+    """Cold high-order starts can fail (parameters span ~13 decades); continuation
+    from the lower-order solution converges, and fit_robust warns on a bad start."""
+    th = {**TRUE, "PhiJ": 1e-12, "PhiJK": 1e-10, "PhiKJ": -2e-9, "PhiK": 4e-8, "phiJ": 5e-13,
+          "phiJK": 5e-11, "phiK": 2e-9}
+    m6 = rd.compile_asym_rotor(j_max=20, order=6)
+    obs = rd.synth.synthesize_levels(m6, th, noise=1e-4, seed=11)
+    models = [rd.compile_asym_rotor(j_max=20, order=o) for o in (4, 6)]
+    r4, r6 = rd.fit_by_order(models, obs, {"A": 9.4, "B": 1.3, "C": 1.13})
+    assert r6.converged and r6.reduced_chi2 < 1.5 and r4.reduced_chi2 > r6.reduced_chi2
+    assert max(abs(r6.theta[n] - th[n]) / r6.sigma[n] for n in th) < 5
+    rob = rd.robust.fit_robust(m6, obs, r6.theta)
+    assert rob.trustworthy and rob.warnings == []
+    bad = rd.robust.fit_robust(m6, obs, {n: 0.0 for n in m6.param_names} | {"A": 9.0, "B": 1.0, "C": 1.0},
+                               max_iter=3)
+    assert not bad.trustworthy and bad.warnings

@@ -1,0 +1,155 @@
+{
+ "data": {
+  "lines": 203,
+  "levels": 230,
+  "combination_difference_max_spread_cm": 8.94360198344657e-05,
+  "jmax": 23,
+  "jfit": 12
+ },
+ "steps": [
+  {
+   "term": "d2: sym(Jx Jx Jx Jz) + h.c.",
+   "accepted": false,
+   "dlogZ": 0.0,
+   "reason": "removable by a contact transformation (no new identifiable direction)"
+  },
+  {
+   "term": "d6: sym(Jx Jx Jx Jx Jx Jz) + h.c.",
+   "accepted": false,
+   "dlogZ": 0.0,
+   "reason": "removable by a contact transformation (no new identifiable direction)"
+  },
+  {
+   "term": "d9: sym(Jx Jx Jx Jz Jz Jz) + h.c.",
+   "accepted": false,
+   "dlogZ": 0.0,
+   "reason": "removable by a contact transformation (no new identifiable direction)"
+  },
+  {
+   "term": "d10: sym(Jx Jx Jz Jz Jz Jz) + h.c.",
+   "accepted": true,
+   "dlogZ": 1821019004.1606538,
+   "reason": "accepted on evidence"
+  },
+  {
+   "term": "d1: sym(Jx Jx Jx Jx) + h.c.",
+   "accepted": true,
+   "dlogZ": 1097043688.9895835,
+   "reason": "accepted on evidence"
+  },
+  {
+   "term": "d7: sym(Jx Jx Jx Jx Jz Jz) + h.c.",
+   "accepted": true,
+   "dlogZ": 187434972.6976236,
+   "reason": "accepted on evidence"
+  },
+  {
+   "term": "d3: sym(Jz Jz Jz Jz) + h.c.",
+   "accepted": true,
+   "dlogZ": 289226842.4158001,
+   "reason": "accepted on evidence"
+  },
+  {
+   "term": "d2: sym(Jx Jx Jz Jz) + h.c.",
+   "accepted": true,
+   "dlogZ": 66863807.708986655,
+   "reason": "accepted on evidence"
+  },
+  {
+   "term": "d6: sym(Jz Jz Jz Jz Jz Jz) + h.c.",
+   "accepted": true,
+   "dlogZ": 7008.900678931275,
+   "reason": "accepted on evidence"
+  },
+  {
+   "term": "x1: sym(Jx Jx Jx Jx Jx Jx) + h.c.",
+   "accepted": true,
+   "dlogZ": 416.12908948817187,
+   "reason": "accepted on evidence"
+  },
+  {
+   "term": "x2: sym(Jx Jx Jx Jx Jy Jy) + h.c.",
+   "accepted": true,
+   "dlogZ": 150.14777997805234,
+   "reason": "accepted on evidence"
+  }
+ ],
+ "final_terms": [
+  "c1: sym(Jx Jx) + h.c.",
+  "c2: sym(Jz Jz) + h.c.",
+  "d10: sym(Jx Jx Jz Jz Jz Jz) + h.c.",
+  "d1: sym(Jx Jx Jx Jx) + h.c.",
+  "d7: sym(Jx Jx Jx Jx Jz Jz) + h.c.",
+  "d3: sym(Jz Jz Jz Jz) + h.c.",
+  "d2: sym(Jx Jx Jz Jz) + h.c.",
+  "d6: sym(Jz Jz Jz Jz Jz Jz) + h.c.",
+  "x1: sym(Jx Jx Jx Jx Jx Jx) + h.c.",
+  "x2: sym(Jx Jx Jx Jx Jy Jy) + h.c."
+ ],
+ "theta": {
+  "c1": 3.880158637499945,
+  "c2": 2.625436460482325,
+  "d10": 2.1078700946483162e-08,
+  "d1": -7.016917477365723e-05,
+  "d7": 2.1302746444083993e-08,
+  "d3": -5.017281812262302e-05,
+  "d2": -0.00023161759919024298,
+  "d6": 4.089183888777251e-09,
+  "x1": 1.7044053354707924e-09,
+  "x2": 2.541884903906111e-09
+ },
+ "sigma": {
+  "c1": 4.534766280868411e-07,
+  "c2": 4.000883776806109e-07,
+  "d10": 1.538041426570883e-10,
+  "d1": 1.1648642307184281e-08,
+  "d7": 1.713499010810522e-10,
+  "d3": 7.914498061406731e-09,
+  "d2": 2.0361416362386516e-08,
+  "d6": 3.7913094552058296e-11,
+  "x1": 5.91429466040796e-11,
+  "x2": 1.3857143958337867e-10
+ },
+ "fit": {
+  "n": 101,
+  "chi2_per_dof": 0.4627761515538387,
+  "rms_cm": 1.8833258004783524e-05
+ },
+ "extrapolation": {
+  "n": 129,
+  "rms_cm": 0.0011545961528119926,
+  "max_abs_cm": 0.003944545242575259,
+  "worst": [
+   [
+    "J=23 K=0",
+    0.003944545242575259
+   ],
+   [
+    "J=20 K=15",
+    -0.0036423410108454846
+   ],
+   [
+    "J=23 K=-3",
+    0.003458739801772026
+   ],
+   [
+    "J=22 K=0",
+    0.003157048949105956
+   ],
+   [
+    "J=22 K=1",
+    0.003111550316134526
+   ],
+   [
+    "J=22 K=2",
+    0.0028141192085513467
+   ]
+  ]
+ },
+ "certificates_passed": true,
+ "redundancy": {
+  "n_terms": 10,
+  "redundant": 0,
+  "identifiable_max": 10
+ }
+}

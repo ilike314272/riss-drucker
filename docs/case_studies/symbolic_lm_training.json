@@ -1,0 +1,60 @@
+{
+ "n_records": 97,
+ "by_source": {
+  "ch3d_real": {
+   "n": 11,
+   "accepted": 8
+  },
+  "darling_dennison": {
+   "n": 66,
+   "accepted": 3
+  },
+  "fermi": {
+   "n": 4,
+   "accepted": 2
+  },
+  "rotor": {
+   "n": 16,
+   "accepted": 6
+  }
+ },
+ "leave_one_source_out_auc": {
+  "ch3d_real": {
+   "trained": 1.0,
+   "prior_only": 0.7916666666666666
+  },
+  "darling_dennison": {
+   "trained": 0.6428571428571429,
+   "prior_only": 0.6481481481481481
+  },
+  "fermi": {
+   "trained": 0.875,
+   "prior_only": 0.875
+  },
+  "rotor": {
+   "trained": 0.26666666666666666,
+   "prior_only": 0.7333333333333333
+  }
+ },
+ "weights": {
+  "bias": 0.2674370242709635,
+  "order": -0.6461776968769748,
+  "vib": 0.2520176335771917,
+  "rot": -0.2981953304541609,
+  "spin": 0.0,
+  "elec_offdiag": 0.3,
+  "n_modes": -0.13283389241754087,
+  "resonance": 0.6979978847856643,
+  "detuning": -1.4885754067129764,
+  "rot_vib": -0.2,
+  "k_mixing": -0.4527256595271617,
+  "imag": -0.2,
+  "rot_diag": 0.6054264355072758,
+  "vib_diag": 0.4167383635051893
+ },
+ "mean_auc": {
+  "trained": 0.6961309523809524,
+  "prior_only": 0.7620370370370371
+ },
+ "decision": "keep the physical prior (trained weights do not beat it out of sample)"
+}

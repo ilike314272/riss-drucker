@@ -6,9 +6,12 @@ the JSON) or from an explicit `fields` list. Always present: id, E, gtot, J.
 .trans files are streamed with filters (intensity cutoff, J range, band), since
 they can hold billions of transitions.
 
-NOTE: this container could not reach exomol.com; the readers are tested on
-files written in the documented format, not on downloaded files. Check the
-def.json key layout against a real file before relying on automatic fields.
+Checked against a real file (H2CO AYTY, version 20230430): def.json lists
+fields under dataset/states/states_file_fields with names "ID", "E", "gtot",
+"J", "unc", "tau", ..., and recent lists carry "Auxiliary:SourceType"
+(Ma = MARVEL, Ca = calculated, EH = effective Hamiltonian, IE = isotopologue
+extrapolation) and "Auxiliary:Ecal" (calculated energy). The first four
+columns are always exposed under the canonical names i, E, g_tot, J as well.
 """
 from __future__ import annotations
 
@@ -56,13 +59,19 @@ def read_def(path) -> dict:
 
 
 DEFAULT_FIELDS = ["i", "E", "g_tot", "J"]
+CANONICAL = ("i", "E", "g_tot", "J")
 
 
 def read_states(path, fields: Sequence[str] | None = None, *, j_max: float | None = None,
-                e_max: float | None = None) -> dict:
-    """Return {field: array} (numeric where possible) for states passing the filters."""
+                e_max: float | None = None, keep: Callable[[list[str]], bool] | None = None) -> dict:
+    """Return {field: array} for states passing the filters.
+
+    Columns keep their def.json names; the first four are also available as
+    i, E, g_tot, J. `keep(tokens)` is a fast row predicate on the raw string
+    tokens (e.g. select one vibrational state) applied before conversion.
+    """
     names = list(fields) if fields else None
-    cols: dict[str, list] = {}
+    rows: list[list[str]] = []
     with _open(path) as fh:
         for line in fh:
             tok = line.split()
@@ -70,27 +79,26 @@ def read_states(path, fields: Sequence[str] | None = None, *, j_max: float | Non
                 continue
             if names is None:
                 names = DEFAULT_FIELDS + [f"qn{k}" for k in range(len(tok) - 4)]
-                cols = {n: [] for n in names}
-            if not cols:
-                cols = {n: [] for n in names}
             if len(tok) < len(names):
                 raise ValueError(f"{path}: line has {len(tok)} columns, def lists {len(names)}: {line[:80]}")
-            E, J = float(tok[1]), float(tok[3])
-            if (j_max is not None and J > j_max) or (e_max is not None and E > e_max):
+            if j_max is not None and float(tok[3]) > j_max:
                 continue
-            for n, t in zip(names, tok):
-                cols[n].append(t)
+            if e_max is not None and float(tok[1]) > e_max:
+                continue
+            if keep is not None and not keep(tok):
+                continue
+            rows.append(tok[: len(names)])
     out = {}
-    for n, v in cols.items():
+    cols = list(zip(*rows)) if rows else [[] for _ in names]
+    for n, v in zip(names, cols):
         try:
-            arr = np.array(v, dtype=float)
-            if n in ("i", "g_tot") or (arr.size and np.all(arr == np.round(arr)) and n == "i"):
-                arr = arr.astype(np.int64)
-            out[n] = arr
+            out[n] = np.array(v, dtype=float)
         except ValueError:
             out[n] = np.array(v, dtype=object)
-    if "i" in out:
-        out["i"] = out["i"].astype(np.int64)
+    for canon, n in zip(CANONICAL, names[:4]):
+        out[canon] = out[n]
+    out["i"] = np.asarray(out["i"], dtype=float).astype(np.int64)
+    out["g_tot"] = np.asarray(out["g_tot"], dtype=float)
     return out
 
 

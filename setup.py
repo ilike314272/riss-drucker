@@ -67,7 +67,7 @@ if _schema_src.is_dir():
 
 setup(
     version=VERSION,
-    packages=["riss_drucker", "riss_drucker.data"],
+    packages=["riss_drucker", "riss_drucker.data", "riss_drucker.ml", "riss_drucker.abinitio"],
     package_dir={"": "python"},
     package_data={"riss_drucker": ["schemas/*.json"]},
     ext_modules=[CMakeExtension("riss_drucker._core")],
