@@ -104,7 +104,9 @@ def claude_cli_complete(system: str, model=None, timeout=1800, budget_left=None)
             data = {}
         complete.last_usage = {"cost_usd": data.get("total_cost_usd"),
                                "input_tokens": (data.get("usage") or {}).get("input_tokens"),
-                               "output_tokens": (data.get("usage") or {}).get("output_tokens")}
+                               "output_tokens": (data.get("usage") or {}).get("output_tokens"),
+                               "models_served": sorted((data.get("modelUsage") or {}).keys()) or None,
+                               "model_requested": model}
         if out.returncode or data.get("is_error") or "result" not in data:
             msg = (f"claude -p failed (exit {out.returncode}): {data.get('result') or data.get('subtype') or ''} "
                    f"{out.stderr[-2000:]} {out.stdout[-500:] if not data else ''}")
@@ -268,7 +270,8 @@ def run_loop(adapter, make_live, *, rounds=4, transcript="transcript.json", max_
             usage["tokens"] += (u.get("input_tokens") or 0) + (u.get("output_tokens") or 0)
         rec = {"round": k + 1, "response": text, "seconds": round(time.time() - t0, 1), "usage": u}
         log(f"answer received after {rec['seconds']:.0f} s" + (f" (reported usage ${u['cost_usd']:.2f})"
-                                                               if u.get("cost_usd") else ""), 2)
+                                                               if u.get("cost_usd") else "")
+            + (f" from {', '.join(u['models_served'])}" if u.get("models_served") else ""), 2)
         try:
             prop = parse_answer(text)
             log("proposal:", 2)

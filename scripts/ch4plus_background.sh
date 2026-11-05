@@ -4,7 +4,7 @@
 # stage is cached), and refuses to start twice.
 #
 #   scripts/ch4plus_background.sh start --pdf PAPER.pdf [--basis cc-pvtz] [--workers 5] [--threads 4]
-#                                       [--llm] [--rounds 4] [--budget 2] [--commit]
+#                                       [--llm] [--model opus] [--rounds 4] [--budget 2] [--commit]
 #   scripts/ch4plus_background.sh status     # current step, elapsed time, last log lines, alive?
 #   scripts/ch4plus_background.sh log        # follow the log (Ctrl-C stops following, not the run)
 #   scripts/ch4plus_background.sh stop       # stop the run (cached stages are kept; 'start' resumes)
@@ -27,7 +27,7 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 RUNS="$REPO/runs"
 CMD=${1:-status}; shift || true
 
-PDF=""; BASIS="cc-pvtz"; WORKERS=5; THREADS=4; LLM=0; ROUNDS=4; BUDGET=2; COMMIT=0
+PDF=""; BASIS="cc-pvtz"; WORKERS=5; THREADS=4; LLM=0; ROUNDS=4; BUDGET=2; COMMIT=0; MODEL=""
 while [[ $# -gt 0 ]]; do
   case $1 in
     --pdf) PDF=$(readlink -f "$2"); shift 2;;
@@ -35,6 +35,7 @@ while [[ $# -gt 0 ]]; do
     --workers) WORKERS=$2; shift 2;;
     --threads) THREADS=$2; shift 2;;
     --llm) LLM=1; shift;;
+    --model) MODEL=$2; shift 2;;
     --rounds) ROUNDS=$2; shift 2;;
     --budget) BUDGET=$2; shift 2;;
     --commit) COMMIT=1; shift;;
@@ -56,8 +57,8 @@ start)
   if alive; then echo "already running (pid $(cat "$PIDF")); see: $0 status"; exit 1; fi
   command -v pdftotext >/dev/null || { echo "pdftotext missing: sudo dnf install -y poppler-utils"; exit 1; }
   if [[ $LLM == 1 ]]; then command -v claude >/dev/null || { echo "claude missing (curl -fsSL https://claude.ai/install.sh | bash) or drop --llm"; exit 1; }; fi
-  printf 'PDF=%q\nBASIS=%q\nWORKERS=%q\nTHREADS=%q\nLLM=%q\nROUNDS=%q\nBUDGET=%q\nCOMMIT=%q\nPY=%q\n' \
-    "$PDF" "$BASIS" "$WORKERS" "$THREADS" "$LLM" "$ROUNDS" "$BUDGET" "$COMMIT" "$PY" > "$CONF"
+  printf 'PDF=%q\nBASIS=%q\nWORKERS=%q\nTHREADS=%q\nLLM=%q\nROUNDS=%q\nBUDGET=%q\nCOMMIT=%q\nPY=%q\nMODEL=%q\n' \
+    "$PDF" "$BASIS" "$WORKERS" "$THREADS" "$LLM" "$ROUNDS" "$BUDGET" "$COMMIT" "$PY" "$MODEL" > "$CONF"
   setsid nohup bash "$0" _run --basis "$BASIS" >> "$LOG" 2>&1 < /dev/null &
   echo $! > "$PIDF"
   sleep 1
@@ -89,7 +90,7 @@ _run)
   step() { echo "$(date '+%F %T') step $1: $2 (elapsed $(( ($(date +%s) - T0) / 60 )) min)" | tee -a "$STATUS"; }
   fail() { echo "$(date '+%F %T') FAILED at step $1 (see $LOG); fix and run 'start' again to resume" | tee -a "$STATUS"; exit 1; }
   : > "$STATUS"
-  echo "==== $(date '+%F %T') run start: basis $BASIS, workers $WORKERS x $THREADS threads, llm $LLM"
+  echo "==== $(date '+%F %T') run start: basis $BASIS, workers $WORKERS x $THREADS threads, llm $LLM ${MODEL:+(model $MODEL)}"
 
   step 0 "python environment"
   if ! "$PY" -c "import riss_drucker.abinitio.firstprinciples, riss_drucker.llm_loop, riss_drucker.molecule" 2>/dev/null; then
@@ -121,6 +122,7 @@ _run)
     step 5 "Claude builds the effective Hamiltonian against the first-principles levels"
     TR="docs/case_studies/ch4plus_llm_fp_transcript_$LABEL.json"
     RES=(); [[ -f "$TR" ]] && { cp "$TR" "$RUN/transcript_prev.json"; RES=(--resume "$RUN/transcript_prev.json"); }
+    [[ -n "${MODEL:-}" ]] && RES+=(--model "$MODEL")
     "$PY" scripts/llm_build_ch4plus.py --abinitio "$DATA" --pdf "$PDF" --target firstprinciples --fp "$FP" \
         --llm claude-cli --rounds "$ROUNDS" --max-budget-usd "$BUDGET" "${RES[@]}" --transcript "$TR" \
         --out "docs/case_studies/ch4plus_llm_fp_model_$LABEL.json" || fail 5
