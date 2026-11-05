@@ -383,15 +383,81 @@ network, language model) only suggests.
   certificate makes such a miscount impossible. Dyad 2, pentad 9, octad 24 and pentakisdecad 134
   come from the same decomposition.
 
-**Open:**
-- learned proposers trained on real spectra (needs the gold set);
-- Td rovibrational dyad/pentad fits to real CH₄ lines;
-- PI groups for more LAM molecules;
-- spin-orbit (double-group electronic states) for CH₄⁺ X²T₂;
-- exact rational ranks for the redundancy analysis (currently floating point with a stated
-  tolerance).
+**Gaps filled after the first builder release**
+- **Real-data case studies:**
+  - CH₃D from the JPL catalogue (`docs/case_studies/ch3d.md`): the C3v model is grown by
+    `autobuild`, fitted to J ≤ 12 and extrapolated to J ≤ 23 at 1.2×10⁻³ cm⁻¹.
+  - H₂O₂ torsion–rotation K structure against 101 JPL levels, including the Ka dependence of the
+    torsional splitting (`docs/case_studies/h2o2_abinitio.md`).
+- **Certified ranks:** `algebra.certified_rank` accepts a rank only with a singular-value gap
+  ≥ 10⁴ at the cut; otherwise it refuses. The redundancy analysis reports the smallest gap it
+  relied on.
+- **Kramers systems:** odd-electron models without rotation (Θ² = −1) compile to complex blocks
+  stored realified. Each level appears twice, and `eig` and `observations_for` de-duplicate.
+  Spin-orbit in a ²T₂ state gives G3/2 and E5/2 split by 3ζ/2. The CH₄⁺ T₂⊗(e+t₂) dictionary with
+  spin has 7 linear couplings (2 spin-free + 5 spin-orbit-vibronic), certified by characters.
+- **Proposer training on case studies:** `rd.symbolic_lm` (see the next section).
 
-## M8 open-shell and LAM models ✅ (pulled forward); remaining M8 ○
+**Still open:**
+- **CH₄⁺ real data.** The full level list (Wörner et al., J. Chem. Phys. 126, 144305, 2007) is not
+  openly accessible. Its strong-coupling tunnelling between six C2v wells (splitting ~16 cm⁻¹,
+  Grütter, Wörner & Merkt 2009) needs a large-amplitude well basis, not a truncated harmonic one.
+- **Real CH₄ lines** (no rotational catalogue; HITRAN needs an account).
+- **Symbolic LM training:** more real case studies are needed before learned weights beat the
+  physical prior out of sample.
+
+## M9 Any molecule: front end and symbolic language model ✅
+
+`rd.molecule.Molecule.from_xyz(text, charge=, multiplicity=, electronic_irrep=)`
+- **Geometry:** principal-axis frame (z = unique axis of a symmetric top, z = a otherwise),
+  rotational constants and rotor type.
+- **Point group:**
+  - candidate axes and planes are tested on the nuclear framework;
+  - operations are identified exactly by (nuclear permutation, determinant) and refined by
+    orthogonal Procrustes;
+  - the framework is symmetrized by a Reynolds average over the operations, so the group algebra
+    is exact;
+  - the Schoenflies name comes from the classical decision tree;
+  - the group itself, with nuclear permutations, is built from the detected operations, in the
+    molecule's own frame. Irreps get Mulliken-style names (A/B/E/F, 1/2, g/u, ′/″; E1/E2 from
+    the character on Cₙ; B1/B2/B3 in D2 and D2h). Spinor irreps keep S-names.
+- **Representations:** Γ_vib from characters (no Hessian needed); nuclear-spin statistics;
+  Jahn-Teller-active modes for a degenerate electronic state.
+- **Optional:** PySCF harmonic frequencies, assigned to irreps by projecting the normal modes.
+- **`plan()`:** a certified zeroth-order BuildSpec with rotation, vibrational modes (polyad
+  weights from frequency ratios), spin and electronic spaces. Initial rotational coefficients are
+  a symbolic least-squares fit of A_xJ_x² + A_yJ_y² + A_zJ_z² onto the dictionary operators.
+  Harmonic terms are included when frequencies are known.
+- **`run(mol, data)`:** with data, `autobuild` driven by the symbolic language model; without
+  data, the zeroth-order levels.
+- **CLI:** `scripts/run_molecule.py`.
+
+`rd.symbolic_lm.SymbolicLM`: a symbolic, log-linear generative model over grammar terms.
+- **Features:** per-space orders, modes involved, resonance character and harmonic detuning,
+  rotation–vibration mixing, K mixing, spin, and electronic off-diagonal character.
+- **Generation:** candidates come from the certified dictionary and are ranked. Residual
+  diagnostics re-weight them: J-growth favours rotational orders, polyad-localized residuals
+  favour resonances.
+- **Training:** `records_from_model` and `fit`, run by `scripts/train_symbolic_lm.py` on CH₃D
+  (real) plus synthetic rotor, Fermi and Darling-Dennison problems, 97 records in all.
+  - Leave-one-source-out AUC: trained 0.70, physical prior 0.76. So the shipped default is the
+    prior. The script writes learned weights only when they beat the prior out of sample.
+  - Report: `docs/case_studies/symbolic_lm_training.json`.
+
+**Evidence** (`tests/python/test_molecule_slm.py`)
+- **Point groups:** C2v, C3v, Td, D6h, D3h and D∞h detected. Γ_vib is correct for H₂O, NH₃, CH₄
+  and benzene (the textbook 2A1g + A2g + 2B2g + E1g + 4E2g + A2u + 2B1u + 2B2u + 3E1u + 2E2u).
+  Spin weights: CH₄ 5/5/2/3/3, H₂O 1:3.
+- **Rigid rotor from geometry:** the plan's levels equal the C++ rotor with the geometric
+  constants, to 10⁻⁸.
+- **Detected group serialization:** round trip with identical hash and irrep names.
+- **Open shell:** a doublet D3h radical compiles with half-integer J and the double group.
+- **Symbolic LM:** prefers near-resonant over detuned terms.
+- **`run()` with data:** grows the plan to χ²/dof < 3 on synthetic data.
+- **Water end to end** (PySCF HF/6-31G): the plan compiles 26 certified blocks. The LM's first
+  proposals are the α-type vibration–rotation terms.
+
+## M8 open-shell and LAM models ✅ (pulled forward); spin-orbit/Kramers ✅; remaining M8 ○
 
 **What exists**
 - `open_rotor` (C++): asymmetric rotor + electron spin S. Spin-rotation, spin-spin, Watson

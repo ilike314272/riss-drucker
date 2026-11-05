@@ -36,15 +36,17 @@ class LevelDatum:
 
 
 def observations_for(bm: BuiltModel, data: list[LevelDatum]) -> list[Observation]:
-    keys = {}
+    keys, kram = {}, {}
     for b, blk in zip(bm.model.blocks, bm.blocks):
         keys[(blk.two_j, blk.irrep, blk.polyad)] = b["key"]
+        kram[b["key"]] = blk.kramers
     out = []
     for d in data:
         k = keys.get((round(2 * d.J), d.irrep, d.polyad))
         if k is None:
             raise GrammarError(f"no block for J={d.J} {d.irrep} P={d.polyad}")
-        out.append(Observation(k, int(d.index), float(d.energy), float(d.sigma), label=d.label))
+        idx = 2 * int(d.index) if kram[k] else int(d.index)     # realified Kramers blocks double each level
+        out.append(Observation(k, idx, float(d.energy), float(d.sigma), label=d.label))
     return out
 
 

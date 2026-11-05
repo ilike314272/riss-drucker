@@ -127,7 +127,8 @@ class BuildSpec:
     name: str = "built"
 
     def to_dict(self) -> dict:
-        return {"model": "built", "name": self.name, "group": self.group,
+        return {"model": "built", "name": self.name,
+                "group": self.group if isinstance(self.group, str) else group_to_dict(self.group),
                 "spaces": [_space_dict(s) for s in self.spaces], "terms": list(self.terms),
                 "J": [float(j) for j in self.J], "max_order": self.max_order}
 
@@ -136,11 +137,34 @@ class BuildSpec:
 
     @classmethod
     def from_dict(cls, d: dict) -> "BuildSpec":
-        return cls([_space_from_dict(s) for s in d["spaces"]], d["group"], list(d["terms"]),
+        grp = d["group"] if isinstance(d["group"], str) else group_from_dict(d["group"])
+        return cls([_space_from_dict(s) for s in d["spaces"]], grp, list(d["terms"]),
                    [j if j % 1 else int(j) for j in d["J"]], d.get("max_order", 10), d.get("name", "built"))
 
     def with_terms(self, terms) -> "BuildSpec":
         return BuildSpec(self.spaces, self.group, list(terms), self.J, self.max_order, self.name)
+
+
+def group_to_dict(g: Group) -> dict:
+    """Serializable description: generators and irrep names keyed by characters on them."""
+    gi = [g.find(x) for x in g.generators]
+    def c(z):
+        return [round(float(np.real(z)), 10), round(float(np.imag(z)), 10)]
+    return {"name": g.name, "double": g.double, "periods": g.periods,
+            "generators": [{"R": np.round(x.R, 12).tolist(), "parity": x.parity, "perm": list(x.perm),
+                            "coords": [list(t) for t in x.coords], "gauge": x.gauge} for x in g.generators],
+            "names": {nm: [round(float(np.real(ch[0]))), [c(ch[i]) for i in gi]] for nm, ch in g.chars.items()}}
+
+
+def group_from_dict(d: dict) -> Group:
+    from .symmetry import Element, su2_lift
+    gens = []
+    for x in d["generators"]:
+        R = np.array(x["R"], float)
+        gens.append(Element(R, su2_lift(R), int(x["parity"]), tuple(x["perm"]),
+                            tuple((t[0], int(t[1]), float(t[2])) for t in x["coords"]), bool(x["gauge"])))
+    names = {nm: (dim, [complex(a, b) for a, b in ch]) for nm, (dim, ch) in d["names"].items()}
+    return Group(d["name"], gens, double=d["double"], periods=d.get("periods") or {}, names=names)
 
 
 # ---- runtime spaces ------------------------------------------------------------------------
@@ -1015,6 +1039,7 @@ class BuiltBlock:
     polyad: int | None
     W: np.ndarray            # columns: real (time-reversal-fixed) basis in the full product basis
     labels: list
+    kramers: bool = False    # Theta^2 = -1: complex block stored realified [[Re, -Im], [Im, Re]]
 
 
 class BuiltModel:
@@ -1040,8 +1065,13 @@ class BuiltModel:
     def eig(self, theta):
         """Dense eigen-decomposition of every block: list of (energies, vectors in block basis)."""
         out = []
-        for H in self.block_matrices(theta):
+        for blk, H in zip(self.blocks, self.block_matrices(theta)):
             w, v = np.linalg.eigh((H + H.T) / 2)
+            if blk.kramers:          # each level appears twice in the realified block
+                n = v.shape[0] // 2
+                w = w[::2]
+                v = v[:n, ::2] + 1j * v[n:, ::2]
+                v = v / np.linalg.norm(v, axis=0)
             out.append((w, v))
         return out
 
@@ -1080,8 +1110,7 @@ def compile_build(spec: BuildSpec, *, check_reps: bool = True, seed: int = 7) ->
         raise GrammarError("duplicate parameter names")
     has_rot = ctx.rot
     Js = [round(2 * j) for j in spec.J] if has_rot else [0]
-    if not has_rot and ctx.spin:
-        raise GrammarError("a spin space needs a rotation space (molecule-fixed time reversal)")
+    # odd-electron systems without rotation have Theta^2 = -1: complex Kramers blocks, stored realified
     certs = []
 
     def require(name, ok, value, bound, detail):
@@ -1116,9 +1145,11 @@ def compile_build(spec: BuildSpec, *, check_reps: bool = True, seed: int = 7) ->
         # Theta commutes with the group
         dmax = max((_fro(TH @ Us[gi].conj() - Us[gi] @ TH) for gi in gen_idx), default=0.0)
         require(f"theta_commutes_J2={tj}", dmax < 1e-8, dmax, 1e-8, "time reversal commutes with every generator")
-        th2 = _fro(TH @ TH.conj() - sp.identity(ops.N, format="csr"))
-        require(f"theta_squared_J2={tj}", th2 < 1e-8, th2, 1e-8,
-                "molecule-fixed time reversal squares to +1 (real block matrices)")
+        th2p = _fro(TH @ TH.conj() - sp.identity(ops.N, format="csr"))
+        th2m = _fro(TH @ TH.conj() + sp.identity(ops.N, format="csr"))
+        kramers = th2m < 1e-8
+        require(f"theta_squared_J2={tj}", min(th2p, th2m) < 1e-8, min(th2p, th2m), 1e-8,
+                "time reversal squares to +1 (real blocks) or -1 (Kramers: complex blocks, realified)")
         for t, M in zip(terms, mats):
             if _fro(M) < 1e-10 * (1 + tj) ** t.order:
                 continue          # the operator vanishes at this J (e.g. a K+-3 term at J = 1)
@@ -1157,9 +1188,11 @@ def compile_build(spec: BuildSpec, *, check_reps: bool = True, seed: int = 7) ->
                 if n == 0 or gname in done:
                     continue
                 fs = group.frobenius_schur(gname)
-                if fs == -1:
+                if fs == -1 and not kramers:
                     raise GrammarError(f"quaternionic irrep {gname} with Theta^2=+1 is not supported")
-                partners = [gname] if fs == 1 else [gname, group.conjugate(gname)]
+                partners = [gname] if (fs == 1 or kramers) else [gname, group.conjugate(gname)]
+                if kramers and fs == 0:
+                    done.add(group.conjugate(gname))     # Gamma* is the Kramers partner: same levels
                 done.update(partners)
                 Bs = []
                 for pi, pn in enumerate(partners):
@@ -1180,6 +1213,21 @@ def compile_build(spec: BuildSpec, *, check_reps: bool = True, seed: int = 7) ->
                 B = np.hstack(Bs)
                 Bf = np.zeros((ops.N, B.shape[1]), complex)
                 Bf[idx] = B
+                if kramers:
+                    W = Bf
+                    block_ops = []
+                    for M in mats:
+                        A = W.conj().T @ (M @ W)
+                        A = (A + A.conj().T) / 2
+                        R = np.block([[A.real, -A.imag], [A.imag, A.real]])
+                        block_ops.append(_dense_to_csr(R))
+                    lab = [labels_all[int(np.argmax(np.abs(W[:, k])))] for k in range(W.shape[1])]
+                    lab = lab + [x + " (Im)" for x in lab]
+                    blocks_out.append({"two_j": tj, "irrep": gname, "spin_species": "", "electronic_state": 0,
+                                       "sub": ("" if P is None else f"P={P};") + "kramers=1", "basis_labels": lab, "ops": block_ops})
+                    built_blocks.append(BuiltBlock(tj, gname, P, W, lab[:W.shape[1]], kramers=True))
+                    counts.append({"two_j": tj, "polyad": P, "irrep": gname, "count": int(W.shape[1])})
+                    continue
                 TB = TH @ Bf.conj()
                 C = np.hstack([Bf + TB, 1j * (Bf - TB)])
                 G = (C.conj().T @ C).real

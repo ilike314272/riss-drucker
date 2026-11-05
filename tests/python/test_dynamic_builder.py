@@ -337,3 +337,23 @@ def test_reaction_path_hamiltonian_rigid_limit():
     assert max(info["symmetry_violation_G"].values()) < 1e-10
     bm = B.compile_build(spec)
     assert all(c["passed"] for c in bm.certificates)
+
+
+def test_certified_rank_and_spin_orbit_kramers_blocks():
+    assert A.certified_rank(np.diag([1.0, 1.0, 1e-14]))[0] == 2
+    with pytest.raises(GrammarError, match="not certifiable"):
+        A.certified_rank(np.diag([1.0, 1e-7, 1e-10]), tol=1e-9)
+    # 2T2 + spin-orbit (no rotation: Theta^2 = -1): G3/2 (4) and E5/2 (2) split by 3/2 zeta
+    sp = [B.ElecSpace([("1", "F2")]), B.SpinSpace(1)]
+    so = "so: i*(e[1y,1z] - e[1z,1y]) Sx + i*(e[1z,1x] - e[1x,1z]) Sy + i*(e[1x,1y] - e[1y,1x]) Sz"
+    bm = B.compile_build(B.BuildSpec(sp, "Td", ["E0: Pe[1]", so]))
+    lev = {b.irrep: w for b, (w, _) in zip(bm.blocks, bm.eig({"E0": 0.0, "so": 2.0}))}
+    assert all(b.kramers for b in bm.blocks)
+    assert lev["E5/2"][0] - lev["G3/2"][0] == pytest.approx(3.0, abs=1e-10)
+    # CH4+ type vibronic model: T2 x (e + t2) Jahn-Teller with spin-orbit compiles and certifies
+    sp2 = [B.ElecSpace([("1", "F2")]), B.SpinSpace(1), B.VibSpace([B.Mode("2", "E"), B.Mode("4", "F2")], nmax=2)]
+    lin = A.enumerate_terms(B.BuildSpec(sp2, "Td", []), [(("spin",), ("elec",), ("vib", 1))]).terms
+    bm2 = B.compile_build(B.BuildSpec(sp2, "Td", ["w2: n2", "w4: n4", so] + lin))
+    # 7 linear couplings, certified by the character count: 2 spin-free JT + 5 spin-orbit-vibronic
+    assert all(c["passed"] for c in bm2.certificates) and len(lin) == 7
+    assert sum("S" not in t.split(":", 1)[1] for t in lin) == 2

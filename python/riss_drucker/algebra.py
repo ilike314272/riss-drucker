@@ -409,11 +409,12 @@ def redundancy(bm: BuiltModel, theta, generator_degrees: list, *, h0: list | Non
         C.append(np.concatenate(cols))
     C = np.array(C).T if C else np.zeros((O.shape[0], 0))
 
+    gaps = []
+
     def rank(A):
-        if A.size == 0:
-            return 0
-        s = np.linalg.svd(A, compute_uv=False)
-        return int(np.sum(s > tol * max(s[0], 1e-300)))
+        r, gap = certified_rank(A, tol)
+        gaps.append(gap)
+        return r
     rO, rC, rOC = rank(O), rank(C), rank(np.hstack([O, C])) if C.size else rank(O)
     inter = rO + rC - rOC
     directions = []
@@ -427,7 +428,26 @@ def redundancy(bm: BuiltModel, theta, generator_degrees: list, *, h0: list | Non
                 a = a / np.max(np.abs(a))
                 directions.append({n: float(x) for n, x in zip(bm.param_names, a) if abs(x) > 1e-6})
     return {"n_terms": len(bm.param_names), "n_generators": len(gens), "redundant": int(inter),
-            "identifiable_max": int(rO - inter), "operator_rank": rO, "h0": list(h0), "directions": directions, "generators": gens}
+            "identifiable_max": int(rO - inter), "operator_rank": rO, "h0": list(h0),
+            "min_rank_gap": float(min(gaps)) if gaps else float("inf"), "directions": directions, "generators": gens}
+
+
+def certified_rank(A, tol: float = 1e-9, min_gap: float = 1e4):
+    """Numerical rank with a certificate: the singular values must show a gap of at least
+    `min_gap` at the cut (relative tolerance `tol`), otherwise the rank is not decidable in
+    floating point and GrammarError is raised. Returns (rank, gap)."""
+    if A.size == 0:
+        return 0, float("inf")
+    s = np.linalg.svd(np.asarray(A), compute_uv=False)
+    if s[0] == 0:
+        return 0, float("inf")
+    r = int(np.sum(s > tol * s[0]))
+    if r == len(s):
+        return r, float("inf")
+    gap = float(s[r - 1] / max(s[r], 1e-300)) if r > 0 else float(s[0] / max(s[0], 1e-300))
+    if r > 0 and gap < min_gap:
+        raise GrammarError(f"rank not certifiable: singular-value gap {gap:.1e} < {min_gap:.0e} at rank {r}")
+    return r, gap
 
 
 def _op_dense(bm, b, k):

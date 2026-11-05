@@ -90,12 +90,46 @@ cos 3γ coefficients) against Hunt's five transitions (σ = 0.5 cm⁻¹).
 - **Leave-one-out:** each level predicted from the other four lands within 2.6 cm⁻¹: 11.98, 257.17,
   369.90, 569.85, 776.00 against 11.4, 254.6, 370.9, 569.5, 775.9.
 
+## Torsion–rotation structure vs the JPL catalogue
+
+The catalogue is JPL tag 034004 (Petkie et al., J. Mol. Spectrosc. 171, 145 (1995); Camy-Peyret et
+al. (1992)). It yields 5,667 levels from 38,357 lines, with combination differences consistent to
+1×10⁻⁴ cm⁻¹. Run with `scripts/case_h2o2_rph.py --jpl c034004.cat`.
+
+The comparison covers 101 n = 0 levels with J ≤ 8 and Ka ≤ 3, both torsional components
+(catalogue v = 0 and 3). Assignment is by quantum number: Ka from ⟨J_z²⟩, the torsional component
+from energy order within each (J, Ka), and Kc by prolate ordering.
+
+- **Pure ab initio prediction** (dynamic model with ZPE, no spectroscopic input): 1.30 cm⁻¹ rms.
+  By Ka: 0.90, 0.94, 1.25, 1.89. The error is dominated by the torsional splitting, 10.02 vs
+  11.44 cm⁻¹.
+- **Joint Bayesian update:** fit to J ≤ 5 (59 levels, σ = 0.02 cm⁻¹) of the potential V1–V3,
+  the three rotational G constants, and the first two cos-coefficients of G_zz(γ), i.e. the
+  γ-dependence of A.
+  - Fit rms 0.005 cm⁻¹. The 42 held-out levels with J = 6–8 are predicted to 0.017 cm⁻¹ rms
+    (max 0.041).
+  - All shifts are within 1.3 prior sd.
+
+**The K dependence of the torsional splitting** (cm⁻¹):
+
+| | J=1, Ka=0 | J=1, Ka=1 | J=2, Ka=2 | J=3, Ka=3 |
+|---|---|---|---|---|
+| Observed | 11.4384 | 11.4282 | 11.3999 | 11.3528 |
+| Ab initio | 10.0236 | 10.0229 | 10.0236 | 10.0242 |
+| After update | 11.4397 | 11.4292 | 11.4007 | 11.3528 |
+
+The ab initio model has the right structure: the K-odd antiperiodic functions and the
+γ-dependent rotational constants. But it predicts almost no K dependence. With only the constant
+parts of G free, the update could not reproduce the trend. Freeing the γ-dependence of G_zz
+reproduces it, so the MP2/cc-pVDZ geometry underestimates how strongly A changes along the torsion
+path. That is a concrete target for Δ-learning the kinetic terms.
+
 ## Limits
 
 - Torsion is the only active coordinate; the other modes enter adiabatically (ΔZPE, harmonic).
 - Kinetic terms are MP2/cc-pVDZ geometry only, with no Δ-learning of G.
-- There is no comparison with rotationally resolved data yet; the K structure is predicted, not
-  validated.
+- The kinetic terms are not Δ-learned: G_zz(γ) is corrected by the data, not by a higher ab initio
+  level.
 - The Hunt levels themselves come from a 1965 analysis.
 
 ## Earlier 1-D baseline (kept for comparison)

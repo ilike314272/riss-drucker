@@ -437,3 +437,44 @@ Complex-type irreps are blocked as Γ+Γ* (real, separably degenerate). Quaterni
   invariant; the compiler's own symmetry test decides which.
 - ΔZPE comes from Hessians projected on translations, rotations and the path tangent.
 - Angles are the actual dihedral of each relaxed geometry, not the scan label.
+
+## 19. Kramers blocks, catalogues, molecule front end, symbolic LM (fixed in M9 work)
+
+- **Kramers systems.** If Θ² = −1 on the product space (an odd number of electrons and no
+  rotation space), blocks are complex Hermitian.
+  - In the partner-1 irrep basis W, a block A is stored as the real symmetric
+    [[Re A, −Im A], [Im A, Re A]], so every level appears twice.
+  - `BuiltBlock.kramers` marks such blocks. `BuiltModel.eig` returns every second eigenvalue,
+    with complex vectors x + iy. `autobuild.observations_for` maps level index i to 2i in the
+    compiled model.
+  - Complex-type irreps are not paired with Γ* (Γ* is the Kramers partner, with the same levels).
+  - The block sub-label carries `kramers=1`.
+- **Vanishing operators.** If a term's matrix at a given J is below 10⁻¹⁰(1+2J)^order, the
+  relative matrix certificates are skipped at that J. The operator is identically zero there,
+  e.g. K±3 operators at J = 1.
+- **Certified rank.** The rank r counts singular values with s > 10⁻⁹ s₀. It is accepted only if
+  s_{r−1}/s_r ≥ 10⁴; otherwise GrammarError.
+- **SPCAT catalogues.** Fields: FREQ(13) ERR(8) LGINT(8) DR(2) ELO(10) GUP(3) TAG(7) QNFMT(4)
+  QN′ QN″. A negative TAG means a measured frequency; a negative ERR means cm⁻¹ units. Levels are
+  E″ and E″ + ν; levels reached several ways must agree (default 10⁻³ cm⁻¹), and the worst spread
+  is reported.
+- **Molecule frame.** COM at the origin, principal axes, z = unique axis (symmetric top) or a
+  (asymmetric and spherical tops), right-handed. Operations are identified by (perm, det);
+  O = Procrustes(X → X[perm]) with that det. The framework is symmetrized by
+  X ← mean_g O_gᵀ X[perm_g], four iterations; the shift is recorded as `symmetrized_shift_A`.
+- **Mulliken names.**
+  - Principal axis: the highest-order Cₙ; for cubic groups the C4 (or C2/S4) axis.
+  - Secondary: a C2 perpendicular to the principal axis that is not also a higher-order axis,
+    otherwise a σv. Subscript 1/2: for 1-D irreps + → 1; for degenerate irreps + → 2.
+  - Suffix g/u from i; otherwise ′/″ from σh.
+  - Eₖ from χ(Cₙ) = 2cos(2πk/n) for n ≥ 5. B1/B2/B3 by the kept C2 (z, y, x) in D2/D2h. Cubic
+    1-D irreps are always A.
+  - Collisions get `_k`.
+- **Group serialization.** `group_to_dict` stores the generators (R, parity, perm, coords,
+  gauge) and the names keyed by (dim, characters on the generators). `group_from_dict` rebuilds
+  the same names.
+- **Symbolic LM.** p = σ(w·f) over the features listed in `rd.symbolic_lm.FEATURES`.
+  - Detuning = |Σω(created) − Σω(annihilated)|/ω_min, capped at 3.
+  - Training: L2 logistic regression towards the physical prior (λ = 3), damped Newton.
+  - Shipping rule: learned weights replace the prior only if their mean leave-one-source-out AUC
+    is higher.

@@ -53,18 +53,19 @@ def su2_lift(R: np.ndarray) -> np.ndarray:
     R = np.asarray(R, float)
     if abs(np.linalg.det(R) - 1) > 1e-8 or np.max(np.abs(R @ R.T - np.eye(3))) > 1e-8:
         raise SymmetryError("equivalent rotation must be a proper orthogonal matrix")
-    c = np.clip((np.trace(R) - 1) / 2, -1, 1)
-    theta = math.acos(c)
+    c = (np.trace(R) - 1) / 2
+    av = np.array([R[2, 1] - R[1, 2], R[0, 2] - R[2, 0], R[1, 0] - R[0, 1]]) / 2
+    theta = math.atan2(float(np.linalg.norm(av)), float(c))     # well conditioned at 0 and pi
     if theta < 1e-12:
         return np.eye(2, dtype=complex)
-    if abs(theta - math.pi) < 1e-7:
-        M = (R + np.eye(3)) / 2
-        n = M[:, int(np.argmax(np.linalg.norm(M, axis=0)))]
+    if abs(theta - math.pi) < 1e-3:
+        w, V = np.linalg.eigh((R + R.T) / 2)        # axis: eigenvector with eigenvalue +1
+        n = V[:, int(np.argmax(w))]
     else:
         n = np.array([R[2, 1] - R[1, 2], R[0, 2] - R[2, 0], R[1, 0] - R[0, 1]])
     for sgn in (1, -1):
         u = su2_from_axis_angle(sgn * n, theta)
-        if np.max(np.abs(rotation_from_su2(u) - R)) < 1e-8:
+        if np.max(np.abs(rotation_from_su2(u) - R)) < 1e-9:
             return u
     raise SymmetryError("could not lift rotation to SU(2)")
 
@@ -347,7 +348,7 @@ class Group:
 
     def _is_spinor(self, chi) -> bool:
         for i, g in enumerate(self.elements):
-            if np.max(np.abs(g.R - np.eye(3))) < 1e-9 and np.max(np.abs(g.u + np.eye(2))) < 1e-9 \
+            if np.max(np.abs(g.R - np.eye(3))) < 1e-6 and np.max(np.abs(g.u + np.eye(2))) < 1e-6 \
                     and g.parity == 1 and not any(c for _, _, c in g.coords) and \
                     (not g.perm or g.perm == tuple(range(len(g.perm)))):
                 return abs(chi[i] + chi[0]) < 1e-6
