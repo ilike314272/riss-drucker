@@ -67,12 +67,120 @@ def hessians(geoms, path: Path, step: float = 0.005):
     return out, meta
 
 
+def rotation_comparison(rph, B, gam, geoms, V0, dzpe, a, hunt):
+    """n = 0 torsion-rotation levels (J <= jmax, Ka <= kamax) vs the JPL catalogue (Petkie et al. 1995,
+    Camy-Peyret et al. 1992): prediction, then a joint update of V1..V3 and the three rotational
+    G-matrix constants with weak priors; held-out J check."""
+    from riss_drucker.data.catalog import levels_from_cat, read_cat
+    from riss_drucker.fit import Observation, Prior, fit
+    lv, rep = levels_from_cat(read_cat(a.jpl), max_spread=5e-3)
+    # catalogue v: 0 -> n=0 lower torsional component, 3 -> n=0 upper component
+    obs_lv = {(J, Ka, Kc, v): E for (J, Ka, Kc, v), (E, s) in lv.items()
+              if v in (0, 3) and J <= a.jmax_rot and Ka <= a.kamax}
+    spec, theta, _ = rph.build_h2o2_spec(np.degrees(gam), geoms, V0, dzpe, m_max=a.m_max,
+                                         J=list(range(a.jmax_rot + 1)))
+    bm = B.compile_build(spec)
+
+    def assign(th):
+        Lz = bm.operator_blocks("Jz Jz")
+        pool = {}
+        eigs = bm.eig(th)
+        e0 = min(float(w[0]) for w, _ in eigs)
+        for b, (w, V), L in zip(bm.blocks, eigs, Lz):
+            for i in range(V.shape[1]):
+                if w[i] - e0 > 200:     # n = 0 manifold only (n = 1 starts near 250 cm-1)
+                    continue
+                ka = int(round(np.sqrt(max(float(np.real(V[:, i] @ L @ V[:, i])), 0.0))))
+                pool.setdefault((b.two_j // 2, ka), []).append((w[i], bm.model.blocks[[x for x in
+                                                                range(len(bm.blocks)) if bm.blocks[x] is b][0]]["key"], i))
+        table = {}
+        for (J, ka), items in pool.items():
+            items.sort()
+            nd = 1 if ka == 0 else 2
+            low, up = items[:nd], items[nd:2 * nd]
+            kcs = sorted([kc for (JJ, KK, kc, v) in obs_lv if JJ == J and KK == ka and v == 0], reverse=True)
+            for kc, it in zip(kcs, low):
+                table[(J, ka, kc, 0)] = it
+            kcs = sorted([kc for (JJ, KK, kc, v) in obs_lv if JJ == J and KK == ka and v == 3], reverse=True)
+            for kc, it in zip(kcs, up):
+                table[(J, ka, kc, 3)] = it
+        return table
+    table = assign(theta)
+    ground = table[(0, 0, 0, 0)]
+    common = sorted(k for k in obs_lv if k in table and k != (0, 0, 0, 0))
+
+    def predicted(th):
+        e = {}
+        for b, (w, _) in zip(bm.model.blocks, bm.eig(th)):
+            for i, x in enumerate(w):
+                e[(b["key"], i)] = x
+        g = e[(ground[1], ground[2])]
+        return {k: e[(table[k][1], table[k][2])] - g for k in common}
+    pr = predicted(theta)
+    resid0 = {k: obs_lv[k] - obs_lv[(0, 0, 0, 0)] - pr[k] for k in common}
+    # joint update: V1..V3 and the rotational constants (c0 terms of Gxx, Gyy, Gzz)
+    free = [n for n in ("V_c2", "V_c4", "V_c6", "Gxx_c0", "Gyy_c0", "Gzz_c0", "Gzz_c2", "Gzz_c4") if n in theta]
+    sd = {n: (30.0 if n.startswith("V") else 0.02 * abs(theta[n]) if n.endswith("_c0") else
+              max(0.5 * abs(theta[n]), 0.05)) for n in free}
+    jfit = max(2, a.jmax_rot - 3)
+
+    def obs_for(keys):
+        o = []
+        for k in keys:
+            E = obs_lv[k] - obs_lv[(0, 0, 0, 0)]
+            o.append(Observation(table[k][1], table[k][2], E, 0.02, lower_block=ground[1], lower_index=ground[2]))
+        return o
+    fit_keys = [k for k in common if k[0] <= jfit]
+    hold_keys = [k for k in common if k[0] > jfit]
+    fr = fit(bm.model, obs_for(fit_keys), theta, prior=Prior({n: theta[n] for n in free}, sd),
+             fixed=[n for n in bm.param_names if n not in free], method="dense")
+    pp = predicted(fr.theta)
+    resid1 = {k: obs_lv[k] - obs_lv[(0, 0, 0, 0)] - pp[k] for k in common}
+
+    def rms(d, keys):
+        return float(np.sqrt(np.mean([d[k] ** 2 for k in keys]))) if keys else None
+    split = lambda d: {f"Ka={ka}": float(np.mean([d[k] for k in common if k[1] == ka and k[3] == 3 and k[0] <= 4]))
+                       for ka in range(a.kamax + 1)}
+    torsional_splitting = {}
+    for J, ka in sorted({(k[0], k[1]) for k in common}):
+        lo_ = [obs_lv[k] for k in common if k[0] == J and k[1] == ka and k[3] == 0]
+        up_ = [obs_lv[k] for k in common if k[0] == J and k[1] == ka and k[3] == 3]
+        mlo = [pr[k] for k in common if k[0] == J and k[1] == ka and k[3] == 0]
+        mup = [pr[k] for k in common if k[0] == J and k[1] == ka and k[3] == 3]
+        if lo_ and up_ and J == max(ka, 1):
+            torsional_splitting[f"J={J},Ka={ka}"] = {"observed": float(np.mean(up_) - np.mean(lo_)),
+                                                     "predicted_ab_initio": float(np.mean(mup) - np.mean(mlo))}
+    split_after = {}
+    for J, ka in sorted({(k[0], k[1]) for k in common}):
+        if J != max(ka, 1):
+            continue
+        mlo = [pp[k] for k in common if k[0] == J and k[1] == ka and k[3] == 0]
+        mup = [pp[k] for k in common if k[0] == J and k[1] == ka and k[3] == 3]
+        if mlo and mup:
+            torsional_splitting[f"J={J},Ka={ka}"]["after_update"] = float(np.mean(mup) - np.mean(mlo))
+    return {"levels_compared": len(common), "catalogue": rep, "jmax": a.jmax_rot, "kamax": a.kamax,
+            "prediction_rms_cm": rms(resid0, common),
+            "prediction_rms_by_Ka_cm": {f"Ka={ka}": rms(resid0, [k for k in common if k[1] == ka])
+                                        for ka in range(a.kamax + 1)},
+            "torsional_splitting_vs_Ka": torsional_splitting,
+            "update": {"free": free, "prior_sd": sd, "fit_J_max": jfit, "n_fit": len(fit_keys),
+                       "n_held_out": len(hold_keys), "chi2_per_dof": fr.reduced_chi2,
+                       "shift": {n: fr.theta[n] - theta[n] for n in free},
+                       "shift_in_prior_sd": {n: (fr.theta[n] - theta[n]) / sd[n] for n in free},
+                       "fit_rms_cm": rms(resid1, fit_keys), "held_out_rms_cm": rms(resid1, hold_keys),
+                       "held_out_max_cm": float(max(abs(resid1[k]) for k in hold_keys)) if hold_keys else None,
+                       "J0_levels_after": None}}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--scan", required=True, help="directory with h2o2_low.json / h2o2_high.json (relaxed)")
     ap.add_argument("--out", default=None)
     ap.add_argument("--samples", type=int, default=100)
     ap.add_argument("--m-max", type=int, default=40)
+    ap.add_argument("--jpl", default=None, help="JPL catalogue c034004.cat for K-resolved torsion-rotation levels")
+    ap.add_argument("--jmax-rot", type=int, default=8)
+    ap.add_argument("--kamax", type=int, default=3)
     a = ap.parse_args()
     scan = Path(a.scan)
     out = Path(a.out or a.scan)
@@ -258,6 +366,8 @@ def main() -> int:
                             "shift_in_prior_sd": shifts, "posterior_levels": post_lv, "chi2": fr.chi2,
                             "leave_one_out": loo},
     }
+    if a.jpl:
+        res["rotation"] = rotation_comparison(rph, B, gam, geoms, V0, dzpe, a, HUNT_1965)
     (out / "h2o2_rph_result.json").write_text(json.dumps(res, indent=1, default=float))
     print(json.dumps({k: res[k] for k in ("levels_J0_cm", "barriers_cm", "bayesian_update")}, indent=1,
                      default=float))

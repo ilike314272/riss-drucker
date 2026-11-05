@@ -1120,6 +1120,8 @@ def compile_build(spec: BuildSpec, *, check_reps: bool = True, seed: int = 7) ->
         require(f"theta_squared_J2={tj}", th2 < 1e-8, th2, 1e-8,
                 "molecule-fixed time reversal squares to +1 (real block matrices)")
         for t, M in zip(terms, mats):
+            if _fro(M) < 1e-10 * (1 + tj) ** t.order:
+                continue          # the operator vanishes at this J (e.g. a K+-3 term at J = 1)
             h = _fro(M - M.conj().T) / max(_fro(M), 1e-300)
             sym_def = max((_fro(Us[gi] @ M @ Us[gi].conj().T - M) for gi in gen_idx), default=0.0) / max(_fro(M), 1e-300)
             te = _fro(TH @ M.conj() @ TH.conj().T - M) / max(_fro(M), 1e-300)
