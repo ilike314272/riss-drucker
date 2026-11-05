@@ -329,37 +329,49 @@ def relaxed_scan(X, a, b, nq, seam_d):
     return path
 
 
-def stage_ts(out, mn, nq=6):
-    """Pseudorotation saddle and path: climbing-image NEB between two adjacent minima.
+def least_motion_neighbour(X, m):
+    """The adjacent minimum reached by least motion. Every permutation of the four H, with and
+    without a reflection (permutation-inversion), gives an equivalent minimum; keep those whose
+    long-bond pair shares exactly one H with the reference (octahedral neighbours) and take the
+    smallest aligned mass-weighted RMSD. A plain transposition of a short- and a long-bond H is
+    not least-motion: it leads to a much higher saddle (~5100 cm^-1 at UMP2), which a NEB then
+    converges to faithfully."""
+    import itertools
+    tun = _helpers()[1]
+    d = [np.linalg.norm(X[i] - X[0]) for i in range(1, 5)]
+    longA = {i + 1 for i in np.argsort(d)[2:]}
+    best = None
+    for p in itertools.permutations([1, 2, 3, 4]):
+        perm = [0] + list(p)
+        Yp = X[perm]
+        dY = [np.linalg.norm(Yp[i] - Yp[0]) for i in range(1, 5)]
+        if len(longA & {i + 1 for i in np.argsort(dY)[2:]}) != 1:
+            continue
+        for mirror in (1, -1):
+            Z = tun.kabsch(X, Yp * np.array([1.0, 1.0, mirror]), m)
+            rmsd = float(np.sqrt(np.sum(m[:, None] * (Z - X) ** 2) / m.sum()))
+            if best is None or rmsd < best[3] - 1e-9:
+                best = (Z, p, mirror, rmsd)
+    return best
 
-    Adjacent minimum: the same structure with one short-bond H (a) exchanged with one long-bond H
-    (b). Initial chain: a relaxed scan from minimum A along q = r_a - r_b to q = 0, joined to its
-    symmetry image (the same scan seen from minimum B: labels a and b exchanged, aligned, reversed).
-    The two halves need not meet at q = 0 (the q = 0 structure reached from A still belongs to A in
-    the other coordinates); the NEB removes that mismatch and the climbing image converges to the
-    saddle, with no assumption about its symmetry. A geomeTRIC TS refinement from the climbing image
-    is kept only if it stays close, has one imaginary frequency and lies above the minimum."""
+
+def stage_ts(out, mn, n_images=11):
+    """Pseudorotation saddle and path: climbing-image NEB between the reference minimum and its
+    least-motion neighbour (least_motion_neighbour), started from the straight line between the
+    aligned minima. The climbing image converges to the saddle with no assumption about its
+    symmetry. A geomeTRIC TS refinement from the climbing image is kept only if it stays close, has
+    one imaginary frequency and lies above the minimum."""
     rph, tun = _helpers()
     m = masses_of()
     X = np.array(mn["xyz"])
-    d = [np.linalg.norm(X[i] - X[0]) for i in range(1, 5)]
-    order = np.argsort(d)
-    a, b = 1 + order[0], 1 + order[3]
     lines = []
 
     def log(msg):
         lines.append(msg)
         print(msg, flush=True)
-    halfA = relaxed_scan(X, a, b, nq, (d[order[0]] + d[order[3]]) / 2)
-    halfB = []
-    for G in halfA:
-        Gb = G.copy()
-        Gb[[a, b]] = Gb[[b, a]]
-        halfB.append(Gb)
-    halfB = [tun.kabsch(halfA[-1], G, m) for G in halfB]
-    chain = halfA + halfB[::-1][1:]
-    for i in range(1, len(chain)):
-        chain[i] = tun.kabsch(chain[i - 1], chain[i], m)
+    Y, perm, mirror, rmsd = least_motion_neighbour(X, m)
+    log(f"  neighbour minimum: H permutation {perm}, reflection {mirror}, aligned mass-weighted RMSD {rmsd:.4f} A")
+    chain = [X + (Y - X) * t for t in np.linspace(0, 1, n_images)]
     imgs, E, ci, nit, fres = neb_ase(chain, steps=NEB_STEPS, log=log)
     T = imgs[ci]
     refined = None
@@ -387,7 +399,8 @@ def stage_ts(out, mn, nq=6):
     half = list(range(ci, -1, -1))
     return {"xyz": T.tolist(), "e_ump2": float(eT), "frequencies": w.tolist(), "n_imaginary": int(np.sum(w < -1.0)),
             "residual_gradient_rms": float(np.sqrt(np.mean(np.asarray(gT) ** 2))), "source": src,
-            "swap": [int(a), int(b)], "neb": {"iterations": int(nit), "final_max_force": float(fres),
+            "neighbour": {"permutation": [int(x) for x in perm], "reflection": int(mirror), "rmsd_A": rmsd},
+            "neb": {"iterations": int(nit), "final_max_force": float(fres),
                                               "energies": [float(e) for e in E], "climbing_index": int(ci),
                                               "images": [g.tolist() for g in imgs]},
             "half_path": {"path": [T.tolist()] + [imgs[i].tolist() for i in half[1:]],
