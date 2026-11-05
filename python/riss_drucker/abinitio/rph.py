@@ -152,8 +152,12 @@ def projected_frequencies(hess_cart, coords_A, masses, tangent=None):
     s = np.linalg.svd(np.array(vecs).T, compute_uv=False)
     Q = Q[:, :int(np.sum(s > 1e-8 * s[0]))]
     P = np.eye(3 * n) - Q @ Q.T
-    w = np.linalg.eigvalsh(P @ Hm @ P)
-    w = np.sort(w)[Q.shape[1]:]
+    w, V = np.linalg.eigh(P @ Hm @ P)
+    # drop the eigenvectors lying in the projected (translation/rotation/tangent) space - not simply
+    # the lowest eigenvalues, which at a saddle would discard the imaginary mode
+    inside = np.linalg.norm(Q.T @ V, axis=0)
+    keep = np.argsort(inside)[:3 * n - Q.shape[1]]
+    w = np.sort(w[keep])
     return np.sign(w) * np.sqrt(np.abs(w)) * FREQ_AU
 
 

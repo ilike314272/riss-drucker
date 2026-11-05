@@ -200,3 +200,21 @@ def test_potential_uncertainty_propagates_to_levels():
     samples = [V * (1 + 0.02 * rng.standard_normal()) for _ in range(40)]
     p = torsion.propagate(model, 20.0, phi, samples, [1, 2, 3])
     assert np.all(p["sd"][1:] > 0) and p["samples"].shape == (40, 8)
+
+
+def test_reaction_path_tunneling_solver():
+    """Sinc-DVR double well: high-barrier harmonic limit (hbar w/2, 3 hbar w/2, tiny splitting) and
+    WKB-like decay of the splitting, log(splitting) linear in sqrt(V0)."""
+    from riss_drucker.abinitio.tunneling import HBAR2_HALF, double_well_levels, splitting
+    k = 2.0e4                                       # cm^-1 / (amu A^2)
+    s = np.linspace(0, 1.0, 300)
+    lev, _, _ = double_well_levels(s, 0.5 * k * (1.0 - s) ** 2, n_grid=700)
+    hw = math.sqrt(2 * HBAR2_HALF * k)              # hbar w = sqrt(hbar^2 k / m), m = 1 amu
+    assert lev[0] == pytest.approx(hw / 2, rel=2e-3) and lev[1] - lev[0] < 1e-3
+    assert lev[2] == pytest.approx(1.5 * hw, rel=2e-3)
+    x = np.linspace(0, 0.8, 160)
+    V0s = np.array([400.0, 700.0, 1000.0, 1300.0])
+    spl = np.array([splitting(x, V * (1 - (x / 0.8) ** 2) ** 2)["pair_splitting"] for V in V0s])
+    assert np.all(np.diff(spl) < 0)
+    r = np.corrcoef(np.sqrt(V0s), np.log(spl))[0, 1]
+    assert r < -0.999
