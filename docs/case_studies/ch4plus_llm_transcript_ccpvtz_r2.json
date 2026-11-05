@@ -1,0 +1,430 @@
+{
+ "backend": "claude-cli",
+ "model": null,
+ "rounds": [
+  {
+   "round": 1,
+   "response": "```json\n{\n  \"spec\": {\n    \"group\": \"Td\",\n    \"spaces\": [\n      {\"kind\": \"rot\"},\n      {\n        \"kind\": \"well\",\n        \"name\": \"w\",\n        \"irrep\": \"F2\",\n        \"vectors\": [\n          [0.0, 0.7071067811865476, 0.7071067811865476],\n          [0.0, 0.7071067811865476, -0.7071067811865476],\n          [0.7071067811865476, 0.0, 0.7071067811865476],\n          [0.7071067811865476, 0.0, -0.7071067811865476],\n          [0.7071067811865476, 0.7071067811865476, 0.0],\n          [0.7071067811865476, -0.7071067811865476, 0.0]\n        ],\n        \"geometric_phase\": true\n      }\n    ],\n    \"terms\": [\n      \"A: sym(w[1,1] Jx Jx)\",\n      \"B: 0.5*sym(w[1,1] (Jy - Jz)*(Jy - Jz))\",\n      \"C: 0.5*sym(w[1,1] (Jy + Jz)*(Jy + Jz))\",\n      \"sigma: -sym(w[1,3])\",\n      \"dBbar: sym(w[1,1] J2)\",\n      \"sigmaJ: sym(w[1,3] J2)\",\n      \"gz: i*sym(w[1,3] Jz)\",\n      \"gxy: i*sym(w[1,3] (Jx + Jy))\",\n      \"gopp: i*sym(w[1,2] Jx)\"\n    ],\n    \"J\": [0, 1, 2, 3, 4, 5]\n  },\n  \"roles\": {\n    \"A\": \"rotor\",\n    \"B\": \"rotor\",\n    \"C\": \"rotor\",\n    \"sigma\": \"tunneling\",\n    \"dBbar\": \"extra\",\n    \"sigmaJ\": \"extra\",\n    \"gz\": \"extra\",\n    \"gxy\": \"extra\",\n    \"gopp\": \"extra\"\n  },\n  \"rationale\": \"Each of the 6 C2v wells corresponds to one pair of long CH bonds. Its adiabatic hole function is the F2 combination (x,y,z) directed along the H-H vector of that pair, giving the six vectors (0,1,+-1), (1,0,+-1), (1,+-1,0) over sqrt2. These vectors change sign under the stabilizer: for v1, C2(x) gives -v1. The tunneling space therefore induces from a B-type irrep of C2v and is F1+F2, not A1+E+F2 as it would be without signs. The signed case is the geometric phase. It is required by the data: N+=0 is seen only as F2, with no N+=0 A or E line, while N+=1,2,3 carry A1, A2, E and F, as (F1+F2) x D(N) predicts. Rotor axes for well 1, v=(0,1,1)/sqrt2, come from the given minimum geometry. The C2 axis x carries A. The long-pair H-H direction (0,1,1), which has the largest moment because the short-bond H atoms lie far from it, carries C. The short-pair H-H direction (0,1,-1) carries B. A hand estimate from the xyz gives about 6.95, 5.29 and 3.81 cm-1, consistent with this assignment. The saddle's permutation (13) with reflection links wells whose long pairs share one atom, which are the 12 octahedron edges with |v_i.v_j|=1/2, so w[1,3] is the nearest-well hop. The orbit of the ordered pair (1,3) is regular, so sym(w[1,3]) is Hermitian with signs sign(v_i.v_j). The explicit minus sign gives F2 below F1, as expected from Ham's theorem and the node-free combination along the path, with F1-F2 splitting 4|sigma|. Direct hopping between opposite wells, w[1,2], cancels by symmetry because the vectors are orthogonal and the stabilizer signs conflict, so no such term is included. Extras, all allowed by hand symmetry analysis: dBbar is a vibrationally averaged rotor shift; sigmaJ is the J dependence of the tunneling; gz and gxy are first-order rotation-tunneling couplings with J in the swapping sigma_d plane (x=y); gopp is the J-assisted opposite-well coupling allowed by S4. The sign of sigma and the B/C axis assignment are physical arguments, and this spec has not been run through the compiler or fitted.\"\n}\n```",
+   "seconds": 0.0,
+   "usage": {
+    "resumed": true
+   },
+   "error": "GrammarError: empty product"
+  },
+  {
+   "round": 2,
+   "response": "```json\n{\n  \"spec\": {\n    \"group\": \"Td\",\n    \"spaces\": [\n      {\"kind\": \"rot\"},\n      {\n        \"kind\": \"well\",\n        \"name\": \"w\",\n        \"irrep\": \"F2\",\n        \"vectors\": [\n          [0.0, 0.7071067811865476, 0.7071067811865476],\n          [0.0, 0.7071067811865476, -0.7071067811865476],\n          [-0.7071067811865476, 0.0, -0.7071067811865476],\n          [0.7071067811865476, 0.0, -0.7071067811865476],\n          [0.7071067811865476, 0.7071067811865476, 0.0],\n          [0.7071067811865476, -0.7071067811865476, 0.0]\n        ],\n        \"geometric_phase\": true\n      }\n    ],\n    \"terms\": [\n      \"A: sym(w[1,1] Jx Jx)\",\n      \"B: 0.5*sym(w[1,1] (Jy - Jz)*(Jy - Jz))\",\n      \"C: 0.5*sym(w[1,1] (Jy + Jz)*(Jy + Jz))\",\n      \"sigma: sym(w[1,3])\",\n      \"dBbar: sym(w[1,1] J2)\",\n      \"sigmaJ: sym(w[1,3] J2)\",\n      \"gz: i*sym(w[1,3] Jz)\",\n      \"gxy: i*sym(w[1,3] (Jx + Jy))\",\n      \"gopp: i*sym(w[1,2] Jx)\"\n    ],\n    \"J\": [0, 1, 2, 3, 4, 5]\n  },\n  \"roles\": {\n    \"A\": \"rotor\",\n    \"B\": \"rotor\",\n    \"C\": \"rotor\",\n    \"sigma\": \"tunneling\",\n    \"dBbar\": \"extra\",\n    \"sigmaJ\": \"extra\",\n    \"gz\": \"extra\",\n    \"gxy\": \"extra\",\n    \"gopp\": \"extra\"\n  },\n  \"rationale\": \"Correction to round 1: the 'empty product' error is attributed, by inference from the message, to the leading unary minus in '-sym(w[1,3])'. The sign is now set by a gauge choice with no minus in the term: v3 = -(1,0,1)/sqrt2. Each of the 6 C2v wells has one long-bond pair, and its hole function is the F2 combination along that pair's H-H direction, giving vectors (0,1,+-1), (1,0,+-1), (1,+-1,0) over sqrt2, up to a free sign. The stabilizer of well 1 is {E, C2x, sigma(y=z), sigma(y=-z)}, with signs +,-,+,-. The induced representation therefore has characters 6, 0, 0, -2, 0 on E, sigma_d, C3, C2, S4, which is F1+F2 rather than the A1+E+F2 of the unsigned case. This geometric phase matches the data: N+=0 appears only as F2, with no N+=0 A or E line, while N+=1,2,3 carry A1, A2, E and F, as (F1+F2) x D(N) predicts. Rotor axes for well 1 follow from the given minimum geometry. The C2 axis x carries A. The long-pair direction (0,1,1) has the largest moment, because the widely spaced short-bond H atoms lie far from it, so it carries C. The short-pair direction (0,1,-1) carries B. The saddle's permutation (13) with reflection links wells whose long pairs share one atom, the 12 octahedron edges with |v_i.v_j|=1/2, so w[1,3] is the nearest-well hop. Its ordered-pair orbit is regular and sigma(x=y) exchanges 1 and 3, so the term is Hermitian. With v1.v3 = -1/2 in this gauge, sym(w[1,3]) has elements proportional to -sign(v_i.v_j) on every edge in any gauge. The Gram matrix of the six vectors has eigenvalues 2 (x3, F2) and 0 (x3, F1), so positive sigma puts F2 at -2 sigma and F1 at +2 sigma. This gives F2 lowest, as Ham's theorem expects, with F1-F2 splitting 4 sigma. Pure hopping between opposite wells, w[1,2], vanishes by the conflicting stabilizer signs and is omitted. Extras, each checked by hand against the stabilizers: dBbar is a vibrationally averaged rotor shift; sigmaJ is the J dependence of tunneling; gz and gxy are first-order rotation-tunneling couplings with J odd under the swapping plane x=y; gopp is the J-assisted opposite-well coupling allowed by C2x, both sigma_d planes and S4x. The B/C axis assignment and the sign of sigma are physical arguments. This spec has not been run through the compiler or fitted, and the diagnosis of the error is unconfirmed.\"\n}\n```",
+   "seconds": 0.0,
+   "usage": {
+    "resumed": true
+   },
+   "error": "GrammarError: compile certificate 'independent_terms' failed: term matrices are linearly independent over the compiled blocks (no duplicate operators)"
+  },
+  {
+   "round": 3,
+   "response": "```json\n{\n  \"spec\": {\n    \"group\": \"Td\",\n    \"spaces\": [\n      {\"kind\": \"rot\"},\n      {\n        \"kind\": \"well\",\n        \"name\": \"w\",\n        \"irrep\": \"F2\",\n        \"vectors\": [\n          [0.0, 0.7071067811865476, 0.7071067811865476],\n          [0.0, 0.7071067811865476, -0.7071067811865476],\n          [-0.7071067811865476, 0.0, -0.7071067811865476],\n          [0.7071067811865476, 0.0, -0.7071067811865476],\n          [0.7071067811865476, 0.7071067811865476, 0.0],\n          [0.7071067811865476, -0.7071067811865476, 0.0]\n        ],\n        \"geometric_phase\": true\n      }\n    ],\n    \"terms\": [\n      \"A: sym(w[1,1] Jx Jx)\",\n      \"B: 0.5*sym(w[1,1] (Jy - Jz)*(Jy - Jz))\",\n      \"C: 0.5*sym(w[1,1] (Jy + Jz)*(Jy + Jz))\",\n      \"sigma: sym(w[1,3])\",\n      \"sigmaJ: sym(w[1,3] J2)\",\n      \"gz: i*sym(w[1,3] Jz)\",\n      \"gxy: i*sym(w[1,3] (Jx + Jy))\",\n      \"gopp: i*sym(w[1,2] Jx)\"\n    ],\n    \"J\": [0, 1, 2, 3, 4, 5]\n  },\n  \"roles\": {\n    \"A\": \"rotor\",\n    \"B\": \"rotor\",\n    \"C\": \"rotor\",\n    \"sigma\": \"tunneling\",\n    \"sigmaJ\": \"extra\",\n    \"gz\": \"extra\",\n    \"gxy\": \"extra\",\n    \"gopp\": \"extra\"\n  },\n  \"rationale\": \"Correction to round 2: dBbar is removed. Since Jx^2 + (Jy-Jz)^2/2 + (Jy+Jz)^2/2 = J2, sym(w[1,1] J2) is exactly A + B + C, which is the linear dependence the independent_terms certificate reported. An average rotor shift remains available through the rotor terms. I found no other dependency by hand: sigma and sigmaJ differ by the J(J+1) factor, gz and gxy are different J components on the regular orbit of the ordered pair (1,3), and gopp acts on opposite-well pairs. Wells and phase: each of the 6 C2v wells has one long-bond pair, and its hole function is the F2 combination along that pair's H-H direction, giving (0,1,+-1), (1,0,+-1), (1,+-1,0) over sqrt2, up to a free sign. The stabilizer of well 1 is {E, C2x, sigma(y=z), sigma(y=-z)}, with signs +,-,+,-. The induced representation is therefore F1+F2 rather than the unsigned A1+E+F2. This matches the data: N+=0 appears only as F2, with no N+=0 A or E line, while N+=1,2,3 carry A1, A2, E and F, as (F1+F2) x D(N) predicts. Rotor axes for well 1: the C2 axis x carries A; the long-pair direction (0,1,1) has the largest moment and carries C; the short-pair direction (0,1,-1) carries B. A hand estimate from the xyz supports this, with I about 2.4, 3.2 and 4.4 amu A^2. Tunneling: the saddle's permutation (13) with reflection links wells whose long pairs share one atom, so w[1,3] is the nearest-well hop over the 12 octahedron edges. sigma(x=y) exchanges wells 1 and 3 with sign product +1, so the term is Hermitian. In this gauge v1.v3 = -1/2, so H_ij = -2 sigma (v_i.v_j) on the edges. The off-diagonal Gram matrix has eigenvalues +1 (F2) and -1 (F1), which gives F2 at -2 sigma and F1 at +2 sigma for positive sigma. F2 is lowest, as Ham's theorem expects, with F1-F2 splitting 4 sigma. Pure opposite-well hopping w[1,2] vanishes by the conflicting stabilizer signs and is omitted. Extras, checked by hand: sigmaJ is the J dependence of tunneling; gz and gxy use J components odd under sigma(x=y), so with the factor i they are Hermitian and time-reversal even; gopp is allowed by C2x, both sigma_d planes and S4x. The B/C assignment and the sign of sigma are physical arguments. Whether the calibration preserves the sign of sigma is an assumption. This spec has not been run through the compiler or fitted.\"\n}\n```",
+   "seconds": 60.6,
+   "usage": {
+    "cost_usd": 0.18814260000000002,
+    "input_tokens": 2,
+    "output_tokens": 6313
+   },
+   "proposal": {
+    "spec": {
+     "group": "Td",
+     "spaces": [
+      {
+       "kind": "rot"
+      },
+      {
+       "kind": "well",
+       "name": "w",
+       "irrep": "F2",
+       "vectors": [
+        [
+         0.0,
+         0.7071067811865476,
+         0.7071067811865476
+        ],
+        [
+         0.0,
+         0.7071067811865476,
+         -0.7071067811865476
+        ],
+        [
+         -0.7071067811865476,
+         0.0,
+         -0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         0.0,
+         -0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         0.7071067811865476,
+         0.0
+        ],
+        [
+         0.7071067811865476,
+         -0.7071067811865476,
+         0.0
+        ]
+       ],
+       "geometric_phase": true
+      }
+     ],
+     "terms": [
+      "A: sym(w[1,1] Jx Jx)",
+      "B: 0.5*sym(w[1,1] (Jy - Jz)*(Jy - Jz))",
+      "C: 0.5*sym(w[1,1] (Jy + Jz)*(Jy + Jz))",
+      "sigma: sym(w[1,3])",
+      "sigmaJ: sym(w[1,3] J2)",
+      "gz: i*sym(w[1,3] Jz)",
+      "gxy: i*sym(w[1,3] (Jx + Jy))",
+      "gopp: i*sym(w[1,2] Jx)"
+     ],
+     "J": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    "roles": {
+     "A": "rotor",
+     "B": "rotor",
+     "C": "rotor",
+     "sigma": "tunneling",
+     "sigmaJ": "extra",
+     "gz": "extra",
+     "gxy": "extra",
+     "gopp": "extra"
+    },
+    "rationale": "Correction to round 2: dBbar is removed. Since Jx^2 + (Jy-Jz)^2/2 + (Jy+Jz)^2/2 = J2, sym(w[1,1] J2) is exactly A + B + C, which is the linear dependence the independent_terms certificate reported. An average rotor shift remains available through the rotor terms. I found no other dependency by hand: sigma and sigmaJ differ by the J(J+1) factor, gz and gxy are different J components on the regular orbit of the ordered pair (1,3), and gopp acts on opposite-well pairs. Wells and phase: each of the 6 C2v wells has one long-bond pair, and its hole function is the F2 combination along that pair's H-H direction, giving (0,1,+-1), (1,0,+-1), (1,+-1,0) over sqrt2, up to a free sign. The stabilizer of well 1 is {E, C2x, sigma(y=z), sigma(y=-z)}, with signs +,-,+,-. The induced representation is therefore F1+F2 rather than the unsigned A1+E+F2. This matches the data: N+=0 appears only as F2, with no N+=0 A or E line, while N+=1,2,3 carry A1, A2, E and F, as (F1+F2) x D(N) predicts. Rotor axes for well 1: the C2 axis x carries A; the long-pair direction (0,1,1) has the largest moment and carries C; the short-pair direction (0,1,-1) carries B. A hand estimate from the xyz supports this, with I about 2.4, 3.2 and 4.4 amu A^2. Tunneling: the saddle's permutation (13) with reflection links wells whose long pairs share one atom, so w[1,3] is the nearest-well hop over the 12 octahedron edges. sigma(x=y) exchanges wells 1 and 3 with sign product +1, so the term is Hermitian. In this gauge v1.v3 = -1/2, so H_ij = -2 sigma (v_i.v_j) on the edges. The off-diagonal Gram matrix has eigenvalues +1 (F2) and -1 (F1), which gives F2 at -2 sigma and F1 at +2 sigma for positive sigma. F2 is lowest, as Ham's theorem expects, with F1-F2 splitting 4 sigma. Pure opposite-well hopping w[1,2] vanishes by the conflicting stabilizer signs and is omitted. Extras, checked by hand: sigmaJ is the J dependence of tunneling; gz and gxy use J components odd under sigma(x=y), so with the factor i they are Hermitian and time-reversal even; gopp is allowed by C2x, both sigma_d planes and S4x. The B/C assignment and the sign of sigma are physical arguments. Whether the calibration preserves the sign of sigma is an assumption. This spec has not been run through the compiler or fitted."
+   },
+   "score": {
+    "CH4+": {
+     "calibration_rms_cm": 1.2027359165457022e-14,
+     "n_calibration_branches": 6,
+     "n_branches_consistent_with_geometry": 2,
+     "branch_selected": 0,
+     "ab_initio": {
+      "A": 6.902749526678093,
+      "B": 5.24718278047716,
+      "C": 3.7851735805364144,
+      "sigma": 1.5715016633063073,
+      "sigmaJ": 0.0,
+      "gz": 0.0,
+      "gxy": 0.0,
+      "gopp": 0.0
+     },
+     "prediction_rms_IE_only_cm": 4.110049703419843,
+     "IE_offset": 101754.6226713303,
+     "posterior": {
+      "IE": 101751.27552016797,
+      "A": 6.414129312389363,
+      "B": 5.239912699168641,
+      "C": 4.174290871401497,
+      "sigma": 3.932735963264439,
+      "sigmaJ": 1.3435197794547644,
+      "gz": 5.914161696176008,
+      "gxy": -5.737960707723027,
+      "gopp": -0.12861571666464316
+     },
+     "updated_rms_cm": 0.6015940472368411,
+     "shift_in_prior_sd": {
+      "A": -1.4157263345578046,
+      "B": -0.02771041761902574,
+      "C": 2.056007644489259,
+      "sigma": 1.686534292562368,
+      "sigmaJ": 0.32439242127654144,
+      "gz": 1.4279724510063365,
+      "gxy": -1.385428778669202,
+      "gopp": -0.03105422367506423
+     },
+     "delta_posterior_cm": 15.730943853057756,
+     "n_lines": 21,
+     "ab_initio_coefficients": {
+      "A": 41.416497160068566,
+      "B": 31.483096682862932,
+      "C": 22.71104148321851,
+      "sigma": 37.716039919351374,
+      "sigmaJ": 0.0,
+      "gz": 0.0,
+      "gxy": 0.0,
+      "gopp": 0.0
+     },
+     "posterior_coefficients": {
+      "A": 38.48477587432132,
+      "B": 31.43947619501094,
+      "C": 25.045745228415548,
+      "sigma": 94.38566311834654,
+      "sigmaJ": 1.3435197794547644,
+      "gz": 5.914161696176008,
+      "gxy": -5.737960707723027,
+      "gopp": -0.12861571666464316
+     },
+     "cv_rms_cm": 1.0626336050861522
+    },
+    "CD4+": {
+     "calibration_rms_cm": 5.8248807906771416e-15,
+     "n_calibration_branches": 6,
+     "n_branches_consistent_with_geometry": 2,
+     "branch_selected": 1,
+     "ab_initio": {
+      "A": 3.454027913922793,
+      "B": 2.6636773656979535,
+      "C": 1.9137723225674608,
+      "sigma": -0.1073216669716004,
+      "sigmaJ": 0.0,
+      "gz": 0.0,
+      "gxy": 0.0,
+      "gopp": 0.0
+     },
+     "prediction_rms_IE_only_cm": 0.554091981705171,
+     "IE_offset": 102196.43096622002,
+     "posterior": {
+      "IE": 102196.56815279691,
+      "A": 3.421821711930716,
+      "B": 2.640373265976946,
+      "C": 1.910923432120411,
+      "sigma": -0.1061334614791042,
+      "sigmaJ": -1.732728501593594,
+      "gz": -0.11344276938027362,
+      "gxy": -0.5881870329353023,
+      "gopp": -1.4791667520784748
+     },
+     "updated_rms_cm": 0.24464125336130563,
+     "shift_in_prior_sd": {
+      "A": -0.1864848970227326,
+      "B": -0.17497689488307197,
+      "C": -0.02977251173982751,
+      "sigma": 0.003167490740166501,
+      "sigmaJ": -0.8360907635831795,
+      "gz": -0.0547393614100023,
+      "gxy": -0.28381696558018904,
+      "gopp": -0.7137400106679908
+     },
+     "delta_posterior_cm": 0.4245338459164168,
+     "n_lines": 19,
+     "ab_initio_coefficients": {
+      "A": 20.72416748353675,
+      "B": 11.482633935404769,
+      "C": 15.98206419418772,
+      "sigma": -2.5757200073184094,
+      "sigmaJ": 0.0,
+      "gz": 0.0,
+      "gxy": 0.0,
+      "gopp": 0.0
+     },
+     "posterior_coefficients": {
+      "A": 20.530930271582484,
+      "B": 11.465540592723956,
+      "C": 15.842239595860514,
+      "sigma": -2.547203075498501,
+      "sigmaJ": -1.732728501593594,
+      "gz": -0.11344276938027362,
+      "gxy": -0.5881870329353023,
+      "gopp": -1.4791667520784748
+     },
+     "cv_rms_cm": 0.40038282662765706
+    },
+    "score_cv_rms_mean": 0.7315082158569046
+   },
+   "equivalent_to_reference": false,
+   "relation": "reference model + 4 extra term(s) ['sigmaJ', 'gz', 'gxy', 'gopp']"
+  },
+  {
+   "round": 4,
+   "response": "```json\n{\n  \"spec\": {\n    \"group\": \"Td\",\n    \"spaces\": [\n      {\"kind\": \"rot\"},\n      {\n        \"kind\": \"well\",\n        \"name\": \"w\",\n        \"irrep\": \"F2\",\n        \"vectors\": [\n          [0.0, 0.7071067811865476, 0.7071067811865476],\n          [0.0, 0.7071067811865476, -0.7071067811865476],\n          [-0.7071067811865476, 0.0, -0.7071067811865476],\n          [0.7071067811865476, 0.0, -0.7071067811865476],\n          [0.7071067811865476, 0.7071067811865476, 0.0],\n          [0.7071067811865476, -0.7071067811865476, 0.0]\n        ],\n        \"geometric_phase\": true\n      }\n    ],\n    \"terms\": [\n      \"A: sym(w[1,1] Jx Jx)\",\n      \"B: 0.5*sym(w[1,1] (Jy - Jz)*(Jy - Jz))\",\n      \"C: 0.5*sym(w[1,1] (Jy + Jz)*(Jy + Jz))\",\n      \"sigma: sym(w[1,3])\",\n      \"gL: i*sym(w[1,3] (Jz - Jx - Jy))\"\n    ],\n    \"J\": [0, 1, 2, 3, 4, 5]\n  },\n  \"roles\": {\n    \"A\": \"rotor\",\n    \"B\": \"rotor\",\n    \"C\": \"rotor\",\n    \"sigma\": \"tunneling\",\n    \"gL\": \"extra\"\n  },\n  \"rationale\": \"Round 3 fitted better than the reference (CV 0.73 vs 0.91 cm-1), but its four extras are poorly constrained, so this round replaces them with one physically motivated term. Kept from round 3: the six signed F2 well vectors, which give F1+F2 and match the N+=0 F2-only pattern, plus the rotor axes and the nearest-well hop w[1,3]. New term: the Coriolis coupling -2B J.L projected on the wells. For a p-like F2 carrier, <v_i|L|v_j> = -i v_i x v_j. With v1 = (0,1,1)/sqrt2 and v3 = -(1,0,1)/sqrt2, v1 x v3 = (-1,-1,1)/2, which fixes the operator as i w[1,3] (Jz - Jx - Jy). This is the gz:gxy = 1:-1 ratio that the CH4+ fit found without being told (5.91, -5.74), so gz and gxy merge into one parameter, gL. Symmetry check by hand: sigma(x=y) sends v1 -> -v3 and v3 -> -v1, and sends J -> -(Jy,Jx,Jz), so Jz - Jx - Jy changes sign. The term therefore maps to its own Hermitian conjugate and is invariant. Dropped: sigmaJ, because its fitted values have opposite signs (CH4+ 1.34, CD4+ -1.73) and are large compared with sigma. Dropped: gopp, because CH4+ gives about 0 (-0.13) and CD4+ gives -1.48, which is implausible for opposite-well coupling when |sigma| is about 0.1 cm-1. Caveats: (1) CD4+ does not show the 1:-1 ratio (gz -0.11, gxy -0.59), but those shifts are only 0.05 and 0.28 prior sd, so they constrain it weakly. (2) The fitted CH4+ magnitude of about 5.8 cm-1 exceeds the Coriolis estimate of roughly 5*zeta*S cm-1, where S is the well overlap and is likely well below 1. The direction supports this mechanism, but the size is unexplained and gL may still be absorbing other effects. (3) Round 3 gave sigma opposite signs in the two isotopologues (CH4+ +3.93, CD4+ -0.106) with a CD4+ shift of only 0.003 prior sd, so sigma was not determined there. This model should be judged on whether sigma's sign and determination improve, even if CV rises somewhat with fewer parameters. This spec has not been compiled or fitted. The term's grammar and independence from the other terms are inferred from the round 3 compile.\"\n}\n```",
+   "seconds": 57.3,
+   "usage": {
+    "cost_usd": 0.20091859999999997,
+    "input_tokens": 2,
+    "output_tokens": 5833
+   },
+   "proposal": {
+    "spec": {
+     "group": "Td",
+     "spaces": [
+      {
+       "kind": "rot"
+      },
+      {
+       "kind": "well",
+       "name": "w",
+       "irrep": "F2",
+       "vectors": [
+        [
+         0.0,
+         0.7071067811865476,
+         0.7071067811865476
+        ],
+        [
+         0.0,
+         0.7071067811865476,
+         -0.7071067811865476
+        ],
+        [
+         -0.7071067811865476,
+         0.0,
+         -0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         0.0,
+         -0.7071067811865476
+        ],
+        [
+         0.7071067811865476,
+         0.7071067811865476,
+         0.0
+        ],
+        [
+         0.7071067811865476,
+         -0.7071067811865476,
+         0.0
+        ]
+       ],
+       "geometric_phase": true
+      }
+     ],
+     "terms": [
+      "A: sym(w[1,1] Jx Jx)",
+      "B: 0.5*sym(w[1,1] (Jy - Jz)*(Jy - Jz))",
+      "C: 0.5*sym(w[1,1] (Jy + Jz)*(Jy + Jz))",
+      "sigma: sym(w[1,3])",
+      "gL: i*sym(w[1,3] (Jz - Jx - Jy))"
+     ],
+     "J": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ]
+    },
+    "roles": {
+     "A": "rotor",
+     "B": "rotor",
+     "C": "rotor",
+     "sigma": "tunneling",
+     "gL": "extra"
+    },
+    "rationale": "Round 3 fitted better than the reference (CV 0.73 vs 0.91 cm-1), but its four extras are poorly constrained, so this round replaces them with one physically motivated term. Kept from round 3: the six signed F2 well vectors, which give F1+F2 and match the N+=0 F2-only pattern, plus the rotor axes and the nearest-well hop w[1,3]. New term: the Coriolis coupling -2B J.L projected on the wells. For a p-like F2 carrier, <v_i|L|v_j> = -i v_i x v_j. With v1 = (0,1,1)/sqrt2 and v3 = -(1,0,1)/sqrt2, v1 x v3 = (-1,-1,1)/2, which fixes the operator as i w[1,3] (Jz - Jx - Jy). This is the gz:gxy = 1:-1 ratio that the CH4+ fit found without being told (5.91, -5.74), so gz and gxy merge into one parameter, gL. Symmetry check by hand: sigma(x=y) sends v1 -> -v3 and v3 -> -v1, and sends J -> -(Jy,Jx,Jz), so Jz - Jx - Jy changes sign. The term therefore maps to its own Hermitian conjugate and is invariant. Dropped: sigmaJ, because its fitted values have opposite signs (CH4+ 1.34, CD4+ -1.73) and are large compared with sigma. Dropped: gopp, because CH4+ gives about 0 (-0.13) and CD4+ gives -1.48, which is implausible for opposite-well coupling when |sigma| is about 0.1 cm-1. Caveats: (1) CD4+ does not show the 1:-1 ratio (gz -0.11, gxy -0.59), but those shifts are only 0.05 and 0.28 prior sd, so they constrain it weakly. (2) The fitted CH4+ magnitude of about 5.8 cm-1 exceeds the Coriolis estimate of roughly 5*zeta*S cm-1, where S is the well overlap and is likely well below 1. The direction supports this mechanism, but the size is unexplained and gL may still be absorbing other effects. (3) Round 3 gave sigma opposite signs in the two isotopologues (CH4+ +3.93, CD4+ -0.106) with a CD4+ shift of only 0.003 prior sd, so sigma was not determined there. This model should be judged on whether sigma's sign and determination improve, even if CV rises somewhat with fewer parameters. This spec has not been compiled or fitted. The term's grammar and independence from the other terms are inferred from the round 3 compile."
+   },
+   "score": {
+    "CH4+": {
+     "calibration_rms_cm": 1.2027359165457022e-14,
+     "n_calibration_branches": 6,
+     "n_branches_consistent_with_geometry": 2,
+     "branch_selected": 0,
+     "ab_initio": {
+      "A": 6.902749526678093,
+      "B": 5.24718278047716,
+      "C": 3.7851735805364144,
+      "sigma": 1.5715016633063073,
+      "gL": 0.0
+     },
+     "prediction_rms_IE_only_cm": 4.110049703419843,
+     "IE_offset": 101754.6226713303,
+     "posterior": {
+      "IE": 101751.10630904455,
+      "A": 6.379704245314039,
+      "B": 5.126336216549342,
+      "C": 4.105685063079923,
+      "sigma": 4.185698672502937,
+      "gL": 6.054409981573589
+     },
+     "updated_rms_cm": 0.6780180665074713,
+     "shift_in_prior_sd": {
+      "A": -1.5154693918490385,
+      "B": -0.46061503470945686,
+      "C": 1.6935100899551736,
+      "sigma": 1.8672153388599655,
+      "gL": 1.4618353546834733
+     },
+     "delta_posterior_cm": 16.74279469001175,
+     "n_lines": 21,
+     "ab_initio_coefficients": {
+      "A": 41.416497160068566,
+      "B": 31.483096682862932,
+      "C": 22.71104148321851,
+      "sigma": 37.716039919351374,
+      "gL": 0.0
+     },
+     "posterior_coefficients": {
+      "A": 38.278225471876794,
+      "B": 30.758017299287246,
+      "C": 24.634110378490227,
+      "sigma": 100.4567681400705,
+      "gL": 6.054409981573589
+     },
+     "cv_rms_cm": 0.9217340650784798
+    },
+    "CD4+": {
+     "calibration_rms_cm": 5.8248807906771416e-15,
+     "n_calibration_branches": 6,
+     "n_branches_consistent_with_geometry": 2,
+     "branch_selected": 1,
+     "ab_initio": {
+      "A": 3.454027913922793,
+      "B": 2.6636773656979535,
+      "C": 1.9137723225674608,
+      "sigma": -0.1073216669716004,
+      "gL": 0.0
+     },
+     "prediction_rms_IE_only_cm": 0.554091981705171,
+     "IE_offset": 102196.43096622002,
+     "posterior": {
+      "IE": 102196.19802129791,
+      "A": 3.399757392300972,
+      "B": 2.5646044741013827,
+      "C": 1.9615131039092044,
+      "sigma": -0.273421020489524,
+      "gL": 1.6024187769305882
+     },
+     "updated_rms_cm": 0.3389061958835061,
+     "shift_in_prior_sd": {
+      "A": -0.3142448351564434,
+      "B": -0.7438805680628002,
+      "C": 0.4989180873688884,
+      "sigma": -0.4427838177303748,
+      "gL": 0.7732126167208152
+     },
+     "delta_posterior_cm": 1.093684081958096,
+     "n_lines": 19,
+     "ab_initio_coefficients": {
+      "A": 20.72416748353675,
+      "B": 11.482633935404769,
+      "C": 15.98206419418772,
+      "sigma": -2.5757200073184094,
+      "gL": 0.0
+     },
+     "posterior_coefficients": {
+      "A": 20.398544353801544,
+      "B": 11.76907862345844,
+      "C": 15.38762684460758,
+      "sigma": -6.562104491748576,
+      "gL": 1.6024187769305882
+     },
+     "cv_rms_cm": 0.5175305718820375
+    },
+    "score_cv_rms_mean": 0.7196323184802587
+   },
+   "equivalent_to_reference": false,
+   "relation": "reference model + 1 extra term(s) ['gL']"
+  }
+ ],
+ "usage_total": {
+  "cost_usd": 0.9920514,
+  "tokens": 37554,
+  "calls": 2
+ },
+ "stop_reason": "completed all rounds"
+}
