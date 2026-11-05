@@ -7,9 +7,11 @@ them with the measured lines of Wörner, Qian & Merkt, *J. Chem. Phys.* **126**,
 The ab initio model gets no fitted constants; only the ionization energy is offset. A Bayesian
 update then shows how far the data move the ab initio constants.
 
-**Status.** The committed surface is UMP2/cc-pVDZ geometries and Hessians with UCCSD(T)/cc-pVDZ
-energies (`data/abinitio/ch4plus_ccpvdz`). The cc-pVTZ surface uses the same pipeline and the same
-commands; it is added next to this one when its run finishes.
+**Status.** Two surfaces are committed, built by the same pipeline: UMP2 geometries and Hessians
+with UCCSD(T) energies, in the cc-pVDZ basis (`data/abinitio/ch4plus_ccpvdz`) and the cc-pVTZ
+basis (`data/abinitio/ch4plus_ccpvtz`). The cc-pVTZ run took 63 min on a 20-core workstation,
+48 min of it for the saddle. The tables below give cc-pVDZ in full and then the basis-set
+comparison.
 
 ## Check it yourself
 
@@ -25,8 +27,8 @@ The first command re-analyses every committed surface from its stage files: geom
 Hessians, UCCSD(T) points and neutral CH₄. It regenerates the figures and checks each headline
 number against `docs/case_studies/expected_results.json`, taking a few seconds. With the paper's
 PDF it also extracts the measured lines and repeats the spectrum comparison, the Bayesian update
-and the rovibronic fits. The exit status is 0 only if every check passes; currently 27/27 pass
-with the PDF and 15/15 without. The line tables are read from your copy of the paper and are not
+and the rovibronic fits. The exit status is 0 only if every check passes; currently 45/45 pass
+with the PDF and 27/27 without. The line tables are read from your copy of the paper and are not
 in the repository.
 
 To recompute the surface itself (PySCF, geomeTRIC, ASE):
@@ -93,6 +95,48 @@ treated harmonically.
 ![Spectra](figures/methane_cation_ccpvdz/methane_cation_spectra.png)
 
 ![Residuals](figures/methane_cation_ccpvdz/methane_cation_residuals.png)
+
+## Basis-set convergence: cc-pVDZ → cc-pVTZ
+
+| | cc-pVDZ | cc-pVTZ | reference |
+|---|---|---|---|
+| saddle: imaginary frequency / cm⁻¹ | 560i | 552i | one imaginary mode in both |
+| UMP2 barrier / cm⁻¹ | 1048 | 1147 | — |
+| UCCSD(T) barrier / cm⁻¹ | 980 | **1050** | 1014 (paper, CCSD(T)/cc-pVTZ) |
+| barrier above the tunneling ground level, CH₄⁺ / CD₄⁺ / cm⁻¹ | 447 / 545 | 452 / 564 | 399 / 530 (paper ab initio) |
+| adiabatic IE / cm⁻¹ | 99 592 | **101 382** | 101 752 measured |
+| CH₄⁺ A, B, C (equilibrium) / cm⁻¹ | 6.67, 5.12, 3.70 | 6.90, 5.25, 3.79 | 6.37, 5.68, 4.12 (fit) |
+| δ ab initio, CH₄⁺ / CD₄⁺ / cm⁻¹ | 6.84 / 0.52 | 6.29 / 0.43 | 17.1 / 1.74 (fit) |
+| δ(CH₄⁺)/δ(CD₄⁺) | 13.2 | 14.6 | 9.8 (fit), 11.7 (paper) |
+| spectrum rms, IE offset only, CH₄⁺ / CD₄⁺ / cm⁻¹ | 3.94 / 0.54 | 4.22 / 0.59 | — |
+| rms after Bayesian update, CH₄⁺ / CD₄⁺ / cm⁻¹ | 1.17 / 0.27 | 1.17 / 0.27 | 0.94 / 0.27 (free fit) |
+| δ after update, CH₄⁺ / CD₄⁺ / cm⁻¹ | 16.7 / 1.60 | 16.6 / 1.57 | 16.4 / 1.4 (paper) |
+
+- **Ionization energy:** the error falls from 2160 to 370 cm⁻¹ (0.4%). This is the expected
+  basis-set convergence of a correlation energy difference.
+- **Barrier:** the UCCSD(T) barrier rises by 70 cm⁻¹ and lands 36 cm⁻¹ above the paper's
+  CCSD(T)/cc-pVTZ value. The difference comes from the geometries, which are UMP2 here and
+  CCSD(T) in the paper.
+- **δ at both basis sets:** it stays 2.5–3.5 times below the measured value and moves slightly
+  *down* with the larger basis, because the barrier rises. The shortfall therefore belongs to the
+  1D tunneling model (no corner cutting), not to the electronic structure.
+- **The measured lines give the same answer from either surface.** After the Bayesian update the
+  rms and δ agree to 0.01 cm⁻¹ for both bases. The prior shifts at cc-pVTZ are |shift| ≤ 1.3
+  prior sd for A, B, C and 1.8 (CH₄⁺) and 0.8 (CD₄⁺) for σ.
+- **Equilibrium rotational constants:** they move *away* from the fitted effective constants
+  with the larger basis. Equilibrium constants are not vibrationally averaged, and the averaging
+  is large in this floppy ground state. This is the next physical correction, not a
+  basis-set issue.
+
+cc-pVTZ figures:
+
+![Reaction path, cc-pVTZ](figures/methane_cation_ccpvtz/methane_cation_path.png)
+
+![Spectra, cc-pVTZ](figures/methane_cation_ccpvtz/methane_cation_spectra.png)
+
+Assigned predicted line lists for CH₄⁺ and CD₄⁺ (`*_lines_abinitio.csv`, `*_lines_updated.csv`)
+are in both figure folders. Columns: wavenumber, relative intensity, neutral J and symmetry,
+cation N⁺, symmetry and index.
 
 ## Findings and justification
 
@@ -170,6 +214,36 @@ Offline tests (`tests/python/test_llm_loop.py`) replay three answers: no JSON, t
 model, and an equivalent model with different names and normalization. The first two are
 rejected; the phase-free one fails because "model has no level of class A1 at N+=1", which the
 measured J″ = 0 line requires. The third is accepted and reproduces the case-study numbers.
+
+### First run with Claude (cc-pVTZ surface)
+
+The first live run made 2 Claude calls (≈ 25 k tokens).
+
+**Both proposals had the right physics.** Without seeing the reference model, Claude:
+- derived that the six well functions change sign under the stabilizer, so the tunneling space is
+  F1 + F2 (the geometric phase), not A1 + E + F2;
+- tied this to the observed N⁺ = 0 F2-only line;
+- put A on the C2 axis and chose the nearest-well hop from the saddle's permutation.
+
+**Both proposals were rejected for reasons on our side.**
+1. The grammar did not accept a leading minus (`-sym(w[1,3])`). It does now.
+2. Claude's extra term `sym(w[1,1] J2)` equals A + B + C exactly. The rejection was right, but the
+   message did not say which terms were dependent; it now names the relation
+   (`+1*A +1*B +1*C -1*dBbar = 0`).
+
+**With that one term removed, the model compiles.** It is the reference model plus four
+couplings (J-dependent tunneling, two first-order rotation–tunneling couplings, and a J-assisted
+coupling between opposite wells). It improves the cross-validated score from 0.91 to 0.73 cm⁻¹:
+
+| | CH₄⁺ rms (updated / CV) | CD₄⁺ rms (updated / CV) |
+|---|---|---|
+| reference | 0.94 / 1.25 | 0.39 / 0.57 |
+| reference + couplings | 0.60 / 1.06 | 0.24 / 0.40 |
+
+**Caveat.** With those couplings, CD₄⁺ σ is no longer determined by the data: it stays at the
+ab initio value (shift 0.003 prior sd, δ = 0.42 against about 1.4 measured), because the
+J-dependent terms absorb the N⁺ > 0 tunneling pattern. The loop now reports such a model as
+"reference + N extra terms" rather than "equivalent", and shows how far σ moved.
 
 ### Running it on your machine (WSL)
 

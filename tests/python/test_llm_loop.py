@@ -181,3 +181,19 @@ def test_usage_limit_stops_cleanly_and_resume_continues(L, tmp_path):
     t2 = json.loads((tmp_path / "t2.json").read_text())
     assert t2["stop_reason"].startswith("budget cap") and len(t2["rounds"]) == 1
     assert t2["usage_total"]["calls"] == 0 and (tmp_path / "bin" / "count").read_text() == "2"
+
+
+def test_grammar_leading_minus_and_named_dependency(L):
+    from riss_drucker.build import GrammarError
+    ref = L.reference_proposal()
+    neg = json.loads(json.dumps(ref))
+    neg["spec"]["terms"][3] = "sig: -sym(w[1,3] + w[3,1])"     # leading minus is accepted
+    c = L.Candidate(neg["spec"], neg["roles"])
+    assert c.hop > 0
+    dup = json.loads(json.dumps(ref))
+    dup["spec"]["terms"] = ["A: sym(w[1,1] Jx Jx)", "B: 0.5*sym(w[1,1] (Jy - Jz)*(Jy - Jz))",
+                            "C: 0.5*sym(w[1,1] (Jy + Jz)*(Jy + Jz))", "sigma: sym(w[1,3] + w[3,1])",
+                            "dBbar: sym(w[1,1] J2)"]
+    dup["roles"] = {"A": "rotor", "B": "rotor", "C": "rotor", "sigma": "tunneling", "dBbar": "extra"}
+    with pytest.raises(GrammarError, match=r"dependent: .*A .*B .*C .*dBbar = 0"):
+        L.Candidate(dup["spec"], dup["roles"])

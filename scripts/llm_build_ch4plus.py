@@ -209,6 +209,7 @@ def describe_score(sc: dict) -> str:
         out.append(f"{n}: ab initio prediction rms {s['prediction_rms_IE_only_cm']:.2f} cm-1 -> after update "
                    f"{s['updated_rms_cm']:.2f}" + (f", cross-validated {s['cv_rms_cm']:.2f}" if "cv_rms_cm" in s else "")
                    + f"; A B C = {p['A']:.3f} {p['B']:.3f} {p['C']:.3f}, delta = {s['delta_posterior_cm']:.2f} cm-1"
+                   + f" (sigma moved {s['shift_in_prior_sd']['sigma']:+.2f} prior sd)"
                    + f" ({s['n_branches_consistent_with_geometry']} of {s['n_calibration_branches']} calibrations fit the geometry)")
     return "\n".join(out)
 
@@ -721,7 +722,7 @@ def main() -> int:
         "must match or beat this", 2)
 
     history, rounds, best = [], [], ("reference", ref_cand, ref_score, ref)
-    stop_reason = "completed all rounds"
+    stop_reason = "running"
 
     def save_transcript():
         Path(a.transcript).write_text(json.dumps({"backend": a.llm, "model": a.model, "rounds": rounds,
@@ -773,9 +774,16 @@ def main() -> int:
             say(f"certified: {len(cand.bm.blocks)} symmetry blocks; calibrating constants from the ab initio surface "
                 "and scoring against the measured lines ...", 2)
             sc = score_candidate(cand, facts, tables, cv)
-            same = all(equivalent(cand, sc[n]["ab_initio_coefficients"], ref_cand, ref_score[n]["ab_initio_coefficients"])
+            core = all(equivalent(cand, sc[n]["ab_initio_coefficients"], ref_cand, ref_score[n]["ab_initio_coefficients"])
                        for n, _ in ISOTOPES)
-            fb = {"status": "compiled, certified, calibrated and scored", "equivalent_to_a_known_model": same,
+            same = core and not cand.extra            # equivalent only if there is nothing beyond the core
+            relation = ("equivalent to the reference model" if same else
+                        f"reference model + {len(cand.extra)} extra term(s) {cand.extra}" if core else
+                        "a different model from the reference")
+            fb = {"status": "compiled, certified, calibrated and scored", "relation_to_known_model": relation,
+                  "note": ("delta here is 4|sigma|; with extra J-dependent tunneling couplings the N+ > 0 pattern can be "
+                           "absorbed by them, so check whether sigma is still determined by the data "
+                           "(shift_in_prior_sd of sigma near 0 means it is not)") if cand.extra else "",
                   **{n: {kk: sc[n][kk] for kk in ("n_calibration_branches", "n_branches_consistent_with_geometry",
                                                    "prediction_rms_IE_only_cm",
                                                    "updated_rms_cm", "cv_rms_cm", "delta_posterior_cm", "posterior",
@@ -783,7 +791,7 @@ def main() -> int:
                      for n, _ in ISOTOPES},
                   "score_cv_rms_mean": sc["score_cv_rms_mean"],
                   "reference_score_cv_rms_mean": ref_score["score_cv_rms_mean"]}
-            rec.update(proposal=prop, score=strip_private(sc), equivalent_to_reference=same)
+            rec.update(proposal=prop, score=strip_private(sc), equivalent_to_reference=same, relation=relation)
             if sc["score_cv_rms_mean"] < best[2]["score_cv_rms_mean"] - 1e-4 or (
                     best[0] == "reference" and sc["score_cv_rms_mean"] <= ref_score["score_cv_rms_mean"] + 1e-4):
                 best = (f"llm round {k + 1}", cand, sc, prop)
@@ -796,12 +804,14 @@ def main() -> int:
         else:
             say(describe_score(sc), 2)
             verdict = (f"score {sc['score_cv_rms_mean']:.3f} cm-1 vs reference {ref_score['score_cv_rms_mean']:.3f}; "
-                       + ("equivalent to the reference model" if same else "differs from the reference model")
+                       + relation
                        + ("; now the best model" if best[0] == f"llm round {k + 1}" else "; not better than the best so far"))
             say(f"ACCEPTED: {verdict}", 2)
         history.append({"round": k + 1, "proposal": rec.get("proposal", text[:4000]), "feedback": fb})
         rounds.append(rec)
         save_transcript()
+    if stop_reason == "running":
+        stop_reason = "completed all rounds"
     save_transcript()
     if stop_reason != "completed all rounds":
         print(f"stopped early: {stop_reason}\n  {len(rounds)} round(s) saved in {a.transcript}; the best model so far "

@@ -849,7 +849,13 @@ class Parser:
         return self.toks[self.i] if self.i < len(self.toks) else None
 
     def _expr(self, top=False):
+        sgn0 = 1
+        while self._peek() in ("+", "-"):         # leading sign: "-sym(...)", "(-Jx + Jy)"
+            sgn0 *= -1 if self.toks[self.i] == "-" else 1
+            self.i += 1
         p = self._product()
+        if sgn0 == -1:
+            p = poly_add({}, p, -1)
         while self._peek() in ("+", "-"):
             sgn = 1 if self.toks[self.i] == "+" else -1
             self.i += 1
@@ -884,7 +890,9 @@ class Parser:
                 continue
             factors.append(self._factor())
         if not factors:
-            raise GrammarError("empty product")
+            here = " ".join(self.toks[max(0, self.i - 3):self.i + 3])
+            raise GrammarError(f"empty product near {here!r} (a dangling '*', an empty '()' or an operator "
+                               "with nothing after it)")
         p = factors[0]
         for f in factors[1:]:
             p = poly_mul(p, f)
@@ -1334,8 +1342,22 @@ def compile_build(spec: BuildSpec, *, check_reps: bool = True, seed: int = 7) ->
         A = np.array(cols).T
         sv = np.linalg.svd(A, compute_uv=False) if A.size else np.array([])
         rank = int(np.sum(sv > 1e-10 * (sv[0] if len(sv) else 1)))
-        require("independent_terms", rank == len(terms), rank, len(terms),
-                "term matrices are linearly independent over the compiled blocks (no duplicate operators)")
+        detail = "term matrices are linearly independent over the compiled blocks (no duplicate operators)"
+        if rank < len(terms):
+            # name the dependency: null vectors of the (column-normalized) term matrix
+            nrm = np.linalg.norm(A, axis=0)
+            _, s2, Vt = np.linalg.svd(A / np.where(nrm > 0, nrm, 1), full_matrices=True)
+            rels = []
+            for v in Vt[rank:]:
+                c = v / np.where(nrm > 0, nrm, 1)
+                c = c / np.max(np.abs(c))
+                parts = [f"{c[k]:+.3g}*{terms[k].param}" for k in range(len(terms)) if abs(c[k]) > 1e-6]
+                rels.append(" ".join(parts) + " = 0")
+            zero = [terms[k].param for k in range(len(terms)) if nrm[k] < 1e-12]
+            detail += ("; dependent: " + "; ".join(rels)
+                       + (f" (terms {zero} vanish at the compiled J)" if zero else "")
+                       + ". Remove one term of each relation.")
+        require("independent_terms", rank == len(terms), rank, len(terms), detail)
     model = _core.CompiledModel.from_parts("built", spec.to_json(), names, blocks_out, certs)
     return BuiltModel(spec, group, ctx, terms, model, built_blocks, certs, counts)
 
