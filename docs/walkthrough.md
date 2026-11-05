@@ -424,6 +424,13 @@ network, language model) only suggests.
   molecule-independent (`rd.llm_loop`, `rd.llm_adapters.LevelsAdapter`).
   `scripts/ch4plus_background.sh` runs the whole chain in the background and survives SSH
   disconnects. See `docs/case_studies/methane_cation_firstprinciples.md`.
+- **Method review (Nov 2026): responses recorded.** Catalogue provenance is now reported, and
+  CH3D (0 measured lines) is a model-reduction test. Coverage checks are added: CH3D Fisher
+  intervals are calibrated; CH₄⁺ needs σ ≈ 1.1 cm⁻¹. The ΔK = 3 and octic explanations for the CH3D
+  misfit were tested and refuted. The other additions are K-stack and N⁺-group splits, a δ
+  uncertainty budget, dictionary and hidden-truth baselines for the Claude loop, and cc-pVTZ entries
+  in the verifier, which is described as a reproducibility check. See
+  `docs/case_studies/review_followups.md` and `scripts/review_followups.py`.
 - **Real CH₄ lines** (no rotational catalogue; HITRAN needs an account).
 - **Symbolic LM training:** more real case studies are needed before learned weights beat the
   physical prior out of sample.

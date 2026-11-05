@@ -44,24 +44,25 @@ D J D† = R·J holds to 10⁻¹⁶, and the off-block remainder is below 10⁻�
 | Solver grid h = 0.014 → 0.010 → 0.007, h² extrapolation | change in the last step < 0.3% |
 | Ab initio lattice spacing 0.04 → 0.03 → 0.022 (cc-pVDZ) | δ(CH₄⁺) 13.378 → 13.375 → 13.374; δ(CD₄⁺) 1.000 → 0.998 → 0.999 |
 | Tunneling density on computed points | 100% (points beyond each minimum are reflected into the path region, as in the 1D mirror) |
-| Frame-rotation convention (derived, not fitted) | the measured lines prefer it to its inverse for both isotopologues and both bases |
+| Frame-rotation convention (derived, not fitted) | CH₄⁺: lower rms than inverted or none at both bases (weak evidence, see Findings); CD₄⁺: differences of 0.01–0.03 cm⁻¹, i.e. no evidence either way |
 
 ## Results
 
 Values are in cm⁻¹ except the frame rotation. Validation means rms against the measured lines (21
 for CH₄⁺, 19 for CD₄⁺), with only the IE shifted.
 
-| | cc-pVDZ, ab initio plane | cc-pVTZ, harmonic valley (plane pending) | Measured |
+| | cc-pVDZ, ab initio plane | cc-pVTZ, ab initio plane | Measured |
 |---|---|---|---|
-| δ CH₄⁺ | **13.4** | 8.35 | 17.1 (fit), 16.4 (paper) |
-| δ CD₄⁺ | **1.00** | 0.72 | 1.74 (fit), 1.4 (paper) |
-| CH₄⁺ A, B, C (averaged) | 6.47, 5.18, 3.68 | 6.69, 5.31, 3.77 | 6.37, 5.68, 4.12 |
-| CD₄⁺ A, B, C (averaged) | 3.27, 2.63, 1.86 | 3.37, 2.70, 1.91 | 3.34, 2.51, 2.00 |
+| δ CH₄⁺ | 13.4 | 13.1 | 17.1 (fit), 16.4 (paper) |
+| δ CD₄⁺ | 1.00 | 0.91 | 1.74 (fit), 1.4 (paper) |
+| CH₄⁺ A, B, C (averaged) | 6.47, 5.18, 3.68 | 6.70, 5.31, 3.77 | 6.37, 5.68, 4.12 |
+| CD₄⁺ A, B, C (averaged) | 3.27, 2.63, 1.86 | 3.38, 2.70, 1.91 | 3.34, 2.51, 2.00 |
 | Frame rotation per hop | 10.38° / 10.44° | 10.59° / 10.65° | — |
-| **Validation, CH₄⁺** | **1.76** | 3.34 | 0.94 (free 5-constant fit) |
-| **Validation, CD₄⁺** | **0.62** | 0.66 | 0.27 (free fit) |
-| Same, frame rotation inverted (CH₄⁺ / CD₄⁺) | 2.68 / 0.66 | 3.65 / 0.68 | — |
-| Same, no frame rotation (CH₄⁺ / CD₄⁺) | 2.00 / 0.64 | 3.41 / 0.67 | — |
+| IE shift applied (validation only) | +2161 / +2225 | +371 / +435 | — |
+| **Validation, CH₄⁺** | 1.76 | 1.83 | 0.94 (free 5-constant fit) |
+| **Validation, CD₄⁺** | 0.62 | 0.63 | 0.27 (free fit) |
+| Same, frame rotation inverted (CH₄⁺ / CD₄⁺) | 2.68 / 0.66 | 2.39 / 0.66 | — |
+| Same, no frame rotation (CH₄⁺ / CD₄⁺) | 2.00 / 0.64 | 2.06 / 0.65 | — |
 
 δ from each tunneling model on the cc-pVDZ surface (δ = 2 × pair splitting):
 
@@ -75,16 +76,28 @@ for CH₄⁺, 19 for CD₄⁺), with only the IE shifted.
 
 **Findings.**
 - **Corner cutting and anharmonicity together** raise the first-principles δ(CH₄⁺) from 4.8 to
-  13.4 cm⁻¹. That is 80% of the measured 16.4–17.1 cm⁻¹, with nothing fitted.
+  13.4 cm⁻¹ (cc-pVDZ) and from 4.2 to 13.1 cm⁻¹ (cc-pVTZ), about 80% of the measured
+  16.4–17.1 cm⁻¹, with nothing fitted. The larger basis moves δ slightly *away* from experiment,
+  so the remaining gap is not a basis-set artifact.
+- **The 20% gap is within the method's own sensitivity.** δ depends exponentially on the barrier
+  and the zero-point energy: in the 1D model a ±10% change of V moves δ by a factor of two, so
+  13.1 vs 17 corresponds to a few percent in the effective barrier. The uncertainty budget
+  (`scripts/review_followups.py budget`) quantifies this; until it is read, the agreement should be
+  taken as "right magnitude", not as a precise prediction.
 - **The predicted spectrum improves accordingly.** CH₄⁺ goes from 4.1 cm⁻¹ rms (equilibrium
-  constants, 1D tunneling) to 1.76 cm⁻¹ rms, against 0.94 for a free 5-constant fit. CD₄⁺ is
-  0.62 cm⁻¹, about the instrument resolution.
+  constants, 1D tunneling) to 1.76 / 1.83 cm⁻¹ rms (cc-pVDZ / cc-pVTZ), against 0.94 for a free
+  5-constant fit. CD₄⁺ is 0.62 / 0.63 cm⁻¹. The free fits themselves are not at the 0.5 cm⁻¹ line
+  σ used throughout: at σ = 0.5 their χ²/dof is ≈ 4.6 (CH₄⁺) and ≈ 0.4 (CD₄⁺), and held-out
+  coverage (`review_followups.py coverage`) shows the CH₄⁺ lines behave as if σ ≈ 1.1 cm⁻¹.
 - **Vibrational averaging improves A** for both isotopologues (cc-pVDZ, CH₄⁺: equilibrium 6.67 →
   averaged 6.47; measured 6.37).
-- **The frame rotation is a measurable effect, and its derived convention is preferred by the data.**
-  This is an independent check: the measured lines were never used to choose it.
+- **The frame rotation: suggestive for CH₄⁺, untested for CD₄⁺.** For CH₄⁺ the derived convention
+  gives 1.76 / 1.83 cm⁻¹ against 2.00–2.68 without or inverted. With σ ≈ 1.1 cm⁻¹ (not 0.5) and
+  lines that share upper levels, that is a Δχ² of order a few, not a decisive test. For CD₄⁺ the
+  three variants differ by 0.01–0.03 cm⁻¹ at 0.5 cm⁻¹ resolution: no evidence either way. The
+  convention was derived, not fitted, but "the data prefer it" is too strong.
 - **The remaining gaps:** δ(CH₄⁺) is 20% low, and B and C are 5–10% off. These are consistent with
-  the approximations below.
+  the approximations below, but "consistent with" is not a demonstration: see the budget.
 
 ![CH4+ first principles (cc-pVDZ)](figures/ch4plus_firstprinciples_ccpvdz/CH4p_firstprinciples_jet.png)
 
@@ -107,12 +120,21 @@ experimental run on the cc-pVDZ first-principles levels gives:
 | **Claude round 3** (+ J-dependent tunneling, 2 first-order rotation–tunneling couplings, opposite-well coupling) | **0.350** (selected) | 0.29 / 0.65 | 0.017 / 0.046 | 1.73 / 0.62 |
 | Claude round 4 (+ one Coriolis term J·L) | 0.548 | 0.73 / 1.03 | 0.049 / 0.066 | 1.80 / 0.62 |
 
-**Reversal.** Against experiment (40 lines), the single Coriolis term won. Against the 400 first-principles levels,
-which contain the exact frame-rotation operator exp(−iθ n·J), the richer coupling set predicts
-better: the expansion of that operator has first-order terms along *both* in-plane directions
-and J-dependent tunneling at second order. The selected effective Hamiltonian was fitted only to
-first-principles levels. It reproduces the measured lines to 1.73 / 0.62 cm⁻¹ with the IE shift
-alone.
+**This scoring is partly circular.** The first-principles levels come from a Hamiltonian that
+contains the frame-rotation operator exp(−iθ n·J), so proposals that contain its expansion win by
+construction. The live run on the cc-pVTZ levels (Opus, 4 calls) shows this directly: Claude was
+given θ and n in the prompt and wrote the Taylor series of exp(−iθ n·J) into the hop terms,
+reproducing the target to 0.0003 cm⁻¹ rms (reference 0.70). That shows it can read and encode the
+physics it is given. It is not evidence that it discovered anything, and it does not improve the
+match to experiment: 1.82 / 0.633 cm⁻¹, the same as the first-principles levels themselves
+(1.83 / 0.633). On experiment, the replayed models in the table move the validation from 2.03 to
+1.73 cm⁻¹ (CH₄⁺) and 0.64 to 0.62 cm⁻¹ (CD₄⁺), small compared with σ ≈ 1.1 / 0.5 cm⁻¹.
+
+A dictionary baseline (every symmetry-allowed rotation–tunneling term, greedy forward selection,
+no language model) scored exactly the same way is in `scripts/review_followups.py baselines`. In
+experiment mode the prompt also lists the observed line classes, and Claude has very likely read
+the published geometric-phase analysis, so its proposing that structure is not independent
+evidence either.
 
 ![CH4+ effective Hamiltonian from first principles vs fitted to experiment](figures/ch4plus_firstprinciples_ccpvdz/CH4p_sticks_jet.png)
 
@@ -162,7 +184,8 @@ python scripts/firstprinciples_ch4plus.py --abinitio data/abinitio/ch4plus_ccpvt
 python scripts/llm_build_ch4plus.py --abinitio data/abinitio/ch4plus_ccpvtz --target firstprinciples --fp fp.json --pdf JCP_126_144305.pdf --llm claude-cli --rounds 4 --max-budget-usd 2
 ```
 
-To check the recorded numbers (about 2 min extra):
+To check the recorded numbers (about 2 min extra). The verifier compares against values this same
+code produced earlier: it proves reproducibility, not correctness.
 
 ```bash
 python scripts/verify_case_studies.py --pdf JCP_126_144305.pdf --firstprinciples

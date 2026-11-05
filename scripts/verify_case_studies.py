@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Re-run the case studies and check every headline number against its recorded value.
 
+This is a REPRODUCIBILITY check: expected_results.json holds values that this same code produced
+earlier, so a pass shows the pipeline still gives the same numbers, not that they are correct.
+Correctness evidence is in the case studies (held-out predictions, coverage, baselines) and in
+scripts/review_followups.py.
+
   python scripts/verify_case_studies.py [--pdf CH4PLUS_PAPER.pdf] [--data DIR] [--figures DIR]
 
 Always run (no external input; seconds to a minute):

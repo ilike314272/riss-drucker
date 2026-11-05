@@ -1,5 +1,5 @@
 {
- "_note": "Recorded values checked by scripts/verify_case_studies.py. Regenerate only when a change is intended and explained.",
+ "_note": "Values this code produced earlier (reproducibility, not correctness). Regenerate only when a change is intended and explained.",
  "methane_cation_abinitio": {
   "ccpvdz": {
    "data": "data/abinitio/ch4plus_ccpvdz",
@@ -88,6 +88,22 @@
     "A_avg": 3.2651719905096592,
     "frame_rotation_deg": 10.444577377186073,
     "rms_IE_shifted": 0.6193556333176758
+   }
+  },
+  "ccpvtz": {
+   "data": "data/abinitio/ch4plus_ccpvtz",
+   "surface": "ab initio reaction plane",
+   "CH4+": {
+    "delta": 13.09413301636701,
+    "A_avg": 6.698529615077581,
+    "frame_rotation_deg": 10.58696016845432,
+    "rms_IE_shifted": 1.8303887230205687
+   },
+   "CD4+": {
+    "delta": 0.9138099610069382,
+    "A_avg": 3.3806862296117397,
+    "frame_rotation_deg": 10.650408433566895,
+    "rms_IE_shifted": 0.6329418092207894
    }
   }
  }

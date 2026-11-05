@@ -27,11 +27,16 @@ import numpy as np
 from .rpsurface import HBAR2_HALF, ReactionPlane, ReactionSurface, inverse_inertia, load_stages, omega_cm
 
 
-def tunneling_analysis(stages: dict, iso: str, *, hs=(0.014, 0.010, 0.007), pad=0.25, use_grid=True) -> dict:
+def tunneling_analysis(stages: dict, iso: str, *, hs=(0.014, 0.010, 0.007), pad=0.25, use_grid=True,
+                       modify=None) -> dict:
+    """modify(rs): optional change of the ReactionSurface before anything is computed (uncertainty
+    budgets: scale the CCSD(T) correction or the ZPE of the remaining modes, ...)."""
     from .tunneling import splitting
     from .tunneling2d import (plane_splitting_converged, sct_effective_mass, solve_2d, solve_plane,
                               splitting_variable_mass)
     rs = ReactionSurface(stages, iso, use_grid=False)
+    if modify is not None:
+        modify(rs)
     pl = ReactionPlane(rs)
     grid = None
     if use_grid and "plane2d" in stages and iso in stages["plane2d"]:

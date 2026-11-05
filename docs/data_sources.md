@@ -23,6 +23,7 @@ checked against the primary record.
 | Td polyads (M8) | MARVEL ¹²CH₄: Kefala, Boudon, Yurchenko & Tennyson, *JQSRT* **316**, 108897 (2024) | 82,173 transitions from 96 sources → 23,292 levels up to 9,900 cm⁻¹, eight polyads | Supplementary material; UCL Discovery |
 | **Methane cation (Phase B target)** | Wörner, Qian & Merkt, *J. Chem. Phys.* **126**, 144305 (2007) *(verify DOI 10.1063/1.2712840)*; Signorell & Merkt, *Faraday Discuss.* **115**, 205–228 (2000); Wörner et al. PRL (2006) | PFI-ZEKE rovibronic levels of CH₄⁺, ¹³CH₄⁺, CD₄⁺; effective tunnelling-rotational Hamiltonian; ground state a tunnelling doublet (T₂/T₁, ~16 cm⁻¹ apart); C₂ᵥ equilibrium, pseudorotation over six wells; adiabatic IE 101753.0(15) cm⁻¹ | No database: these are gold-set papers. Their supplements are the numbers to extract |
 | Intensities / broadening only | HITRAN, HITEMP, GEISA | **ehamil_derived** positions: never independent fit input | `hitran.org` (free account) |
+| JPL / CDMS catalogue levels (CH3D 17003, H₂O₂ 34004, H₂CO 30501) | JPL and CDMS catalogues | **ehamil_derived**: E″ is computed and unflagged lines are predictions. Measured lines (negative TAG): CH3D 0 of 203, H₂O₂ 301 of 38,357, H₂CO 407 of 7,016. Use `levels_from_measured` (network inversion, one catalogue anchor per component) for measurement-based term values | `spec.jpl.nasa.gov`, `cdms.astro.uni-koeln.de` |
 
 No Kaggle dataset of ExoMol or HITRAN line lists turned up. Plan: publish our
 own filtered, license-checked subsets as private Kaggle datasets with

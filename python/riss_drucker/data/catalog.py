@@ -69,11 +69,23 @@ def read_cat(path) -> list[CatLine]:
     return out
 
 
-def levels_from_cat(lines: list[CatLine], *, max_spread: float = 1e-3) -> tuple[dict, dict]:
+def levels_from_cat(lines: list[CatLine], *, max_spread: float = 1e-3, measured_only: bool = False) -> tuple[dict, dict]:
     """Energy levels {qn: (E, sigma)} from lower-state energies and E'' + nu.
+
+    PROVENANCE: E'' is the catalogue's computed lower-state energy and unflagged lines are predictions,
+    so these levels are model output ('ehamil_derived'), whatever the line flags. The report says how
+    many lines were measured. measured_only=True keeps only measured lines (still anchored on the
+    catalogue E''); use levels_from_measured for term values from measured frequencies alone.
 
     Returns (levels, report). A level reached several ways must agree within max_spread
     (cm^-1); the worst spread is reported and violations raise ValueError."""
+    n_all = len(lines)
+    n_meas = sum(1 for ln in lines if ln.measured)
+    if measured_only:
+        lines = [ln for ln in lines if ln.measured]
+        if not lines:
+            raise ValueError(f"no line of the {n_all} in this catalogue is flagged as measured: its levels are "
+                             "model output only")
     est = {}
     for ln in lines:
         est.setdefault(ln.qn_lo, []).append((ln.elo, 1e-6))
@@ -90,4 +102,31 @@ def levels_from_cat(lines: list[CatLine], *, max_spread: float = 1e-3) -> tuple[
     if worst > max_spread:
         raise ValueError(f"combination-difference inconsistency {worst:.2e} cm^-1 at {worst_qn}")
     return levels, {"n_levels": len(levels), "n_lines": len(lines), "max_spread_cm": worst,
-                    "worst_level": worst_qn}
+                    "worst_level": worst_qn, "n_measured_lines": n_meas, "n_catalogue_lines": n_all,
+                    "provenance": "ehamil_derived (catalogue E'' and predicted lines)" if not measured_only else
+                    "measured lines anchored on catalogue E''"}
+
+
+def levels_from_measured(lines: list[CatLine], *, threshold: float = 5.0) -> tuple[dict, dict]:
+    """Term values from MEASURED line frequencies only (network inversion, data.network.invert).
+
+    Each connected component of the measured-line network is anchored at one catalogue lower-state
+    energy (a single model number per component); every energy difference inside a component is then
+    measured. Levels reached by one line only are 'unconfirmed'. Returns ({qn: (E, sigma)}, report)."""
+    from .network import invert
+    meas = [ln for ln in lines if ln.measured]
+    if not meas:
+        raise ValueError("no measured lines")
+    tr = [{"wavenumber": ln.nu_cm, "uncertainty": max(ln.err_cm, 1e-7), "upper": ln.qn_up, "lower": ln.qn_lo}
+          for ln in meas]
+    anchors = {}
+    for ln in meas:
+        anchors.setdefault(ln.qn_lo, ln.elo)
+    res = invert(tr, anchors=anchors, threshold=threshold)
+    levels = {k: (v["energy"], max(v["uncertainty"], 1e-7) if v.get("uncertainty") is not None else float("nan"))
+              for k, v in res.levels.items()}      # nan: uncertainty not computed (anchor / very large component)
+    return levels, {"n_levels": len(levels), "n_measured_lines": len(meas), "n_components": len(res.components),
+                    "component_sizes": sorted((c["size"] for c in res.components), reverse=True)[:10],
+                    "n_unconfirmed": sum(1 for v in res.levels.values() if not v.get("confirmed", True)),
+                    "outliers": len(res.outliers),
+                    "provenance": "measured line frequencies; one catalogue E'' anchor per network component"}

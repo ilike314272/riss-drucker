@@ -458,6 +458,7 @@ def evaluate(cand: Candidate, name: str, facts: dict, rows, Bn, paper_IE, cv=Tru
             cf = coeffs_of(br, xf[1:])
             err += list(np.array([r["nu"] for r in test]) - calc(cand, xf[0], cf, test, Bn, assign(cand, xf[0], cf, test, Bn)))
         out["cv_rms_cm"] = float(np.sqrt(np.mean(np.square(err))))
+        out["cv_residuals"] = [float(x) for x in err]
     out["_plot"] = {"IE": float(xu[0]), "coeffs": cu, "IE0": IE0, "coeffs0": coeffs_of(br, pstart), "obs": obs.tolist()}
     return out
 

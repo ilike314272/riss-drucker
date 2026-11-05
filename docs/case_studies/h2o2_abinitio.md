@@ -63,8 +63,10 @@ The rows labelled "… without" and "… with" both include the harmonic ZPE; th
 ZPE row only in the pseudopotential. The propagated GP standard deviation of the levels is
 ≤ 0.04 cm⁻¹.
 
-- **Torsion levels.** The excited levels move from 4–5% low to 0.15–1.6% (dynamic model, no ZPE), with
-  no parameter fitted to spectra. The fix is the kinetic physics; the ab initio surface is
+- **Torsion levels.** The excited levels move from 4–5% low to 0.15–1.6% without the ZPE, or
+  0.5–2.0% with the physically warranted harmonic ZPE, where the ground splitting is 10.0 against
+  11.4 cm⁻¹. No parameter is fitted to spectra in either. The no-ZPE row was singled out after
+  comparing with experiment, so both rows are reported. The fix is the kinetic physics; the ab initio surface is
   unchanged.
 - **Harmonic ZPE overshoots.** The MP2/cc-pVDZ harmonic adiabatic ZPE raises the trans barrier
   from 371 to 404 cm⁻¹ and shrinks the splitting to 10.0. A harmonic, small-basis ZPE along a
