@@ -90,6 +90,8 @@ def _space_words(ctx: Context, s, d):
         return out
     if s.kind == "elec":
         return [(("e", a, b),) for a in s.comps for b in s.comps]
+    if s.kind == "well":
+        return [(("w", i + 1, j + 1),) for i in range(s.n) for j in range(s.n)]
     if s.kind == "torsion":
         _, name, k, m = d
         ps = tuple(("p", name) for _ in range(m))
@@ -115,7 +117,7 @@ def _symbol(ctx: Context, poly: dict) -> dict:
         keys = []
         for si, s in enumerate(ctx.spaces):
             atoms = per[si]
-            if s.kind in ("spin", "elec"):
+            if s.kind in ("spin", "elec", "well"):
                 M = None
                 for a in atoms:
                     A = s.atom(a, 0).toarray()
@@ -149,6 +151,8 @@ def _word_text(w) -> str:
             parts.append(f"{t}{a[1]}")
         elif t == "e":
             parts.append(f"e[{a[1]},{a[2]}]")
+        elif t == "w":
+            parts.append(f"w[{a[1]},{a[2]}]")
         elif t == "f":
             k = a[2]
             ks = f"{k:g}" if abs(k - round(k)) > 1e-12 else str(int(round(k)))
@@ -337,7 +341,7 @@ def _space_chars(group, s, d, gi):
         c = spin_character(s.ts, el.u)
         c2 = spin_character(s.ts, el.u @ el.u)
         return abs(c) ** 2, (-1) ** s.ts * c2
-    if s.kind == "elec":
+    if s.kind in ("elec", "well"):
         c = s.char(gi, 0)
         g2 = group.table[gi, gi]
         c2 = s.char(int(g2), 0)

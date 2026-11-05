@@ -399,9 +399,12 @@ network, language model) only suggests.
 - **Proposer training on case studies:** `rd.symbolic_lm` (see the next section).
 
 **Still open:**
-- **CH₄⁺ real data.** The full level list (Wörner et al., J. Chem. Phys. 126, 144305, 2007) is not
-  openly accessible. Its strong-coupling tunnelling between six C2v wells (splitting ~16 cm⁻¹,
-  Grütter, Wörner & Merkt 2009) needs a large-amplitude well basis, not a truncated harmonic one.
+- **CH₄⁺ rotational-tunneling fit.** `WellSpace` with Td and its subgroups now reproduces the
+  published six-well tunneling structure: T1 + T2 with δ = 4|σ|, and the CH₂D₂⁺ A1 / B1+B2 / A2
+  pattern with Grütter, Wörner & Merkt's (2009) constants
+  (`docs/case_studies/methane_cation.md`, open-access ETH copy). What is missing is the
+  rotational-tunneling Hamiltonian (per-well rotor axes) needed to fit their PFI-ZEKE lines. The
+  2007 CH₄⁺/CD₄⁺ paper with the full level list remains closed access.
 - **Real CH₄ lines** (no rotational catalogue; HITRAN needs an account).
 - **Symbolic LM training:** more real case studies are needed before learned weights beat the
   physical prior out of sample.

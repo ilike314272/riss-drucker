@@ -357,3 +357,20 @@ def test_certified_rank_and_spin_orbit_kramers_blocks():
     # 7 linear couplings, certified by the character count: 2 spin-free JT + 5 spin-orbit-vibronic
     assert all(c["passed"] for c in bm2.certificates) and len(lin) == 7
     assert sum("S" not in t.split(":", 1)[1] for t in lin) == 2
+
+
+def test_methane_cation_six_well_tunneling_from_symmetry():
+    """Gruetter, Woerner & Merkt, JCP 131, 024309 (2009): CH4+ wells give T1 + T2 (geometric phase),
+    delta = 4|sigma|; CH2D2+ four-well isomer J=0: A1 (Delta+2sigma), B1+B2 (Delta), A2 (Delta-2sigma)."""
+    import importlib.util
+    import pathlib
+    p = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "case_methane_cation.py"
+    spec = importlib.util.spec_from_file_location("case_methane_cation", p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    out = mod.analyse()
+    c = out["CH4+"]
+    assert c["well_representation"] == {"F1": 1, "F2": 1} and c["dictionary_operators"] == 2
+    assert c["certificates_passed"] and c["splitting_over_sigma"] == pytest.approx(4.0, abs=1e-9)
+    d = out["CH2D2+"]
+    assert d["well_orbits"] == [(1,), (2,), (3, 4, 5, 6)] and d["pattern_reproduced"]

@@ -43,3 +43,11 @@ multi-surface Jahn-Teller models (Phase B) and the double group for the
 unpaired electron (M8, Kramers class). The Merkt-group papers above are the
 experimental anchor; neutral CH₄ MARVEL levels (M8) come first for the
 operator library on Td.
+
+## Methane cation (Jahn-Teller tunneling)
+
+- Grütter, Wörner, Merkt, J. Chem. Phys. 131, 024309 (2009). Open-access copy in the ETH Research
+  Collection (hdl:20.500.11850/182792), fetched through the repository's DSpace API. Numbers used:
+  Table III constants and the quoted CH₄⁺ tunneling splitting. No text was copied.
+- Wörner et al., J. Chem. Phys. 126, 144305 (2007) and the PRL 97, 173003 (2006) are closed access
+  (Unpaywall: closed). They were not used, and the library does not use unauthorized copies.
