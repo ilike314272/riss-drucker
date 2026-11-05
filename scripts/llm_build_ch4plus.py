@@ -27,6 +27,13 @@ Division of labour (nothing is trusted on the language model's word):
 Backends: claude-cli runs `claude -p` (Claude Code print mode, no tools) on your own login, so
 calls draw on your subscription; api uses the Anthropic SDK with ANTHROPIC_API_KEY (API billing);
 replay re-runs a saved transcript exactly (reproducible, used by the tests).
+
+Limits: a usage, rate or credit limit stops the loop cleanly (no retry); overload, timeout and
+network errors are retried with backoff (--retries, --retry-wait). --max-budget-usd and
+--max-total-tokens stop the loop before a cap is passed (the budget is also passed to each
+`claude -p` call). On any stop, including Ctrl-C, the transcript and the best model so far are
+written, and `--resume TRANSCRIPT` continues later: saved answers are re-evaluated without new
+calls and count against the caps.
 """
 from __future__ import annotations
 
@@ -67,9 +74,32 @@ SYSTEM = ("You are an expert molecular spectroscopist building effective Hamilto
 
 
 # ----------------------------------------------------------------------------- completion backends
-def claude_cli_complete(model=None, timeout=1800):
+class LimitReached(Exception):
+    """Usage, rate or credit limit: stop the loop, keep what was done, resume later with --resume."""
+
+
+class TransientError(Exception):
+    """Overload, timeout or network failure: worth retrying after a pause."""
+
+
+LIMIT_PAT = re.compile(r"usage limit|limit reached|limit will reset|rate.?limit|quota|credit balance|"
+                       r"too many requests|\b429\b|budget", re.I)
+TRANSIENT_PAT = re.compile(r"overloaded|\b5\d\d\b|timed? ?out|connection|temporar|ECONNRESET|network", re.I)
+
+
+def classify(msg: str) -> Exception:
+    if LIMIT_PAT.search(msg):
+        return LimitReached(msg)
+    if TRANSIENT_PAT.search(msg):
+        return TransientError(msg)
+    return RuntimeError(msg)
+
+
+def claude_cli_complete(model=None, timeout=1800, budget_left=None):
     """Claude Code print mode, tools disabled, one turn; uses the logged-in subscription unless
-    ANTHROPIC_API_KEY is set (then Claude Code bills the API key)."""
+    ANTHROPIC_API_KEY is set (then Claude Code bills the API key). `budget_left()` (USD) is passed as
+    --max-budget-usd so a single call cannot overrun the cap. After each call `complete.last_usage`
+    holds the reported cost and tokens (for a subscription the cost is a usage measure, not a bill)."""
     if os.environ.get("ANTHROPIC_API_KEY"):
         print("note: ANTHROPIC_API_KEY is set, so `claude -p` will bill the API key, not your subscription",
               file=sys.stderr)
@@ -79,16 +109,79 @@ def claude_cli_complete(model=None, timeout=1800):
                "--append-system-prompt", SYSTEM]
         if model:
             cmd += ["--model", model]
-        out = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout)
-        if out.returncode:
-            raise RuntimeError(f"claude -p failed ({out.returncode}): {out.stderr[-2000:]}")
-        return json.loads(out.stdout)["result"]
+        if budget_left is not None and budget_left() is not None:
+            cmd += ["--max-budget-usd", f"{max(budget_left(), 0.01):.2f}"]
+        try:
+            out = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            raise TransientError(f"claude -p timed out after {timeout} s")
+        except FileNotFoundError:
+            raise RuntimeError("`claude` not found: install Claude Code (curl -fsSL https://claude.ai/install.sh | bash)")
+        try:
+            data = json.loads(out.stdout)
+        except (json.JSONDecodeError, ValueError):
+            data = {}
+        complete.last_usage = {"cost_usd": data.get("total_cost_usd"),
+                               "input_tokens": (data.get("usage") or {}).get("input_tokens"),
+                               "output_tokens": (data.get("usage") or {}).get("output_tokens")}
+        if out.returncode or data.get("is_error") or "result" not in data:
+            msg = f"claude -p failed (exit {out.returncode}): {data.get('result') or data.get('subtype') or ''} " \
+                  f"{out.stderr[-2000:]} {out.stdout[-500:] if not data else ''}"
+            raise classify(msg)
+        return data["result"]
+    complete.last_usage = {}
     return complete
 
 
 def api_complete(model):
     from riss_drucker.llm import anthropic_complete
-    return anthropic_complete(model, system=SYSTEM)
+    inner = anthropic_complete(model, system=SYSTEM)
+
+    def complete(prompt: str) -> str:
+        try:
+            text = inner(prompt)
+        except Exception as e:                 # anthropic.RateLimitError (429), overloaded (529), low credit, ...
+            status = getattr(e, "status_code", None)
+            msg = f"{type(e).__name__} (status {status}): {e}"
+            if status == 429 or "credit" in str(e).lower():
+                raise LimitReached(msg)
+            if status in (500, 502, 503, 504, 529) or "Connection" in type(e).__name__ or "Timeout" in type(e).__name__:
+                raise TransientError(msg)
+            raise classify(msg)
+        complete.last_usage = dict(inner.last_usage)
+        return text
+    complete.last_usage = {}
+    return complete
+
+
+def with_retries(complete, prompt, retries=3, wait=(30, 90, 270), log=print):
+    """Retry transient failures with backoff; limits and other errors propagate at once."""
+    for i in range(retries + 1):
+        try:
+            return complete(prompt)
+        except TransientError as e:
+            if i == retries:
+                raise RuntimeError(f"gave up after {retries} retries: {e}")
+            log(f"  transient failure ({str(e)[:200]}); retry {i + 1}/{retries} in {wait[min(i, len(wait) - 1)]} s")
+            time.sleep(wait[min(i, len(wait) - 1)])
+
+
+def resumed(saved: list, live):
+    """Serve the saved answers of an interrupted run first (no calls, no usage), then the live backend."""
+    saved = list(saved)
+
+    def complete(prompt: str) -> str:
+        if saved:
+            complete.last_usage = {"resumed": True}
+            return saved.pop(0)
+        if live is None:
+            raise RuntimeError("no saved answers left and no live backend")
+        text = live(prompt)
+        complete.last_usage = getattr(live, "last_usage", {})
+        return text
+    complete.last_usage = {}
+    complete.pending = lambda: len(saved)
+    return complete
 
 
 def replay_complete(path):
@@ -519,6 +612,14 @@ def main() -> int:
     ap.add_argument("--out", default="ch4plus_llm_model.json")
     ap.add_argument("--transcript", default="ch4plus_llm_transcript.json")
     ap.add_argument("--figures", default=None)
+    ap.add_argument("--resume", default=None, help="transcript of an interrupted run: its answers are reused "
+                                                   "(no calls), then the loop continues live up to --rounds in total")
+    ap.add_argument("--max-budget-usd", type=float, default=None,
+                    help="stop before the reported cost exceeds this (claude-cli: total_cost_usd per call, which for "
+                         "a subscription measures usage rather than billing; also passed to each call)")
+    ap.add_argument("--max-total-tokens", type=int, default=None, help="stop once input+output tokens exceed this")
+    ap.add_argument("--retries", type=int, default=3, help="retries for overload/timeout/network errors")
+    ap.add_argument("--retry-wait", type=float, default=30.0, help="first retry pause in s (then x3, x9)")
     a = ap.parse_args()
 
     from riss_drucker import symmetry as S
@@ -534,9 +635,22 @@ def main() -> int:
         return 0
     if tables is None:
         ap.error("--pdf is required (the proposals are scored against the measured lines)")
-    complete = {"claude-cli": lambda: claude_cli_complete(a.model),
-                "api": lambda: api_complete(a.model or "claude-opus-5-5"),
-                "replay": lambda: replay_complete(a.replay)}[a.llm]()
+    usage = {"cost_usd": 0.0, "tokens": 0, "calls": 0}
+
+    def budget_left():
+        return None if a.max_budget_usd is None else a.max_budget_usd - usage["cost_usd"]
+    live = {"claude-cli": lambda: claude_cli_complete(a.model, budget_left=budget_left),
+            "api": lambda: api_complete(a.model or "claude-opus-5-5"),
+            "replay": lambda: replay_complete(a.replay)}[a.llm]()
+    saved_rounds = []
+    if a.resume:
+        saved_rounds = [r for r in json.loads(Path(a.resume).read_text())["rounds"] if "response" in r]
+        for r in saved_rounds:                     # earlier usage counts against the caps
+            u = r.get("usage") or {}
+            usage["cost_usd"] += u.get("cost_usd") or 0.0
+            usage["tokens"] += (u.get("input_tokens") or 0) + (u.get("output_tokens") or 0)
+        print(f"resuming: {len(saved_rounds)} saved answers will be re-evaluated without calls", file=sys.stderr)
+    complete = resumed([r["response"] for r in saved_rounds], live)
 
     cv = not a.no_cv
     ref = reference_proposal()
@@ -545,11 +659,40 @@ def main() -> int:
     print(f"reference model: score {ref_score['score_cv_rms_mean']:.3f} cm-1", file=sys.stderr)
 
     history, rounds, best = [], [], ("reference", ref_cand, ref_score, ref)
+    stop_reason = "completed all rounds"
+
+    def save_transcript():
+        Path(a.transcript).write_text(json.dumps({"backend": a.llm, "model": a.model, "rounds": rounds,
+                                                  "usage_total": usage, "stop_reason": stop_reason},
+                                                 indent=1, default=str))
     for k in range(a.rounds):
+        live_call = complete.pending() == 0            # saved answers cost nothing; caps only gate new calls
+        if live_call and a.max_budget_usd is not None and usage["cost_usd"] >= a.max_budget_usd:
+            stop_reason = f"budget cap reached ({usage['cost_usd']:.2f} >= {a.max_budget_usd} USD)"
+            break
+        if live_call and a.max_total_tokens is not None and usage["tokens"] >= a.max_total_tokens:
+            stop_reason = f"token cap reached ({usage['tokens']} >= {a.max_total_tokens})"
+            break
         prompt = build_prompt(facts, classes, group_table, history)
         t0 = time.time()
-        text = complete(prompt)
-        rec = {"round": k + 1, "response": text, "seconds": round(time.time() - t0, 1)}
+        try:
+            text = with_retries(complete, prompt, a.retries, wait=(a.retry_wait, 3 * a.retry_wait, 9 * a.retry_wait),
+                                log=lambda m: print(m, file=sys.stderr))
+        except LimitReached as e:
+            stop_reason = f"usage/rate limit: {str(e)[:500]}"
+            break
+        except KeyboardInterrupt:
+            stop_reason = "interrupted by user"
+            break
+        except Exception as e:
+            stop_reason = f"language-model call failed: {type(e).__name__}: {str(e)[:500]}"
+            break
+        u = dict(getattr(complete, "last_usage", {}) or {})
+        if not u.get("resumed"):
+            usage["calls"] += 1
+            usage["cost_usd"] += u.get("cost_usd") or 0.0
+            usage["tokens"] += (u.get("input_tokens") or 0) + (u.get("output_tokens") or 0)
+        rec = {"round": k + 1, "response": text, "seconds": round(time.time() - t0, 1), "usage": u}
         try:
             prop = parse_answer(text)
             cand = Candidate(prop["spec"], prop["roles"])
@@ -575,11 +718,15 @@ def main() -> int:
               f"{fb.get('score_cv_rms_mean', '')}", file=sys.stderr)
         history.append({"round": k + 1, "proposal": rec.get("proposal", text[:4000]), "feedback": fb})
         rounds.append(rec)
-        Path(a.transcript).write_text(json.dumps({"backend": a.llm, "model": a.model, "rounds": rounds}, indent=1,
-                                                 default=str))
+        save_transcript()
+    save_transcript()
+    if stop_reason != "completed all rounds":
+        print(f"stopped early: {stop_reason}\n  {len(rounds)} round(s) saved in {a.transcript}; the best model so far "
+              f"is written below. Continue later with:  --resume {a.transcript}", file=sys.stderr)
 
     label, cand, sc, prop = best
-    final = {"selected": label, "selection_rule": "lowest mean leave-one-position-out rms over CH4+ and CD4+ "
+    final = {"selected": label, "stop_reason": stop_reason, "rounds_done": len(rounds), "usage_total": usage,
+             "selection_rule": "lowest mean leave-one-position-out rms over CH4+ and CD4+ "
                                                   "(Bayesian update with ab initio prior); the language model's "
                                                   "proposal is preferred on ties with the reference",
              "spec": cand.spec.to_dict(), "roles": cand.roles, "rationale": prop.get("rationale"),
@@ -590,7 +737,8 @@ def main() -> int:
                                                                 key=lambda t: t[1])]
                                for n, _ in ISOTOPES}}
     Path(a.out).write_text(json.dumps(final, indent=1, default=str))
-    print(json.dumps({"selected": label, "score": sc["score_cv_rms_mean"],
+    print(json.dumps({"selected": label, "stop_reason": stop_reason, "usage_total": usage,
+                      "score": sc["score_cv_rms_mean"],
                       "reference_score": ref_score["score_cv_rms_mean"],
                       **{n: {"prediction_rms_IE_only_cm": sc[n]["prediction_rms_IE_only_cm"],
                              "updated_rms_cm": sc[n]["updated_rms_cm"], "cv_rms_cm": sc[n].get("cv_rms_cm"),

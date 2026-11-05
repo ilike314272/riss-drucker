@@ -204,3 +204,20 @@ python scripts/llm_build_ch4plus.py --abinitio data/abinitio/ch4plus_ccpvdz --pd
   - `ch4plus_llm_transcript.json`: every prompt answer and its feedback.
 - **Reproduce a run exactly:** `--llm replay --replay ch4plus_llm_transcript.json`.
 - **cc-pVTZ:** point `--abinitio` at `data/abinitio/ch4plus_ccpvtz` once that surface is in.
+
+**Limits and caps.**
+
+- **Usage, rate or credit limit** (for example "usage limit reached … resets at 5pm"): the loop
+  stops at once, with no retries. It writes the transcript and the best model so far (the
+  reference model if no proposal has won yet). `stop_reason` in both files says why.
+- **Overloads, timeouts and network errors:** retried 3 times, waiting 30, 90 and 270 s (set with
+  `--retries` and `--retry-wait`).
+- **Caps:**
+  - `--max-budget-usd 2` stops before the reported cost passes $2, and is also passed to each
+    `claude -p` call.
+  - `--max-total-tokens 300000` stops by token count.
+  - On a Pro subscription the reported cost measures usage only; it is not billed.
+- **Ctrl-C** stops cleanly and saves both files.
+- **Resume after a limit resets:** add `--resume ch4plus_llm_transcript.json` (and a new
+  `--transcript` name). Saved answers are re-scored without new calls, and their usage counts
+  toward the caps. The loop then continues live up to `--rounds` in total.

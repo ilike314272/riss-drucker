@@ -114,3 +114,70 @@ def test_replayed_loop_rejects_phase_free_model_and_accepts_equivalent(L, tmp_pa
     assert m["selected"] == "llm round 3"
     assert abs(m["scores"]["CD4+"]["prediction_rms_IE_only_cm"] - 0.536) < 0.01
     assert abs(m["scores"]["CH4+"]["delta_posterior_cm"] - 16.7) < 0.2
+
+
+def _fake_claude(tmp_path, script_body):
+    d = tmp_path / "bin"
+    d.mkdir(exist_ok=True)
+    f = d / "claude"
+    f.write_text("#!/usr/bin/env python3\nimport json, sys, pathlib\nsys.stdin.read()\n" + script_body)
+    f.chmod(f.stat().st_mode | stat.S_IEXEC)
+    return d
+
+
+def test_limit_classification_and_retries(L):
+    assert isinstance(L.classify("Claude usage limit reached|1730000000"), L.LimitReached)
+    assert isinstance(L.classify("API Error: 529 overloaded_error"), L.TransientError)
+    assert isinstance(L.classify("invalid JSON in settings"), RuntimeError)
+    calls = []
+
+    def flaky(prompt):
+        calls.append(1)
+        if len(calls) < 3:
+            raise L.TransientError("overloaded")
+        return "ok"
+    assert L.with_retries(flaky, "p", retries=3, wait=(0,), log=lambda m: None) == "ok" and len(calls) == 3
+
+    def limited(prompt):
+        calls.append(1)
+        raise L.LimitReached("usage limit reached")
+    n = len(calls)
+    with pytest.raises(L.LimitReached):
+        L.with_retries(limited, "p", retries=3, wait=(0,), log=lambda m: None)
+    assert len(calls) == n + 1                                  # limits are never retried
+
+
+@pytest.mark.skipif(not os.environ.get("RISS_CH4PLUS_PDF"),
+                    reason="needs the PDF of Woerner, Qian & Merkt, JCP 126, 144305 (2007) in RISS_CH4PLUS_PDF")
+def test_usage_limit_stops_cleanly_and_resume_continues(L, tmp_path):
+    alt = _alternative(L.reference_proposal())
+    answer = json.dumps("```json\n" + json.dumps(alt) + "\n```")
+    # round 1 answers (cost 0.4), round 2 hits the usage limit
+    body = ("c = pathlib.Path(sys.argv[0]).with_name('count'); n = int(c.read_text()) if c.exists() else 0\n"
+            "c.write_text(str(n + 1))\n"
+            "if n == 0:\n"
+            f"    print(json.dumps({{'result': {answer}, 'total_cost_usd': 0.4, 'usage': {{'input_tokens': 9000, 'output_tokens': 800}}}}))\n"
+            "else:\n"
+            "    print(json.dumps({'is_error': True, 'result': 'Claude usage limit reached. Your limit will reset at 5pm'}))\n"
+            "    sys.exit(1)\n")
+    env = dict(os.environ, PATH=f"{_fake_claude(tmp_path, body)}{os.pathsep}{os.environ['PATH']}")
+    env.pop("ANTHROPIC_API_KEY", None)
+    base = [sys.executable, str(ROOT / "scripts" / "llm_build_ch4plus.py"), "--abinitio", str(DZ),
+            "--pdf", os.environ["RISS_CH4PLUS_PDF"], "--llm", "claude-cli", "--no-cv",
+            "--out", str(tmp_path / "m.json"), "--transcript", str(tmp_path / "t.json")]
+    out = subprocess.run(base + ["--rounds", "3"], capture_output=True, text=True, cwd=ROOT, env=env)
+    assert out.returncode == 0, out.stderr[-3000:]
+    t = json.loads((tmp_path / "t.json").read_text())
+    assert t["stop_reason"].startswith("usage/rate limit") and len(t["rounds"]) == 1
+    assert abs(t["usage_total"]["cost_usd"] - 0.4) < 1e-9 and t["usage_total"]["tokens"] == 9800
+    m = json.loads((tmp_path / "m.json").read_text())
+    assert m["selected"] == "llm round 1" and m["rounds_done"] == 1    # best model so far is still written
+    # resume: round 1 is re-evaluated without a call; the budget cap (0.4 already used) stops further calls
+    (tmp_path / "t1.json").write_text((tmp_path / "t.json").read_text())
+    out = subprocess.run(base[:-4] + ["--out", str(tmp_path / "m2.json"), "--transcript", str(tmp_path / "t2.json"),
+                                      "--rounds", "3", "--resume", str(tmp_path / "t1.json"), "--max-budget-usd", "0.4"],
+                         capture_output=True, text=True, cwd=ROOT, env=env)
+    assert out.returncode == 0, out.stderr[-3000:]
+    t2 = json.loads((tmp_path / "t2.json").read_text())
+    assert t2["stop_reason"].startswith("budget cap") and len(t2["rounds"]) == 1
+    assert t2["usage_total"]["calls"] == 0 and (tmp_path / "bin" / "count").read_text() == "2"

@@ -85,7 +85,11 @@ def anthropic_complete(model: str = "claude-opus-5-5", *, max_tokens: int = 1600
             resp = client.beta.messages.create(betas=["server-side-fallback-2026-07-01"], fallbacks="default", **kw)
         else:
             resp = client.messages.create(**kw)
+        u = getattr(resp, "usage", None)
+        complete.last_usage = {"input_tokens": getattr(u, "input_tokens", None),
+                               "output_tokens": getattr(u, "output_tokens", None)}
         if resp.stop_reason == "refusal":
             raise RuntimeError(f"model declined: {getattr(resp, 'stop_details', None)}")
         return "".join(b.text for b in resp.content if b.type == "text")
+    complete.last_usage = {}
     return complete
