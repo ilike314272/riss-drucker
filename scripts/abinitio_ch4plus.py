@@ -93,8 +93,24 @@ def ccsdt(X, charge=1, spin=1):
     return float(c.e_tot + c.ccsd_t())
 
 
+_POOL = None
+
+
+def _pool():
+    """One process pool for the whole run, started with 'spawn': forking a process whose OpenMP
+    thread pool is already active can deadlock the children."""
+    global _POOL
+    if _POOL is None:
+        import multiprocessing
+        from concurrent.futures import ProcessPoolExecutor
+        _POOL = ProcessPoolExecutor(WORKERS, mp_context=multiprocessing.get_context("spawn"))
+    return _POOL
+
+
 def _grad_task(args):
-    X, charge, spin = args
+    X, charge, spin, basis = args
+    global BASIS
+    BASIS = basis                      # spawned workers do not inherit the command-line basis
     return mp2(X, True, charge, spin)[1]
 
 
@@ -108,14 +124,10 @@ def hessian(X, charge=1, spin=1, step=0.005):
     for k in range(3 * n):
         d = np.zeros(3 * n)
         d[k] = step
-        tasks.append((((Xb.ravel() + d).reshape(n, 3)) * BOHR, charge, spin))
-        tasks.append((((Xb.ravel() - d).reshape(n, 3)) * BOHR, charge, spin))
+        tasks.append((((Xb.ravel() + d).reshape(n, 3)) * BOHR, charge, spin, BASIS))
+        tasks.append((((Xb.ravel() - d).reshape(n, 3)) * BOHR, charge, spin, BASIS))
     if WORKERS > 1:
-        import multiprocessing
-        from concurrent.futures import ProcessPoolExecutor
-        ctx = multiprocessing.get_context("fork")     # explicit: Python 3.14 defaults to forkserver
-        with ProcessPoolExecutor(WORKERS, mp_context=ctx) as ex:
-            grads = list(ex.map(_grad_task, tasks))
+        grads = list(_pool().map(_grad_task, tasks))
     else:
         grads = [_grad_task(t) for t in tasks]
     H = np.zeros((3 * n, 3 * n))
@@ -179,19 +191,18 @@ def mirror_symmetrize(G, a, b, m):
 
 
 def _image_gradients(images):
-    tasks = [(G, 1, 1) for G in images]
+    tasks = [(G, 1, 1, BASIS) for G in images]
     if WORKERS > 1:
-        import multiprocessing
-        from concurrent.futures import ProcessPoolExecutor
-        with ProcessPoolExecutor(WORKERS, mp_context=multiprocessing.get_context("fork")) as ex:
-            out = list(ex.map(_eg_task, tasks))
+        out = list(_pool().map(_eg_task, tasks))
     else:
         out = [_eg_task(t) for t in tasks]
     return [o[0] for o in out], [o[1] for o in out]
 
 
 def _eg_task(args):
-    X, charge, spin = args
+    X, charge, spin, basis = args
+    global BASIS
+    BASIS = basis
     return mp2(X, True, charge, spin)
 
 
