@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Ab initio CH4+ (and CH4) for the methane-cation case study. Stages are cached as JSON in --out.
 
-  python scripts/abinitio_ch4plus.py --out DIR [--stages min,ts,irc,hess,ccsdt,neutral]
+  python scripts/abinitio_ch4plus.py --out DIR [--stages min,ts,irc,hess,ccsdt,neutral] [--workers N]
+
+Needs only PySCF, geomeTRIC, NumPy and SciPy (the riss_drucker helpers it uses are loaded from
+the repository files; no build of the compiled core is required). Run from a repository checkout.
 
 Levels: UMP2/cc-pVTZ geometries, IRC and Hessians (finite differences of analytic gradients);
 UCCSD(T)/cc-pVTZ single points at the minimum, saddle and along the path (energy correction),
@@ -29,6 +32,21 @@ from pathlib import Path
 import numpy as np
 
 BOHR = 0.529177210903
+WORKERS = 1
+
+
+def _helpers():
+    """rph.py and tunneling.py loaded straight from the repository (pure NumPy): the ab initio
+    stages need neither an installed riss_drucker nor its compiled core."""
+    import importlib.util
+    base = Path(__file__).resolve().parents[1] / "python" / "riss_drucker" / "abinitio"
+    mods = {}
+    for name in ("rph", "tunneling"):
+        spec = importlib.util.spec_from_file_location(f"_rd_{name}", base / f"{name}.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mods[name] = mod
+    return mods["rph"], mods["tunneling"]
 SYM = ["C", "H", "H", "H", "H"]
 BASIS = "cc-pvtz"
 
@@ -57,17 +75,32 @@ def ccsdt(X, charge=1, spin=1):
     return float(c.e_tot + c.ccsd_t())
 
 
+def _grad_task(args):
+    X, charge, spin = args
+    return mp2(X, True, charge, spin)[1]
+
+
 def hessian(X, charge=1, spin=1, step=0.005):
-    """Cartesian Hessian (Eh/bohr^2) by central differences of analytic MP2 gradients."""
+    """Cartesian Hessian (Eh/bohr^2) by central differences of analytic MP2 gradients.
+    The 6N displaced gradients are independent: with --workers > 1 they run in parallel
+    processes (OMP threads per process = OMP_NUM_THREADS / workers is the user's choice)."""
     Xb = np.asarray(X) / BOHR
     n = len(Xb)
-    H = np.zeros((3 * n, 3 * n))
+    tasks = []
     for k in range(3 * n):
         d = np.zeros(3 * n)
         d[k] = step
-        _, gp = mp2(((Xb.ravel() + d).reshape(n, 3)) * BOHR, True, charge, spin)
-        _, gm = mp2(((Xb.ravel() - d).reshape(n, 3)) * BOHR, True, charge, spin)
-        H[:, k] = ((gp - gm) * BOHR).ravel() / (2 * step)
+        tasks.append((((Xb.ravel() + d).reshape(n, 3)) * BOHR, charge, spin))
+        tasks.append((((Xb.ravel() - d).reshape(n, 3)) * BOHR, charge, spin))
+    if WORKERS > 1:
+        from concurrent.futures import ProcessPoolExecutor
+        with ProcessPoolExecutor(WORKERS) as ex:
+            grads = list(ex.map(_grad_task, tasks))
+    else:
+        grads = [_grad_task(t) for t in tasks]
+    H = np.zeros((3 * n, 3 * n))
+    for k in range(3 * n):
+        H[:, k] = ((grads[2 * k] - grads[2 * k + 1]) * BOHR).ravel() / (2 * step)
     return (H + H.T) / 2
 
 
@@ -91,7 +124,7 @@ def stage_min(out):
 
 
 def masses_of(iso="H"):
-    from riss_drucker.abinitio.rph import MASS
+    MASS = _helpers()[0].MASS
     return np.array([MASS["C"]] + [MASS[iso]] * 4)
 
 
@@ -117,8 +150,8 @@ def stage_ts(out, mn):
     becoming long, one long-bond H becoming short) are equal at the saddle by symmetry: minimize
     on the seam r(C-Ha) = r(C-Hb) = d for several d, refine the lowest seam point as a transition
     state, and require exactly one imaginary frequency."""
-    from riss_drucker.abinitio.rph import projected_frequencies
-    from riss_drucker.abinitio.tunneling import kabsch
+    rph, tun = _helpers()
+    projected_frequencies, kabsch = rph.projected_frequencies, tun.kabsch
     X = np.array(mn["xyz"])
     d = [np.linalg.norm(X[i] - X[0]) for i in range(1, 5)]
     order = np.argsort(d)
@@ -144,7 +177,7 @@ def stage_ts(out, mn):
 
 def stage_irc(out, ts, mn, h=0.02, max_steps=400):
     """Mass-weighted steepest descent (Euler steps of h amu^1/2 A, with a corrector) from the saddle."""
-    from riss_drucker.abinitio.tunneling import kabsch
+    kabsch = _helpers()[1].kabsch
     m = masses_of()
     T = np.array(ts["xyz"])
     H = np.array(ts["hessian"])
@@ -210,7 +243,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--stages", default="min,ts,irc,hess,ccsdt,neutral")
+    ap.add_argument("--workers", type=int, default=1, help="parallel processes for finite-difference Hessians")
     a = ap.parse_args()
+    global WORKERS
+    WORKERS = max(1, a.workers)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     import pyscf
