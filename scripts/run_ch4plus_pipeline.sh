@@ -18,6 +18,9 @@ for a in "$@"; do case $a in --llm) LLM=1;; --commit) COMMIT=1;; *) echo "unknow
 PY=${PYTHON:-python}
 cd "$(dirname "$0")/.."
 
+command -v pdftotext >/dev/null || { echo "pdftotext not found: install poppler-utils (Fedora: sudo dnf install -y poppler-utils; Debian/Ubuntu: sudo apt install poppler-utils)"; exit 1; }
+[[ -f "$PDF" ]] || { echo "PDF not found: $PDF"; exit 1; }
+if [[ $LLM == 1 ]]; then command -v claude >/dev/null || { echo "claude not found: install Claude Code (curl -fsSL https://claude.ai/install.sh | bash) or drop --llm"; exit 1; }; fi
 for s in min ts irc hess ccsdt neutral; do
   [[ -f "$RUN/ch4plus_$s.json" ]] || { echo "stage '$s' missing in $RUN (is the run finished? grep '^stage' $RUN/run.log)"; exit 1; }
 done

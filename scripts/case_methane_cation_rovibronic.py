@@ -47,7 +47,10 @@ ROW = re.compile(r"^\s*(\d)\s+(A1|A2|E|F1|F2)\s+(\d(?:/\d)?)?\s+(A1|A2|A|E|F1|F2
 
 
 def read_tables(pdf: Path) -> dict:
-    txt = subprocess.run(["pdftotext", "-layout", str(pdf), "-"], capture_output=True, text=True, check=True).stdout
+    try:
+        txt = subprocess.run(["pdftotext", "-layout", str(pdf), "-"], capture_output=True, text=True, check=True).stdout
+    except FileNotFoundError:
+        raise SystemExit("pdftotext not found: install poppler-utils (Fedora: sudo dnf install -y poppler-utils)")
     sections = {"CH4+": "TABLE VII.", "13CH4+": "TABLE VIII.", "CD4+": "TABLE IX."}
     out = {}
     keys = list(sections)
