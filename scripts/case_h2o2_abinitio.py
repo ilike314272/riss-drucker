@@ -17,6 +17,10 @@ geomeTRIC); low fidelity = MP2/cc-pVDZ at those geometries, high fidelity =
 single points at the same geometries; F from the relaxed minimum. Without it
 the scan is rigid, which overestimates the trans barrier.
 Requires PySCF (run locally / offline; no external API).
+
+This script produces the scan point sets and the 1-D fixed-F baseline. The full
+torsion-rotation model built from them (exact G(gamma), pseudopotential, ZPE,
+half-angle frame, Bayesian update) is scripts/case_h2o2_rph.py.
 """
 from __future__ import annotations
 

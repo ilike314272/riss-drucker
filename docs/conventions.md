@@ -335,3 +335,105 @@ compile, 2j ≤ 8 in tests) and 6j orthogonality (tests). Bound 1e-13.
   with the KPM moments normalized by the dimension (exact) or by R·dim (stochastic).
 - **Point sets** (`pointset/1` JSON): energies in hartree as computed. Conversion to cm⁻¹
   uses `HARTREE_TO_CM` = 219474.6313705 at ingestion.
+
+## 18. Dynamic builder, symmetry groups and algebraic certificates (fixed in M7/M8 work)
+
+**Groups (`rd.symmetry`).** A group is the closure of its generators. Each element carries an
+equivalent rotation R (proper), its SU(2) lift u, a parity (−1 for E* type), a permutation of
+identical nuclei and an affine action γ → sγ + c on each large-amplitude coordinate.
+- Operator action: g·J_a = Σ_b R_ba J_b, g·a_c = Σ_c' ρ(g)_c'c a_c', g·f(γ) = f(sγ + c). Hence
+  R(gh) = R(g)R(h), ρ(gh) = ρ(g)ρ(h), and h_gh = h_h ∘ h_g for coordinate maps.
+- Point groups are given by point operations O. Then R = det(O)·O, parity = det(O), and the
+  vector irrep (F2 in Td, E in C3v) is O itself.
+- Irreps come from decomposing the regular representation with a random commutant element,
+  split over ℂ when the real piece is not absolutely irreducible. They are named from a stored
+  character table on the generators; unnamed ones get G<d>_<k>, spinor ones S<d>_<k>.
+- Integer results (multiplicities, Frobenius-Schur indicators, spin weights) are rounded from
+  floats. A non-integer is an error.
+- Double groups (`double=True`) put the SU(2) lift in the element identity. They are needed
+  whenever one space has half-integer angular momentum, even if the product is single valued.
+- Gauge elements (generator flag `gauge=True`) are redundancies of the coordinates, not
+  symmetries. Only irreps trivial on the gauge subgroup are physical blocks.
+  - H₂O₂ example: the frame is z = O1→O2 and x = the bisector of the OH projections, with the
+    torsion t the full HOOH dihedral on [0, 4π). The gauge element (t → t + 2π, C2z) makes
+    K-odd states use antiperiodic torsional functions.
+  - In G8(H2O2), swap = C2x with t → t, and E* = C2y with t → −t.
+
+**Spaces and bases (`rd.build`).**
+- **Rotation:** |J k⟩, k = −J..J ascending. J_mf = (Jx, −Jy, Jz) of the standard matrices
+  (anomalous, section 14). U(g) = D^J(c u c†) with c the lift of C2y, so that
+  U J_mf,a U† = Σ_b R_ba J_mf,b.
+- **Spin:** |S s⟩ with standard matrices; U = D^S(u).
+- **Electronic:** components `<state><x|y|z>` with U = ρ_Γ(g).
+- **Vibrational:** occupation states over Cartesian components. U on n quanta is Sym^n(ρ).
+  Truncation is by polyad P = Σ w n (conserved, blocks) or by total quanta (`nmax`).
+- **Torsion:** e^{i(m/κ)γ}, |m| ≤ m_max (in units of 1/κ), κ = 1 for period 2π and 2 for 4π.
+  U|m⟩ = e^{i(m/κ)c}|sm⟩.
+- **Oscillator coordinate:** HO basis; U|n⟩ = sⁿ|n⟩.
+- **Kronecker order:** rotation first, then spin, then the declared order.
+
+**Time reversal.** Θ = U_Θ K with U_Θ = exp(iπJ_y) and exp(iπS_y) on the rotation and spin
+spaces, |m⟩ → |−m⟩ on torsion, and identity elsewhere. Θ includes the space-fixed π rotation,
+so Θ² = +1 whenever rotation is present: blocks are real. A spin space without a rotation space
+is refused.
+
+**Compilation and certificates.** Terms are canonicalized before checking: cross-space atoms
+commute, bosons are normal ordered, and electronic products are reduced. A term must pass
+- Hermiticity, Θ-evenness and symmetry under every generator (symbolic, then again on the
+  matrices at every J);
+- polyad conservation;
+- independence of all term matrices over the compiled blocks.
+
+Per J and polyad sector:
+- the product-space character must reproduce the sector dimension;
+- the projected dimension of each irrep must equal its character count;
+- the Θ-fixed real basis must have the block dimension;
+- block matrices must be real;
+- U must implement the grammar's group action on every atom and form a homomorphism;
+- Θ must act on the atoms with the stated parities.
+
+Complex-type irreps are blocked as Γ+Γ* (real, separably degenerate). Quaternionic irreps with
+Θ² = +1 are refused. Block keys: `J2=<2J>|irrep=<Γ>|...|sub=P=<p>`.
+
+**Operator dictionary and Molien counts (`rd.algebra`).**
+- A multidegree gives, per space:
+  - boson degree n;
+  - J degree n;
+  - torsion (k in units of 1/κ, p power m);
+  - oscillator degree;
+  - finite spaces (spin, electronic) in full.
+- The leading symbol is the commutative image on infinite spaces and the exact matrix on
+  finite spaces. The dictionary keeps a maximal independent set of symbols of
+  sym(word) + h.c. and sym(i·word) + h.c.
+- Its size must equal (D ± T)/2. Here D = 1/|G| Σ_g Π χ_s(g) and T = 1/|G| Σ_g Π τ_s(g), where
+  τ_s is the trace of (†∘Θ)∘g. The sign is + for time-reversal-even terms (Hamiltonian) and −
+  for odd ones (generators K, with S = iK). The per-space traces are:
+
+| Space | χ_s | τ_s |
+|---|---|---|
+| bosons | [z⁰] h_n over c and a weighted z^{±w} | h_{n/2}(λ²) for even n |
+| J | h_n(R) | (−1)ⁿ h_n(R) |
+| spin | \|χ^S\|² | (−1)^{2S} χ^S(u²) |
+| electronic | \|χ_el\|² | χ_el(g²) |
+| torsion | (1+s) cos(kc) sᵐ, or sᵐ for k = 0 | (−1)ᵐ χ |
+| oscillator | (n+1)sⁿ | sⁿ for even n |
+
+**Redundancy.**
+- The test is dim(span{O_k} ∩ span{[S_j, H₀]}) at the current parameters. Generators K have
+  the requested degrees. H₀ defaults to the terms with at most two atoms per word, at their
+  current values.
+- The intersection uses floating-point ranks with relative tolerance 10⁻⁹, order by order:
+  linearized, not a closed-form normal form.
+- Fisher rank ≤ n_terms − redundant is a result certificate.
+
+**Reaction-path Hamiltonian (`rd.abinitio.rph`).**
+- The generalized inertia tensor is built from the body-frame coordinates r(γ) on the
+  extended path, with Fourier fits of order K in γ/2.
+- H = ½ Σ π_i G_ij π_j + V' + V + ΔZPE, with ħ²/(amu Å²) = 33.7152583 cm⁻¹.
+- V' = ħ²[−(G_tt L)'/8 + G_tt L²/32], L = (ln det I)'. This is the exact Podolsky
+  pseudopotential for a single internal coordinate; the J–p cross terms reduce to
+  J_a{G_at, p}/2.
+- Each coefficient function is expanded only in the Fourier functions for which the term is
+  invariant; the compiler's own symmetry test decides which.
+- ΔZPE comes from Hessians projected on translations, rotations and the path tangent.
+- Angles are the actual dihedral of each relaxed geometry, not the scan label.

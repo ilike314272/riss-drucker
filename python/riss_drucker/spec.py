@@ -22,7 +22,7 @@ from . import _core
 OPERATOR_LIBRARY_VERSION = "1"
 CONVENTIONS = "docs/conventions.md (v1)"
 
-_KINDS = ("asym_rotor", "torsion_rotor", "open_rotor", "inversion", "ram_torsion")
+_KINDS = ("asym_rotor", "torsion_rotor", "open_rotor", "inversion", "ram_torsion", "built")
 
 
 def _canonical(obj: Any) -> Any:
@@ -91,6 +91,14 @@ class ModelSpec:
                                    "m_max": int(m_max), "j_max": int(j_max), "axis": axis, "d_ab": bool(d_ab)},
                    group_chain=(f"G{2 * int(n_fold)}(M)",))
 
+    @classmethod
+    def built(cls, build_spec) -> "ModelSpec":
+        """A dynamically built model (rd.build.BuildSpec): spaces, group, grammar terms."""
+        d = build_spec.to_dict()
+        return cls("built", d, group_chain=(str(d["group"]),),
+                   electronic_states=tuple(sorted({str(st[0]) for sp in d["spaces"] if sp["kind"] == "elec"
+                                                   for st in sp["states"]})) or ("ground",))
+
     # -- canonical form and hash ---------------------------------------------
     def canonical(self) -> dict:
         return _canonical({
@@ -114,6 +122,9 @@ class ModelSpec:
 
     # -- compile -----------------------------------------------------------------
     def compile(self):
+        if self.kind == "built":
+            from .build import BuildSpec, compile_build
+            return compile_build(BuildSpec.from_dict(self.structure)).model
         if len(self.electronic_states) != 1:
             # TODO(riss-drucker-v1): multi-surface models (Phase B).
             raise NotImplementedError("multiple electronic states are a later phase")

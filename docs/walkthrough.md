@@ -297,57 +297,99 @@ ehamil_derived refused.
 **Evidence** (`tests/python/test_ml_infrastructure.py`): on a synthetic Δ problem, more than
 95% of grid points have |z| < 3, and propagated level σ is positive and sample-consistent.
 
-**Remaining M5:** the Bayesian update of the spectroscopic fit with the ab initio prior and τ;
-the prior-posterior shift diagnostic; multi-dimensional surfaces (more than one coordinate).
+**Update (dynamic builder):** `rd.abinitio.rph` builds the full torsion–rotation Hamiltonian of
+H₂O₂ from the relaxed geometries. It includes the exact G(γ) from the generalized inertia
+tensor, the Podolsky pseudopotential, the adiabatic ZPE of the other modes, and the half-angle
+frame with its gauge element. It does not assume a fixed torsional constant. The Bayesian update
+against experimental levels (prior = GP ⊕ τ_ab chosen by evidence, leave-one-out predictions,
+prior→posterior shifts) is in `scripts/case_h2o2_rph.py`; see `docs/case_studies/h2o2_abinitio.md`.
+
+**Remaining M5:** multi-dimensional surfaces (more than one coordinate); Δ-learning of the
+G-matrix and ZPE at the high level.
 
 ## M6 Automated extraction + analysis widgets ○
 An offline LLM extractor that outputs the record schema, evaluated against the gold set.
 Part 4 plots (Loomis-Wood, Fortrat, residual-vs-J, corner plots, calibration).
 Part 4 widgets can start alongside M2/M3 as soon as there are results to plot.
 
-## M7 Structure proposer — infrastructure ✅ (pulled forward), learned proposers ○
+## M7 Dynamic Hamiltonian construction ✅ (pulled forward); learned proposers on real data ○
 
-This is the substrate on which amortized inference and language models build effective
-Hamiltonians. Every proposal is text in a grammar. The compiler certifies it or rejects it,
-and physics (fit + evidence + solver certificates) has the last word.
+Models are *built*, not chosen from a list of model types (rigid rotor, Watson, Hund's case ...).
+A model is three things: spaces, a symmetry group and grammar terms. The compiler certifies
+them, `autobuild` grows the term list from data, and every proposer (dictionary, neural
+network, language model) only suggests.
 
 **What exists**
-- `rd.grammar`: term syntax `"<param>: <expr>"` over number operators `n<mode>`, ladder
-  operators `a<mode><comp>[+]`, `sym(...)` (group average) and `+ h.c.`. Normal ordering and a
-  canonical form with a stable hash give deduplication up to scale.
-- `rd.vib`: modes with irreps and polyad weights. Groups C1, C2v and Td (Td built numerically:
-  F2 as signed permutations, E from quadratic forms). Fock spaces per polyad.
-  `compile_vib` returns a `CompiledModel` with one block per polyad. Compile certificates:
-  Hermiticity, total symmetry, polyad conservation, order bound and time reversal. A failure
-  raises `GrammarError` before anything is fitted.
-- `rd.selection`: the `Proposer` protocol. `EnumerativeProposer` lists every symmetry-allowed
-  term to a given order. `CallableProposer` wraps any text-producing callable, such as a
-  language model; unparseable lines are dropped and invalid terms are rejected by the
-  compiler. `search` runs trial fits scored by Laplace evidence. It is greedy and starts each
-  coupling at a non-zero value, because a resonance has zero Hellmann-Feynman derivative at
-  zero coupling (ARD relevance is blind to it). `relevance` (ARD) is kept for diagonal terms.
-- `rd.ml`: `moments` (exact and stochastic KPM Chebyshev moments, Jackson DOS), `dataset`
-  (priors, level and moment features, npz shards plus manifest), and `amortized`
-  (`BayesLinearPosterior`, a coverage `calibration`, and `verify`, which starts a certified
-  fit from the amortized guess).
-- `notebooks/06_ml_infrastructure.ipynb`.
+- `rd.symmetry`:
+  - groups are generated from point operations or permutation-inversion elements, with LAM
+    coordinate maps, double groups and gauge elements;
+  - irreps come from the regular representation;
+  - provides characters, Frobenius-Schur indicators, intertwiners (isoscalar solutions; their
+    number is certified against the multiplicity), Jahn-Teller-active modes, nuclear-spin
+    statistics, and level counts per (J, Γ);
+  - library: C1, Cs, C2, C2v, C3v, D2, D3h, Td, G8(H2O2).
+- `rd.build`:
+  - product spaces: rotation (molecule-fixed |J k⟩), spin, electronic states, vibrational Fock
+    spaces (polyads or truncation), periodic LAM coordinates (2π or 4π), oscillator coordinates;
+  - the grammar takes atoms from all of them;
+  - irrep projection gives real time-reversal-adapted blocks;
+  - certificates: listed in conventions section 18;
+  - line strengths and intensities from the built eigenvectors.
+- `rd.algebra`:
+  - `enumerate_terms`: an operator dictionary per multidegree. Its count is certified against
+    the Molien-type character formula. It also yields time-reversal-odd generators.
+  - `redundancy`: contact-transformation analysis (span of terms ∩ span of [S, H₀]).
+  - `fisher_rank_certificate`.
+- `rd.autobuild`: fit → residual diagnostics → proposers → compile/redundancy filter → score
+  test → trial fits → Laplace evidence → accept. Also `coupling_diagnostic`, which shows which
+  candidate labels are good quantum numbers (K, Σ, N, polyad ...).
+- Proposers:
+  - `DictionaryProposer`;
+  - `rd.ml.structure.AmortizedProposer` (a multi-label network trained on simulated models
+    from one super-model);
+  - `rd.llm.LLMProposer`. Its prompt holds the grammar, spaces, character table, current
+    terms, fit diagnostics and a dictionary sample. `anthropic_complete` is a Claude Messages
+    API adapter.
+- `rd.ml.neural.MLPPosterior`: a heteroscedastic deep-ensemble posterior (numpy; optional
+  torch/GPU), calibrated and then verified by a certified fit. `MLPClassifier` is its
+  multi-label counterpart.
+- `ModelSpec.built(...)`: canonical hash and operator cache for built models.
+- `notebooks/07_dynamic_builder.ipynb`.
 
-**Evidence** (`tests/python/test_ml_infrastructure.py`)
+**Evidence** (`tests/python/test_dynamic_builder.py`)
 
 | Check | Result |
 |---|---|
-| Methane (Td), harmonic + all 48 symmetry-allowed cubic/quartic terms, random constants | dyad 2, pentad 9, octad 24 sublevels; degeneracies 1/2/3 only |
-| Fermi resonance (1,0)/(0,2) | exact 2×2 to 10⁻¹⁰ |
-| Search over {resonance, x11, x12} with a resonance in the truth | resonance ranked first and accepted, k to 0.01%; spurious terms rejected |
-| Callable proposer | malformed and symmetry-violating proposals rejected, never fitted |
-| KPM moments | exact = trace to 10⁻¹²; stochastic O(1/√(Rn)) |
-| Amortized posterior (asymmetric rotor) | rmse < 0.05, 2σ coverage within 0.08 of 0.954; `verify` certifies |
+| Built asymmetric rotor vs the C++ Watson rotor | eigenvalues to 10⁻¹⁰ |
+| Built methane polyads vs the independent `vib` compiler | all distinct levels identical |
+| Td ν3 Coriolis term | exactly −(1/3) J·l with J·l ∈ {−J, 1, J+1}; (J, Γ) counts equal D^J ⊗ F2 |
+| Doublet spin-rotation (half-integer J, double group) | exact N(N+1) + γ/2[J(J+1) − N(N+1) − S(S+1)] |
+| Linear E⊗e Jahn-Teller | A1/A2 levels pair up (hidden SO(2), missed by the point group); quadratic coupling splits them |
+| H₂O₂ G8 gauge frame | J = 0 equals the 1-D torsion; a K-odd coupling with an integer Fourier order is rejected |
+| Dictionary vs Molien counts | methane 4/4/30 (quadratic/cubic/quartic); spherical top 1, 1, 2, 3, 4; asymmetric top 3, 6, 10; CH₄⁺ T₂⊗(e+t₂) 1/2/15 |
+| Contact-transformation redundancy | asymmetric top through sextic: 19 terms, 4 removable, 15 identifiable (Watson A: 3 + 5 + 7) |
+| autobuild on synthetic quartic rotor data | accepts 4 quartics; rejects the unitarily equivalent fifth; χ²/dof ≈ 1; Fisher-rank certificate passes |
+| autobuild, Fermi resonance | the resonance is found from the dictionary (zero Hellmann-Feynman derivative, so a trial fit is used) |
+| Built line strengths vs `rd.spectra` | identical for a-, b-, c-type and hybrid bands; sum rule exact |
+| Neural posterior | rmse < 0.05, 2σ coverage within 0.1 of 0.954, verified by a certified fit |
+| Amortized structure proposer | the hidden resonance gets p > 0.8 and is ranked first |
 
-**Open items:** the tetradecad comes out at 59 sublevels. The recalled literature value of 60
-is unverified, so this is unresolved. Remaining work: Td rovibrational coupling (Coriolis,
-tensorial rotation operators); a `ModelSpec` kind for `vib_polyad` with cache support; a
-neural amortized posterior trained on Kaggle GPUs over the same dataset format; a language
-model proposer conditioned on residual diagnostics; a coupling-case diagnostic.
+**Corrections to earlier claims**
+- The old enumerator's "48 cubic/quartic methane terms" counted operators that are not
+  linearly independent. The independent count is 4 + 30 = 34, certified by the Molien formula.
+- The methane tetradecad has **60** sublevels, not the 59 reported earlier. The polyad character
+  decomposes as 11 A1 + 2 A2 + 14 E + 13 F1 + 20 F2. The earlier figure came from clustering
+  eigenvalues by tolerance and merged a near-degenerate pair. The builder's per-irrep count
+  certificate makes such a miscount impossible. Dyad 2, pentad 9, octad 24 and pentakisdecad 134
+  come from the same decomposition.
+
+**Open:**
+- learned proposers trained on real spectra (needs the gold set);
+- Td rovibrational dyad/pentad fits to real CH₄ lines;
+- PI groups for more LAM molecules;
+- spin-orbit (double-group electronic states) for CH₄⁺ X²T₂;
+- exact rational ranks for the redundancy analysis (currently floating point with a stated
+  tolerance).
 
 ## M8 open-shell and LAM models ✅ (pulled forward); remaining M8 ○
 
@@ -372,7 +414,7 @@ model proposer conditioned on residual diagnostics; a coupling-case diagnostic.
 | Inversion: tunnelling | doublet ordering, exponential splitting decay, K-dependent splitting from rotation coupling |
 | RAM | equals `torsion_rotor` in the K-exact limit and the principal-axis rotor at ρ = 0, to 10⁻¹⁰ |
 
-**Remaining M8:** Td rovibrational polyads (vibrational polyads are in, see M7), PI-group symmetry labels for LAM
+**Remaining M8:** fits of Td rovibrational polyads to real data (the builder compiles them, see M7), PI-group symmetry labels for LAM
 blocks (D3h(M), G12, …) with nuclear-spin statistics, sextic spin-rotation distortion,
 resummed rotor for light molecules, and electronic orbital angular momentum (Λ ≠ 0,
 Renner-Teller / Jahn-Teller: Phase B, needed for CH₄⁺).
