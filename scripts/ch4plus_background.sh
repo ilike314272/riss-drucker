@@ -93,9 +93,9 @@ _run)
   echo "==== $(date '+%F %T') run start: basis $BASIS, workers $WORKERS x $THREADS threads, llm $LLM ${MODEL:+(model $MODEL)}"
 
   step 0 "python environment"
-  if ! "$PY" -c "import riss_drucker.abinitio.firstprinciples, riss_drucker.llm_loop, riss_drucker.molecule" 2>/dev/null; then
-    echo "riss_drucker lacks the new modules in $PY: reinstalling from this checkout (compiles the C++ core)"
-    "$PY" -m pip install . >> "$LOG" 2>&1 || fail 0
+  if ! "$PY" -c "import riss_drucker.abinitio.firstprinciples, riss_drucker.llm_loop, riss_drucker.molecule; from riss_drucker.data.catalog import levels_from_measured" 2>/dev/null; then
+    echo "riss_drucker in $PY is older than this checkout: reinstalling editable (compiles the C++ core)"
+    "$PY" -m pip install -e . >> "$LOG" 2>&1 || fail 0
   fi
 
   step 1 "ab initio stages incl. reaction plane (UMP2/UCCSD(T), $BASIS) - the long step"

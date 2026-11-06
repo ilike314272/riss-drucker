@@ -428,6 +428,20 @@ def write_summary(res):
     (OUT.parent / "review_followups_results.md").write_text("\n".join(L))
 
 
+def stale_check():
+    """Stop early if the installed riss_drucker predates this checkout (non-editable install)."""
+    import riss_drucker
+    from riss_drucker.data import catalog
+    src = Path(riss_drucker.__file__).resolve().parent
+    if not hasattr(catalog, "levels_from_measured"):
+        sys.exit(f"riss_drucker at {src} is older than this checkout (no levels_from_measured).\n"
+                 f"Reinstall it from the checkout, editable so later pulls apply:\n"
+                 f"  {sys.executable} -m pip install -e {ROOT}")
+    if ROOT / "python" not in src.parents and src != ROOT / "python" / "riss_drucker":
+        log(f"note: using installed riss_drucker at {src}, not this checkout's python/ (reinstall with "
+            f"'pip install -e .' if results look stale)")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("item", choices=["provenance", "coverage", "baselines", "splits", "budget", "all"])
@@ -440,6 +454,7 @@ def main() -> int:
     ap.add_argument("--budget", type=float, default=2.0, help="USD cap for --llm")
     ap.add_argument("--quick", action="store_true", help="coarser grids / fewer steps (for testing)")
     a = ap.parse_args()
+    stale_check()
     res = json.loads(OUT.read_text()) if OUT.exists() else {}
     items = ["provenance", "coverage", "baselines", "splits", "budget"] if a.item == "all" else [a.item]
     fn = {"provenance": item_provenance, "coverage": item_coverage, "baselines": item_baselines,
