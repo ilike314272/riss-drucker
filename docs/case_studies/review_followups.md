@@ -27,7 +27,7 @@ python scripts/review_followups.py all --data DATA_DIR --pdf JCP_126_144305.pdf
 | 6 | CH₄⁺ statistics overstated | **Confirmed** | Per-isotopologue σ estimated (CH₄⁺ ≈ 1.1 cm⁻¹, not 0.5). The frame-rotation claim is rewritten as "suggestive for CH₄⁺, no evidence for CD₄⁺". |
 | 7 | δ not tested against its sensitivity | Confirmed | Uncertainty budget below: the measured δ lies inside it |
 | 8 | Docs and verifier drifted | Confirmed | cc-pVTZ first-principles values recorded and checked; stale tables replaced; the verifier is described as a reproducibility check |
-| 9 | Claude evidence thin, first-principles scoring circular | **Confirmed**: the plain dictionary matches or beats Claude, and on the blind synthetic test it is about 100× better | Dictionary baseline and hidden-truth synthetic molecule added (below); the circularity is documented |
+| 9 | Claude evidence thin, first-principles scoring circular | **Confirmed on CH₄⁺**: the plain dictionary matches or beats Claude; the synthetic blind test was biased toward the dictionary and is inconclusive | Dictionary baseline and hidden-truth synthetic molecule added (below); the circularity is documented |
 | 10 | H2O2 headline omits the ZPE row | Valid | Headline now quotes both: 0.15–1.6% without ZPE, 0.5–2.0% with it (splitting 10.0 vs 11.4) |
 | 11 | H2S solver tuned on its own data | Valid | Not yet changed |
 | 12 | Error prior may be biased | Valid | Not yet changed |
@@ -140,20 +140,37 @@ operators; two duplicate the rotor and are rejected by the compiler.
 | Reference (rigid rotor plan) | 0.76 |
 | True model | 3.9×10⁻⁵ |
 | Dictionary greedy, 4 steps | 6.0×10⁻⁵: recovers all three hidden terms plus one spurious one; its first pick was wrong |
-| **Claude** (Opus, 4 rounds, $0.58 reported usage; run on the WSL machine) | **6.5×10⁻³**: a 25-term Watson-style expansion up to 10th order |
+| **Claude** (Opus, 4 rounds, $0.58 reported usage; run on the WSL machine) | **6.5×10⁻³**: a 25-term Watson-style expansion up to 8th order plus Jz¹⁰ (the test was biased; see below) |
 
-**Claude does about 100× worse than the dictionary on the blind test.** It proposed a generic,
-textbook expansion: every product of J², J_z² and (J_x² − J_y²) up to tenth order, 25 parameters.
-Fitted to the 49 levels with J ≤ 6, that model nearly interpolates and then extrapolates poorly.
-The greedy dictionary search judges each candidate term by its effect on held-out levels, finds
-the three hidden terms (plus one spurious), and gets within a factor of 1.5 of the true model.
+**Claude scored about 100× worse than the dictionary, but this test was biased against it.** The
+transcript (`synthetic_llm_transcript.json`) shows four rounds:
 
-**Caveats.**
-- **Unequal budgets:** the dictionary evaluated about 80 candidate models, and Claude made 4
-  proposals. At an equal budget the greedy search would not have finished its first step.
-- **Limited feedback:** Claude saw only each round's overall score, not per-term effects.
+| Round | Terms | Fit rms (J ≤ 6) | Predicted rms (J = 7–9) | Claude's reasoning |
+|---|---|---|---|---|
+| 1 | 17 | 3.1×10⁻⁵ | 0.0136 | "Water is a light, strongly K-dependent rotor": all quartic and sextic A-reduction terms plus two octic |
+| 2 | 25 | 5.7×10⁻⁶ | 0.0065 | read round 1 as truncation, completed the octic shell |
+| 3 | 35 | 4.0×10⁻⁶ | 0.030 | added the decic shell, flagging the overfitting risk |
+| 4 | 23 | 5.5×10⁻⁶ | 0.0129 | diagnosed overfitting from coefficient growth and pruned |
 
-A fairer design would give Claude per-term diagnostics, or use it to propose candidate pools that
-the systematic search then tests. As the evidence stands, the review's point holds: in every test
-so far, systematic search matches or beats the language model, and Claude's one clear win (the
-first-principles levels) was circular.
+The reasoning is competent: C2v acts on J as D2, it checked the axis assignment, and it recognized
+overfitting. But the test design favoured the dictionary in three ways:
+1. **The molecule was named.** "H₂O" with a real geometry invited Claude to use what it knows about
+   real water (very large centrifugal distortion). The synthetic target is a rigid rotor plus three
+   small hidden terms.
+2. **The hidden terms came from the dictionary's own operator basis** (`enumerate_terms`), so the
+   greedy search could recover them exactly. Claude wrote the standard Watson A-reduced form, which
+   is equivalent to the unreduced operators only to a given order.
+3. **The noise level (10⁻⁵ cm⁻¹) was not stated.** Round 1 already fitted at the noise level.
+   Claude assumed levels exact to 6 decimals and read the misfit as truncation, which drove the
+   long expansions.
+
+The budgets were also unequal: about 80 trial evaluations for the search against 4 proposals for
+Claude, which saw only the total score.
+
+**Conclusion from this test: inconclusive about Claude, and informative about test design.** A fair
+version would use an anonymous asymmetric top (made-up constants, no formula), a truth generated
+outside both candidate sets (for example a reduced Hamiltonian with random constants, or a hidden
+resonance), a stated noise level, and equal evaluation budgets, with Claude allowed to request
+trial fits. On the CH₄⁺ data, where these biases do not apply, the systematic dictionary search
+still matches or beats Claude's proposals, and Claude's one clear win (the first-principles levels)
+was circular.
