@@ -29,18 +29,18 @@ Calibrated: 0.68, 0.95, 1.
 
 ```
 {
- "reference": 0.9100967828778159,
+ "reference": 0.910096785057632,
  "dictionary_single_additions": {
-  "b11: sym(i*Jx w[1,2]) + h.c.": 0.9239661254548932,
-  "b12: sym(i*Jx w[1,3]) + h.c.": 0.8334553579432376,
-  "b13: sym(i*Jx w[3,5]) + h.c.": 0.969666395533546,
+  "b11: sym(i*Jx w[1,2]) + h.c.": 0.9239648251642283,
+  "b12: sym(i*Jx w[1,3]) + h.c.": 0.8334564988726332,
+  "b13: sym(i*Jx w[3,5]) + h.c.": 0.9696669631710519,
   "b21: sym(Jx Jx w[1,1]) + h.c.": null,
-  "b22: sym(Jx Jx w[1,3]) + h.c.": 0.9703784862222126,
+  "b22: sym(Jx Jx w[1,3]) + h.c.": 0.9703750523423227,
   "b23: sym(Jx Jx w[3,3]) + h.c.": null,
-  "b24: sym(Jx Jx w[3,4]) + h.c.": 1.0220365497536663,
-  "b25: sym(Jx Jx w[3,5]) + h.c.": 0.9741152913306521,
-  "b26: sym(Jx Jy w[1,3]) + h.c.": 0.9385997618473644,
-  "b27: sym(Jx Jy w[1,5]) + h.c.": 1.0038466142989222,
+  "b24: sym(Jx Jx w[3,4]) + h.c.": 1.022033606130061,
+  "b25: sym(Jx Jx w[3,5]) + h.c.": 0.9741192950608312,
+  "b26: sym(Jx Jy w[1,3]) + h.c.": 0.9385923610170342,
+  "b27: sym(Jx Jy w[1,5]) + h.c.": 1.0038474232251846,
   "b28: sym(Jx Jy w[5,5]) + h.c.": null
  },
  "dictionary_greedy_forward": [
@@ -48,14 +48,14 @@ Calibrated: 0.68, 0.95, 1.
    "terms": [
     "b12: sym(i*Jx w[1,3]) + h.c."
    ],
-   "score": 0.8334553579432376
+   "score": 0.8334564988726332
   },
   {
    "terms": [
     "b12: sym(i*Jx w[1,3]) + h.c.",
     "b13: sym(i*Jx w[3,5]) + h.c."
    ],
-   "score": 0.7846653410352037
+   "score": 0.7846635535932718
   },
   {
    "terms": [
@@ -63,7 +63,7 @@ Calibrated: 0.68, 0.95, 1.
     "b13: sym(i*Jx w[3,5]) + h.c.",
     "b24: sym(Jx Jx w[3,4]) + h.c."
    ],
-   "score": 0.6788108497496322
+   "score": 0.6788103069016516
   },
   {
    "terms": [
@@ -72,16 +72,16 @@ Calibrated: 0.68, 0.95, 1.
     "b24: sym(Jx Jx w[3,4]) + h.c.",
     "b11: sym(i*Jx w[1,2]) + h.c."
    ],
-   "score": 0.6813199806174244
+   "score": 0.6812732470235399
   }
  ],
  "claude_proposals_same_scoring": {
-  "claude ccpvtz round 1": 0.7315227293656741,
-  "claude ccpvtz round 2": 0.7315152864907185,
-  "claude r2 round 1": 0.7315227293656741,
-  "claude r2 round 2": 0.7315152864907185,
-  "claude r2 round 3": 0.7315152864907185,
-  "claude r2 round 4": 0.7196318912937706
+  "claude ccpvtz round 1": 0.7315180024913035,
+  "claude ccpvtz round 2": 0.7315082158569046,
+  "claude r2 round 1": 0.7315180024913035,
+  "claude r2 round 2": 0.7315082158569046,
+  "claude r2 round 3": 0.7315082158569046,
+  "claude r2 round 4": 0.7196323184802587
  }
 }
 ```
@@ -90,18 +90,18 @@ Calibrated: 0.68, 0.95, 1.
 
 ```
 {
- "reference": 0.698016343782997,
+ "reference": 0.6980163540020008,
  "dictionary_single_additions": {
-  "b11: sym(i*Jx w[1,2]) + h.c.": 0.7301473284799226,
-  "b12: sym(i*Jx w[1,3]) + h.c.": 0.4356342716412352,
-  "b13: sym(i*Jx w[3,5]) + h.c.": 0.6464994058059703,
+  "b11: sym(i*Jx w[1,2]) + h.c.": 0.7301472531844129,
+  "b12: sym(i*Jx w[1,3]) + h.c.": 0.4356342403230231,
+  "b13: sym(i*Jx w[3,5]) + h.c.": 0.6464994019272704,
   "b21: sym(Jx Jx w[1,1]) + h.c.": null,
-  "b22: sym(Jx Jx w[1,3]) + h.c.": 0.705675574113549,
+  "b22: sym(Jx Jx w[1,3]) + h.c.": 0.7056756864537477,
   "b23: sym(Jx Jx w[3,3]) + h.c.": null,
-  "b24: sym(Jx Jx w[3,4]) + h.c.": 0.7090134002356847,
-  "b25: sym(Jx Jx w[3,5]) + h.c.": 0.7074822804045561,
-  "b26: sym(Jx Jy w[1,3]) + h.c.": 0.6939738601846732,
-  "b27: sym(Jx Jy w[1,5]) + h.c.": 0.7160929920471549,
+  "b24: sym(Jx Jx w[3,4]) + h.c.": 0.7090133406541883,
+  "b25: sym(Jx Jx w[3,5]) + h.c.": 0.7074796206493765,
+  "b26: sym(Jx Jy w[1,3]) + h.c.": 0.693974102453176,
+  "b27: sym(Jx Jy w[1,5]) + h.c.": 0.7160932682949127,
   "b28: sym(Jx Jy w[5,5]) + h.c.": null
  },
  "dictionary_greedy_forward": [
@@ -109,14 +109,14 @@ Calibrated: 0.68, 0.95, 1.
    "terms": [
     "b12: sym(i*Jx w[1,3]) + h.c."
    ],
-   "score": 0.4356342716412352
+   "score": 0.4356342403230231
   },
   {
    "terms": [
     "b12: sym(i*Jx w[1,3]) + h.c.",
     "b22: sym(Jx Jx w[1,3]) + h.c."
    ],
-   "score": 0.313618569755409
+   "score": 0.3136184616108029
   },
   {
    "terms": [
@@ -124,7 +124,7 @@ Calibrated: 0.68, 0.95, 1.
     "b22: sym(Jx Jx w[1,3]) + h.c.",
     "b26: sym(Jx Jy w[1,3]) + h.c."
    ],
-   "score": 0.15106662454310646
+   "score": 0.1510665886543065
   },
   {
    "terms": [
@@ -133,16 +133,16 @@ Calibrated: 0.68, 0.95, 1.
     "b26: sym(Jx Jy w[1,3]) + h.c.",
     "b13: sym(i*Jx w[3,5]) + h.c."
    ],
-   "score": 0.1453227897177337
+   "score": 0.14532276516620338
   }
  ],
  "claude_proposals_same_scoring": {
-  "claude ccpvtz round 1": 0.3511991288773967,
-  "claude ccpvtz round 2": 0.35119920158085555,
-  "claude r2 round 1": 0.3511991288773967,
-  "claude r2 round 2": 0.35119920158085555,
-  "claude r2 round 3": 0.35119920158085555,
-  "claude r2 round 4": 0.5294053778609056
+  "claude ccpvtz round 1": 0.35119921859436876,
+  "claude ccpvtz round 2": 0.3511992052966522,
+  "claude r2 round 1": 0.35119921859436876,
+  "claude r2 round 2": 0.3511992052966522,
+  "claude r2 round 3": 0.3511992052966522,
+  "claude r2 round 4": 0.5294051796574153
  }
 }
 ```
@@ -158,21 +158,21 @@ Calibrated: 0.68, 0.95, 1.
  ],
  "noise_cm": 1e-05,
  "jfit": 6,
- "reference_predict_rms": 0.7566748725288148,
- "truth_predict_rms": 3.906194857696846e-05,
+ "reference_predict_rms": 0.7566748720652335,
+ "truth_predict_rms": 3.906194316165693e-05,
  "dictionary_greedy_forward": [
   {
    "terms": [
     "h5"
    ],
-   "predict_rms": 0.7519173185672856
+   "predict_rms": 0.7519173161777836
   },
   {
    "terms": [
     "h5",
     "h4"
    ],
-   "predict_rms": 0.757225393148024
+   "predict_rms": 0.7572254963410706
   },
   {
    "terms": [
@@ -180,7 +180,7 @@ Calibrated: 0.68, 0.95, 1.
     "h4",
     "h2"
    ],
-   "predict_rms": 0.03951229642044374
+   "predict_rms": 0.039512296795169724
   },
   {
    "terms": [
@@ -189,9 +189,46 @@ Calibrated: 0.68, 0.95, 1.
     "h2",
     "s3"
    ],
-   "predict_rms": 6.004329674693885e-05
+   "predict_rms": 6.004329345240264e-05
   }
- ]
+ ],
+ "claude": {
+  "selected": "llm round 2",
+  "predict_rms": 0.006471257474231203,
+  "terms": [
+   "r1: sym(Jx Jx) + h.c.",
+   "r2: sym(Jy Jy) + h.c.",
+   "r3: sym(Jz Jz) + h.c.",
+   "d1: sym(J2 J2) + h.c.",
+   "d2: sym(J2 Jz Jz) + h.c.",
+   "d3: sym(Jz Jz Jz Jz) + h.c.",
+   "d4: sym(J2 (Jx Jx - Jy Jy)) + h.c.",
+   "d5: sym(Jz Jz (Jx Jx - Jy Jy)) + h.c.",
+   "h1: sym(J2 J2 J2) + h.c.",
+   "h2: sym(J2 J2 Jz Jz) + h.c.",
+   "h3: sym(J2 Jz Jz Jz Jz) + h.c.",
+   "h4: sym(Jz Jz Jz Jz Jz Jz) + h.c.",
+   "h5: sym(J2 J2 (Jx Jx - Jy Jy)) + h.c.",
+   "h6: sym(J2 Jz Jz (Jx Jx - Jy Jy)) + h.c.",
+   "h7: sym(Jz Jz Jz Jz (Jx Jx - Jy Jy)) + h.c.",
+   "l1: sym(Jz Jz Jz Jz Jz Jz Jz Jz) + h.c.",
+   "l2: sym(J2 Jz Jz Jz Jz Jz Jz) + h.c.",
+   "l3: sym(J2 J2 Jz Jz Jz Jz) + h.c.",
+   "l4: sym(J2 J2 J2 Jz Jz) + h.c.",
+   "l5: sym(J2 J2 J2 J2) + h.c.",
+   "l6: sym(J2 J2 J2 (Jx Jx - Jy Jy)) + h.c.",
+   "l7: sym(J2 J2 Jz Jz (Jx Jx - Jy Jy)) + h.c.",
+   "l8: sym(J2 Jz Jz Jz Jz (Jx Jx - Jy Jy)) + h.c.",
+   "l9: sym(Jz Jz Jz Jz Jz Jz (Jx Jx - Jy Jy)) + h.c.",
+   "k1: sym(Jz Jz Jz Jz Jz Jz Jz Jz Jz Jz) + h.c."
+  ],
+  "usage": {
+   "cost_usd": 0.5772112,
+   "tokens": 17250,
+   "calls": 4
+  },
+  "stop_reason": "completed all rounds"
+ }
 }
 ```
 
@@ -204,13 +241,13 @@ Calibrated: 0.68, 0.95, 1.
    "held_out_K": 0,
    "n_held": 23,
    "n_terms": 10,
-   "rms_cm": 6.883268931870854e-05,
-   "max_abs_cm": 0.00011367023193997738,
+   "rms_cm": 6.883268882527587e-05,
+   "max_abs_cm": 0.00011367023176944713,
    "coverage": {
     "n": 23,
     "within_1sigma": 0.21739130434782608,
     "within_2sigma": 0.5217391304347826,
-    "rms_z": 2.170827532539,
+    "rms_z": 2.1708275221407396,
     "calibrated_would_be": {
      "within_1sigma": 0.683,
      "within_2sigma": 0.954,
@@ -222,13 +259,13 @@ Calibrated: 0.68, 0.95, 1.
    "held_out_K": 1,
    "n_held": 21,
    "n_terms": 10,
-   "rms_cm": 4.95860758893882e-05,
-   "max_abs_cm": 0.00011814213257821393,
+   "rms_cm": 4.9586075862670884e-05,
+   "max_abs_cm": 0.00011814213280558761,
    "coverage": {
     "n": 21,
     "within_1sigma": 0.47619047619047616,
     "within_2sigma": 0.7619047619047619,
-    "rms_z": 1.516715623911906,
+    "rms_z": 1.5167156208687944,
     "calibrated_would_be": {
      "within_1sigma": 0.683,
      "within_2sigma": 0.954,
@@ -240,13 +277,13 @@ Calibrated: 0.68, 0.95, 1.
    "held_out_K": 2,
    "n_held": 20,
    "n_terms": 10,
-   "rms_cm": 5.2360013590678435e-05,
-   "max_abs_cm": 0.00011801985499459988,
+   "rms_cm": 5.2360006402692226e-05,
+   "max_abs_cm": 0.00011801984004478072,
    "coverage": {
     "n": 20,
     "within_1sigma": 0.4,
     "within_2sigma": 0.75,
-    "rms_z": 1.738025213224968,
+    "rms_z": 1.7380249724969812,
     "calibrated_would_be": {
      "within_1sigma": 0.683,
      "within_2sigma": 0.954,
@@ -258,13 +295,13 @@ Calibrated: 0.68, 0.95, 1.
    "held_out_K": 3,
    "n_held": 42,
    "n_terms": 10,
-   "rms_cm": 0.0015803855867615425,
-   "max_abs_cm": 0.004896777679277875,
+   "rms_cm": 0.0015762866470295726,
+   "max_abs_cm": 0.004884490363110672,
    "coverage": {
     "n": 42,
     "within_1sigma": 1.0,
     "within_2sigma": 1.0,
-    "rms_z": 0.02447027440806896,
+    "rms_z": 0.046606597015413156,
     "calibrated_would_be": {
      "within_1sigma": 0.683,
      "within_2sigma": 0.954,
@@ -276,13 +313,13 @@ Calibrated: 0.68, 0.95, 1.
    "held_out_K": 4,
    "n_held": 16,
    "n_terms": 10,
-   "rms_cm": 4.385693981004534e-05,
-   "max_abs_cm": 7.483750061965111e-05,
+   "rms_cm": 4.385693605748835e-05,
+   "max_abs_cm": 7.48374969816723e-05,
    "coverage": {
     "n": 16,
     "within_1sigma": 0.3125,
     "within_2sigma": 0.8125,
-    "rms_z": 1.4928484602502528,
+    "rms_z": 1.4928483356926872,
     "calibrated_would_be": {
      "within_1sigma": 0.683,
      "within_2sigma": 0.954,
@@ -294,13 +331,13 @@ Calibrated: 0.68, 0.95, 1.
    "held_out_K": 5,
    "n_held": 14,
    "n_terms": 10,
-   "rms_cm": 4.2830238396301995e-05,
-   "max_abs_cm": 7.116652807326318e-05,
+   "rms_cm": 4.283023809127129e-05,
+   "max_abs_cm": 7.116652815852831e-05,
    "coverage": {
     "n": 14,
     "within_1sigma": 0.42857142857142855,
     "within_2sigma": 0.7857142857142857,
-    "rms_z": 1.4451306896087448,
+    "rms_z": 1.4451306800332249,
     "calibrated_would_be": {
      "within_1sigma": 0.683,
      "within_2sigma": 0.954,
@@ -312,13 +349,13 @@ Calibrated: 0.68, 0.95, 1.
    "held_out_K": 6,
    "n_held": 20,
    "n_terms": 10,
-   "rms_cm": 0.0002061128191175362,
-   "max_abs_cm": 0.0005823099590998027,
+   "rms_cm": 0.00020611281173377703,
+   "max_abs_cm": 0.0005823099370445561,
    "coverage": {
     "n": 20,
     "within_1sigma": 0.15,
     "within_2sigma": 0.55,
-    "rms_z": 4.214061981093701,
+    "rms_z": 4.214061823210228,
     "calibrated_would_be": {
      "within_1sigma": 0.683,
      "within_2sigma": 0.954,
@@ -330,13 +367,13 @@ Calibrated: 0.68, 0.95, 1.
    "held_out_K": 7,
    "n_held": 10,
    "n_terms": 10,
-   "rms_cm": 5.8749803543634134e-05,
-   "max_abs_cm": 0.00011029634777059982,
+   "rms_cm": 5.874980108366217e-05,
+   "max_abs_cm": 0.00011029632878489792,
    "coverage": {
     "n": 10,
     "within_1sigma": 0.4,
     "within_2sigma": 0.8,
-    "rms_z": 1.873167297705746,
+    "rms_z": 1.8731671938729677,
     "calibrated_would_be": {
      "within_1sigma": 0.683,
      "within_2sigma": 0.954,
@@ -348,13 +385,13 @@ Calibrated: 0.68, 0.95, 1.
    "held_out_K": 8,
    "n_held": 9,
    "n_terms": 10,
-   "rms_cm": 8.765011554232507e-05,
-   "max_abs_cm": 0.00016299512537898408,
+   "rms_cm": 8.76501177742663e-05,
+   "max_abs_cm": 0.00016299514476258992,
    "coverage": {
     "n": 9,
     "within_1sigma": 0.2222222222222222,
     "within_2sigma": 0.3333333333333333,
-    "rms_z": 2.959940491335746,
+    "rms_z": 2.959940561229331,
     "calibrated_would_be": {
      "within_1sigma": 0.683,
      "within_2sigma": 0.954,
@@ -366,13 +403,13 @@ Calibrated: 0.68, 0.95, 1.
    "held_out_K": 9,
    "n_held": 9,
    "n_terms": 10,
-   "rms_cm": 7.678662126131497e-05,
-   "max_abs_cm": 0.0001121723466894764,
+   "rms_cm": 7.678662183300301e-05,
+   "max_abs_cm": 0.00011217234350624494,
    "coverage": {
     "n": 9,
     "within_1sigma": 0.1111111111111111,
     "within_2sigma": 0.4444444444444444,
-    "rms_z": 2.6017546016849327,
+    "rms_z": 2.6017546248030605,
     "calibrated_would_be": {
      "within_1sigma": 0.683,
      "within_2sigma": 0.954,
@@ -384,15 +421,15 @@ Calibrated: 0.68, 0.95, 1.
  "CH4+ per-isotopologue line sigma (free 5-constant fit, chi2/dof = 1)": {
   "CH4+": {
    "n_lines": 21,
-   "free_fit_rms": 0.9437216858504643,
-   "sigma_line": 1.0811690150952722,
-   "chi2_per_dof_at_0.5": 4.675705756808323
+   "free_fit_rms": 0.943721685849914,
+   "sigma_line": 1.0811690150946416,
+   "chi2_per_dof_at_0.5": 4.67570575680287
   },
   "13CH4+": {
    "n_lines": 20,
-   "free_fit_rms": 0.9410678879444639,
-   "sigma_line": 1.0866515968608976,
-   "chi2_per_dof_at_0.5": 4.723246771841356
+   "free_fit_rms": 0.9410678879414694,
+   "sigma_line": 1.08665159685744,
+   "chi2_per_dof_at_0.5": 4.723246771811296
   },
   "CD4+": {
    "n_lines": 19,
@@ -404,71 +441,71 @@ Calibrated: 0.68, 0.95, 1.
  "CH4+ leave one N+ group out": {
   "reference": {
    "CH4+": {
-    "leave_one_N_group_out_rms": 2.434465845745512,
+    "leave_one_N_group_out_rms": 2.4344651582878867,
     "n": 21
    },
    "CD4+": {
-    "leave_one_N_group_out_rms": 0.7926922725284898,
+    "leave_one_N_group_out_rms": 0.7926908115942312,
     "n": 19
    }
   },
   "claude ccpvtz round 1": {
    "CH4+": {
-    "leave_one_N_group_out_rms": 2.5496995204105772,
+    "leave_one_N_group_out_rms": 2.5497396456317696,
     "n": 21
    },
    "CD4+": {
-    "leave_one_N_group_out_rms": 0.7833414809019728,
+    "leave_one_N_group_out_rms": 0.7833373172507909,
     "n": 19
    }
   },
   "claude ccpvtz round 2": {
    "CH4+": {
-    "leave_one_N_group_out_rms": 2.5497136897283883,
+    "leave_one_N_group_out_rms": 2.5497101330688707,
     "n": 21
    },
    "CD4+": {
-    "leave_one_N_group_out_rms": 0.7833533989899426,
+    "leave_one_N_group_out_rms": 0.7833377660361024,
     "n": 19
    }
   },
   "claude r2 round 1": {
    "CH4+": {
-    "leave_one_N_group_out_rms": 2.5496995204105772,
+    "leave_one_N_group_out_rms": 2.5497396456317696,
     "n": 21
    },
    "CD4+": {
-    "leave_one_N_group_out_rms": 0.7833414809019728,
+    "leave_one_N_group_out_rms": 0.7833373172507909,
     "n": 19
    }
   },
   "claude r2 round 2": {
    "CH4+": {
-    "leave_one_N_group_out_rms": 2.5497136897283883,
+    "leave_one_N_group_out_rms": 2.5497101330688707,
     "n": 21
    },
    "CD4+": {
-    "leave_one_N_group_out_rms": 0.7833533989899426,
+    "leave_one_N_group_out_rms": 0.7833377660361024,
     "n": 19
    }
   },
   "claude r2 round 3": {
    "CH4+": {
-    "leave_one_N_group_out_rms": 2.5497136897283883,
+    "leave_one_N_group_out_rms": 2.5497101330688707,
     "n": 21
    },
    "CD4+": {
-    "leave_one_N_group_out_rms": 0.7833533989899426,
+    "leave_one_N_group_out_rms": 0.7833377660361024,
     "n": 19
    }
   },
   "claude r2 round 4": {
    "CH4+": {
-    "leave_one_N_group_out_rms": 1.69531153011364,
+    "leave_one_N_group_out_rms": 1.6953116319083723,
     "n": 21
    },
    "CD4+": {
-    "leave_one_N_group_out_rms": 0.8055162389646214,
+    "leave_one_N_group_out_rms": 0.8055169323035097,
     "n": 19
    }
   }
@@ -478,9 +515,9 @@ Calibrated: 0.68, 0.95, 1.
 
 ## 5 Uncertainty budget for δ (cm⁻¹)
 
-- **ccpvdz CH4+**: base 13.409, CCSD(T) correction x0 (MP2) 11.146, CCSD(T) correction x2 16.269, ZPE(remaining modes) x0.9 12.524, ZPE(remaining modes) x1.1 14.385, harmonic valley (no plane grid) 9.096, range [9.09627011106422, 16.26892101010937]
-- **ccpvdz CD4+**: base 1.004, CCSD(T) correction x0 (MP2) 0.777, CCSD(T) correction x2 1.315, ZPE(remaining modes) x0.9 0.943, ZPE(remaining modes) x1.1 1.069, harmonic valley (no plane grid) 0.874, range [0.7765320626015372, 1.3149210061732977]
-- **ccpvtz CH4+**: base 13.128, CCSD(T) correction x0 (MP2) 10.025, CCSD(T) correction x2 17.483, ZPE(remaining modes) x0.9 12.082, ZPE(remaining modes) x1.1 14.300, harmonic valley (no plane grid) 8.343, range [8.343178138562147, 17.483498570810884]
-- **ccpvtz CD4+**: base 0.917, CCSD(T) correction x0 (MP2) 0.629, CCSD(T) correction x2 1.376, ZPE(remaining modes) x0.9 0.848, ZPE(remaining modes) x1.1 0.994, harmonic valley (no plane grid) 0.722, range [0.6287957791553916, 1.3755377889666438]
-Spin contamination: {"ccpvdz min": {"S2": 0.7562949709373123, "ideal": 0.75}, "ccpvdz ts": {"S2": 0.7578432508058031, "ideal": 0.75}}
+- **ccpvdz CH4+**: base 13.375, CCSD(T) correction x0 (MP2) 11.119, CCSD(T) correction x2 16.227, ZPE(remaining modes) x0.9 12.493, ZPE(remaining modes) x1.1 14.348, harmonic valley (no plane grid) 9.103, range [9.103154743029853, 16.22676916855349]
+- **ccpvdz CD4+**: base 0.998, CCSD(T) correction x0 (MP2) 0.772, CCSD(T) correction x2 1.307, ZPE(remaining modes) x0.9 0.938, ZPE(remaining modes) x1.1 1.063, harmonic valley (no plane grid) 0.854, range [0.7722117827284088, 1.3074674874054184]
+- **ccpvtz CH4+**: base 13.094, CCSD(T) correction x0 (MP2) 10.001, CCSD(T) correction x2 17.436, ZPE(remaining modes) x0.9 12.053, ZPE(remaining modes) x1.1 14.262, harmonic valley (no plane grid) 8.351, range [8.351394765887036, 17.43610534797822]
+- **ccpvtz CD4+**: base 0.914, CCSD(T) correction x0 (MP2) 0.627, CCSD(T) correction x2 1.369, ZPE(remaining modes) x0.9 0.845, ZPE(remaining modes) x1.1 0.991, harmonic valley (no plane grid) 0.721, range [0.6269978625938861, 1.369335248141691]
+Spin contamination: {"ccpvdz min": {"S2": 0.7562949709373088, "ideal": 0.75}, "ccpvdz ts": {"S2": 0.757843250805796, "ideal": 0.75}, "ccpvtz min": {"S2": 0.7571851815849331, "ideal": 0.75}, "ccpvtz ts": {"S2": 0.7592145814343554, "ideal": 0.75}}
 
