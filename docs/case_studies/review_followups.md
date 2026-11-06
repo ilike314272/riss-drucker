@@ -27,7 +27,7 @@ python scripts/review_followups.py all --data DATA_DIR --pdf JCP_126_144305.pdf
 | 6 | CH₄⁺ statistics overstated | **Confirmed** | Per-isotopologue σ estimated (CH₄⁺ ≈ 1.1 cm⁻¹, not 0.5). The frame-rotation claim is rewritten as "suggestive for CH₄⁺, no evidence for CD₄⁺". |
 | 7 | δ not tested against its sensitivity | Confirmed | Uncertainty budget below: the measured δ lies inside it |
 | 8 | Docs and verifier drifted | Confirmed | cc-pVTZ first-principles values recorded and checked; stale tables replaced; the verifier is described as a reproducibility check |
-| 9 | Claude evidence thin, first-principles scoring circular | **Confirmed**: the plain dictionary matches or beats Claude | Dictionary baseline and hidden-truth synthetic molecule added (below); the circularity is documented |
+| 9 | Claude evidence thin, first-principles scoring circular | **Confirmed**: the plain dictionary matches or beats Claude, and on the blind synthetic test it is about 100× better | Dictionary baseline and hidden-truth synthetic molecule added (below); the circularity is documented |
 | 10 | H2O2 headline omits the ZPE row | Valid | Headline now quotes both: 0.15–1.6% without ZPE, 0.5–2.0% with it (splitting 10.0 vs 11.4) |
 | 11 | H2S solver tuned on its own data | Valid | Not yet changed |
 | 12 | Error prior may be biased | Valid | Not yet changed |
@@ -140,7 +140,20 @@ operators; two duplicate the rotor and are rejected by the compiler.
 | Reference (rigid rotor plan) | 0.76 |
 | True model | 3.9×10⁻⁵ |
 | Dictionary greedy, 4 steps | 6.0×10⁻⁵: recovers all three hidden terms plus one spurious one; its first pick was wrong |
-| Claude | not run here: `review_followups.py baselines --llm --model opus` on the WSL machine |
+| **Claude** (Opus, 4 rounds, $0.58 reported usage; run on the WSL machine) | **6.5×10⁻³**: a 25-term Watson-style expansion up to 10th order |
 
-This is the test that can show whether Claude adds anything beyond the dictionary: it cannot have
-read the answer, and the bar is set.
+**Claude does about 100× worse than the dictionary on the blind test.** It proposed a generic,
+textbook expansion: every product of J², J_z² and (J_x² − J_y²) up to tenth order, 25 parameters.
+Fitted to the 49 levels with J ≤ 6, that model nearly interpolates and then extrapolates poorly.
+The greedy dictionary search judges each candidate term by its effect on held-out levels, finds
+the three hidden terms (plus one spurious), and gets within a factor of 1.5 of the true model.
+
+**Caveats.**
+- **Unequal budgets:** the dictionary evaluated about 80 candidate models, and Claude made 4
+  proposals. At an equal budget the greedy search would not have finished its first step.
+- **Limited feedback:** Claude saw only each round's overall score, not per-term effects.
+
+A fairer design would give Claude per-term diagnostics, or use it to propose candidate pools that
+the systematic search then tests. As the evidence stands, the review's point holds: in every test
+so far, systematic search matches or beats the language model, and Claude's one clear win (the
+first-principles levels) was circular.
